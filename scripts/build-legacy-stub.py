@@ -7,10 +7,12 @@ native_legacy_display_late_probe() unconditionally, but the real archive
 before the kernel links.
 
 Stage A of the bootstrap links a kernel without the storage and display stacks;
-this archive supplies just those two symbols so it can link. CONFIG_XNU_EXTRA_LD_ARCHIVES
+this archive supplies the display hooks and an optional passive UFS observer
+fallback so it can link. CONFIG_XNU_EXTRA_LD_ARCHIVES
 points at the result.
 """
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -47,14 +49,20 @@ archive.unlink(missing_ok=True)
 subprocess.run(['xcrun', 'ar', 'rcs', str(archive), str(obj)], check=True, timeout=30)
 print(f'legacy stub archive: {archive}')
 
-# Which archive ends up on the kernel link line is not something this device
-# repository controls, and a static library listed before the object that needs
-# it is never searched twice. Put the stub object into every archive we built
-# so the symbol is found whichever one the link pulls in.
-added = 0
-for other in sorted((ROOT / 'build').glob('*/lib*.a')):
-    if other == archive:
-        continue
-    subprocess.run(['xcrun', 'ar', 'rcs', str(other), str(obj)], check=True, timeout=30)
-    added += 1
-print(f'legacy stub object added to {added} other archives')
+# The UFS and RAM-root profiles explicitly force-load this archive once.
+# Injecting its strong display definitions into every force-loaded archive would
+# produce duplicate symbols. Retain the old Stage A fallback for other profiles.
+if os.environ.get('XNU_NATIVE_UFS') == '1' or os.environ.get('XNU_RAM_ROOT_PROBE') == '1':
+    print('Explicit diagnostic archive link: skip Stage A cross-archive injection')
+else:
+    # Which archive ends up on the kernel link line is not something this device
+    # repository controls, and a static library listed before the object that needs
+    # it is never searched twice. Put the stub object into every archive we built
+    # so the symbol is found whichever one the link pulls in.
+    added = 0
+    for other in sorted((ROOT / 'build').glob('*/lib*.a')):
+        if other == archive:
+            continue
+        subprocess.run(['xcrun', 'ar', 'rcs', str(other), str(obj)], check=True, timeout=30)
+        added += 1
+    print(f'legacy stub object added to {added} other archives')

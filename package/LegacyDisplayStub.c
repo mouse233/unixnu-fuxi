@@ -9,9 +9,9 @@
  * cannot exist before the kernel links, so the archive step cannot run on a
  * first build.
  *
- * Linking these no-ops lets the kernel link. The boot progress layer still
- * draws to the handed-over frame buffer, so console visibility does not depend
- * on these hooks. Replace them once the prelink exists.
+ * Linking these no-ops lets the diagnostic kernel link. Its panic screen is
+ * the visible output while the full display/boot progress stack is absent.
+ * Replace the display hooks once that stack is available.
  */
 
 void
@@ -25,5 +25,13 @@ void
 native_legacy_display_late_probe (
   void
   )
+{
+}
+
+/* NativeUfs has an optional passive observer. A static kernel link still
+ * requires a definition for its weak reference. The real BootProgress
+ * implementation overrides this fallback when that stack is selected. */
+void __attribute__((weak))
+boot_progress_poll (void)
 {
 }

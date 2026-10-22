@@ -26,10 +26,11 @@ fetch = ["KernelCache", "DeviceTree", "StaticTrustCache", "Cryptex1,SystemTrustC
 "044-76034-038.dmg" = "b4908cde41d23e6bc05e6af51a2c9eeb00cf0f863a6a18b1600c96a3fd70414f"
 
 # The raw image for the userdata partition: the OS and SystemOS disk images of the IPSW behind a manifest.
-# first_lba and last_lba are the GPT entry "userdata" of LUN 0, read from the tablet.
+# GPT entry "userdata" of fuxi LUN 0, observed with native-ufs-probe=10
+# on 2026-10-23; see boot-tests/2026-10-23-ufs-readonly/observation.json.
 [userdata]
 first_lba = 0x2F7840
-last_lba = 0x76923FA
+last_lba = 0x3AFC3FA
 lba_bytes = 4096
 windows = [
   { name = "OS", component = "OS" },
@@ -38,20 +39,23 @@ windows = [
 
 [kernel]
 defconfig = "fuxi_defconfig"
-# Archive builders of the kernel step, in order. Each is a script of the build tree with its arguments. The VerifiedRoot
-# and VirtIO verified bundles are not built here; they need the volume policies of the target image.
+# Archive builders for the UFS diagnostic stage. The OS policy and the
+# native-apfs-load-positive reference candidate must already exist locally.
+# Static storage ABI checks do not qualify live metadata or device I/O.
 archives = [
   "build-corecrypto-14.py",
   "build-corecrypto-14.py --namespace",
   "build-arm-driver.py ArmDTPlatform",
   "build-arm-driver.py ArmCpu",
   "build-arm-driver.py NativeAES",
-  "audit-storage-interface.py",
+  "audit-storage-interface.py --static-only",
   "build-arm-driver.py NativeUfs",
+  "build-native-virtio-bindings.py --component NativeUfs --directory build/native-ufs --allow-static-audit",
+  "build-verified-root-probe.py --component os --single-policy-table",
   "build-native-aes-bindings.py",
+  "build-sheng-platform-power.py",
   "build-boot-progress.py",
   "build-libpthread-kernel.py",
-  "build-native-legacy-display.py",
   "build-legacy-stub.py",
 ]
 
@@ -130,7 +134,7 @@ BUILDID_STRING = "fuxi-research"
 volume = "FUXIESP"
 size_mib = 192
 loader = "firmware"
-title = "fuxi first boot: source 4K XNU to console"
+title = "fuxi UFS: read-only GPT diagnostic"
 dram_size = "0x80000000"             # SMEM RAM table observed on the device
 skip_setup_tool = "scripts/seed-data-skip-setup.py"   # used by --skip-setup
 panic_screen = true                  # patch panic() screen output into the payload copy of the kernel
@@ -139,52 +143,21 @@ trust_cache_sha256 = [
   "7416ca4f8377146626bb284e2133c76bee6cb4e3ee0af5d648b186235a7323a7",
   "8900d6a93d7a59ce1a872a5c081e559f4240a218f97e12d44d22dda46644d68f",
 ]
+# Stop in NativeUfs's read-only GPT/first-block probe before root publication.
+# The diagnostic panic is intentional; no UniXNU userdata layout is assumed.
 kernel_args = [
   "-v",
   "serial=3",
   "debug=0x14e",
   "kt_fixed_zones=120",
-  "offline-legacy-register=1",
-  "offline-legacy-gop=1",
-  "offline-legacy-unit-scale=2",
-  "offline-legacy-pm=1",
-  "offline-legacy-validate=1",
-  "offline-legacy-transfer=1",
-  "offline-legacy-cpu-present=1",
-  "offline-hid-home=1",
-  "offline-hid-input=1",
-  "offline-legacy-phase=4",
-  "offline-mobile-graphics-client=1",
-  "offline-mobile-graphics-load=1",
-  "offline-apfs-load=1",
-  "boot-progress=2",
-  "-apfs_shared_datavolume",
-  "offline-key-events=1",
-  # First boot carries no storage stack: the owner root and the PMGR integration
-  # are not linked yet (package/StageAStorageStubs.c), so the UFS root path and
-  # the AMFI PMGR gate stay off. Boot progress draws before any root mount.
-  # "native-ufs-root=1",
-  # "sheng-pmgr=2",
+  "native-ufs-root=0",
+  "native-ufs-probe=10",
+  "native-ufs-diagnostics=1",
+  "sheng-pmgr=2",
   "armcpu-diagnostics=1",
-  "sheng-disable-watchdogd=1",
-  "sheng-disable-jobs=com.apple.identityservicesd,com.apple.locationd,com.apple.CommCenter,com.apple.bluetoothd",
-  "boot-ui-focus3=Preferences",
-  "boot-ui-focus4=SpringBoard",
-  "sheng-smp=1",
-  "sheng-cpufreq=3",
-  "sheng-touch=4",
-  "sheng-aks=1",
-  "sheng-gpu-power=9",
-  "sheng-gpu-metal=1",
-  "sheng-fb-gpu=1",
-  "sheng-banner=0",
-  "sheng-gpu-perf=8",
-  "sheng-gpu-addon=1",
-  "armcpu-spi-ipi=1",
-  "-no_slto_panic",
-  "ml-timeout-lock-panic-scale=40",
-  "sheng-touch-hid=1",
-  "sheng-data-persist=2",
+  "boot-progress=0",
+  "sheng-data-persist=0",
+  "sheng-log=0",
 ]
 
 [payload.adt]
@@ -195,14 +168,11 @@ root_match_volume_uuid = "04769D26-2CA0-4825-B443-E2E5F88300F2"
 cpu_regs = "0,0x100,0x200,0x300,0x400,0x500,0x600,0x700"
 packed_data_ramdisk = true
 ipad_identity = true
-unique_chip_id = "required"          # the seed is passed with --unique-chip-id (or UNIXNU_UNIQUE_CHIP_ID)
+unique_chip_id = "required"          # the platform seed is not stored in any repository
 
 # Image parameters come from the Mu-Silicium device config; [bootimg.image] would override them.
 
-# The stock ABL powers the panel off when the device tree has no splash region, so add it.
-[[bootimg.dtb_node]]
-path = "/reserved-memory/splash_region"
-props = [
-  { name = "label", type = "s", value = "cont_splash_region" },
-  { name = "reg", type = "x", value = ["0x0", "0xb8000000", "0x0", "0x2b00000"] },
-]
+# No [[bootimg.dtb_node]] for fuxi: its own device tree already carries
+# /reserved-memory/splash_region (reg = <0x0 0xb8000000 0x0 0x2b00000>), unlike
+# sheng's. The firmware package says the same in fuxi.dsc. Adding the node again
+# fails with FDT_ERR_EXISTS.
