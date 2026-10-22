@@ -1,0 +1,52 @@
+diff --git a/Platforms/Xiaomi/fuxiPkg/Drivers/FuxiPayloadDxe/PayloadBounds.h b/Platforms/Xiaomi/fuxiPkg/Drivers/FuxiPayloadDxe/PayloadBounds.h
+index 2be50553..0530e8ae 100644
+--- a/Platforms/Xiaomi/fuxiPkg/Drivers/FuxiPayloadDxe/PayloadBounds.h
++++ b/Platforms/Xiaomi/fuxiPkg/Drivers/FuxiPayloadDxe/PayloadBounds.h
+@@ -10,2 +10,2 @@
+-#define FUXI_PAYLOAD_SIZE  (4U * 1024U * 1024U)
+-#define FUXI_INITRD_LIMIT  (64U * 1024U * 1024U)
++#define FUXI_PAYLOAD_SIZE  (192U * 1024U * 1024U)
++#define FUXI_INITRD_LIMIT  (224U * 1024U * 1024U)
+@@ -52,2 +52,11 @@ FuxiBytesEqual (CONST UINT8 *Left, CONST CHAR8 *Right, UINTN Length)
+-// Exact geometry emitted by tools/make_fuxi_payload.py. Identity is diagnostic,
+-// not authentication. Remaining is checked before reading any BPB field.
++// Discovery tag plus a structural FAT16 check. Identity is diagnostic, not
++// authentication; a duplicate candidate is refused by the caller.
++//
++// This used to be a byte-exact BPB of the 4 MiB diagnostic image that
++// tools/make_fuxi_payload.py emitted. The real payload is the 192 MiB volume the
++// unixnu driver makes with mformat, whose geometry mtools chooses itself
++// (reserved sectors 32, two FATs, four sectors per cluster, the FS type field
++// left blank), so an exact BPB cannot be written down. What replaces it is the
++// one identity the size pins: the BPB must describe exactly FUXI_PAYLOAD_SIZE
++// bytes. The OEM name carries the tag, which the boot-image packager writes.
++// Remaining is checked before reading any BPB field.
+@@ -57,0 +67,3 @@ FuxiPayloadHeader (CONST UINT8 *Bytes, UINTN Remaining)
++  UINT32  Total;
++  UINT8   PerCluster;
++
+@@ -64,9 +76,15 @@ FuxiPayloadHeader (CONST UINT8 *Bytes, UINTN Remaining)
+-  return (FuxiLe16 (Bytes + 11) == 512) && (Bytes[13] == 1) &&
+-         (FuxiLe16 (Bytes + 14) == 1) && (Bytes[16] == 2) &&
+-         (FuxiLe16 (Bytes + 17) == 256) && (FuxiLe16 (Bytes + 19) == 8192) &&
+-         (Bytes[21] == 0xF8) && (FuxiLe16 (Bytes + 22) == 32) &&
+-         (FuxiLe32 (Bytes + 28) == 0) && (FuxiLe32 (Bytes + 32) == 0) &&
+-         (Bytes[38] == 0x29) && (FuxiLe32 (Bytes + 39) == 0x46555832) &&
+-         FuxiBytesEqual (Bytes + 43, "FUXIPAYLOAD", 11) &&
+-         FuxiBytesEqual (Bytes + 54, "FAT16   ", 8) &&
+-         (Bytes[510] == 0x55) && (Bytes[511] == 0xAA);
++  PerCluster = Bytes[13];
++  if ((FuxiLe16 (Bytes + 11) != 512) || (PerCluster == 0) || (PerCluster > 128) ||
++      ((PerCluster & (PerCluster - 1)) != 0) || (FuxiLe16 (Bytes + 14) == 0) ||
++      (FuxiLe16 (Bytes + 14) > 64) || (FuxiLe16 (Bytes + 16) < 1) ||
++      (FuxiLe16 (Bytes + 16) > 2) || (Bytes[21] != 0xF8) ||
++      (Bytes[510] != 0x55) || (Bytes[511] != 0xAA)) {
++    return FALSE;
++  }
++
++  Total = FuxiLe16 (Bytes + 19);
++  if (Total == 0) {
++    Total = FuxiLe32 (Bytes + 32);
++  }
++
++  return ((UINT64)Total * 512 == FUXI_PAYLOAD_SIZE);

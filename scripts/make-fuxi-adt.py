@@ -93,6 +93,7 @@ def main():
     parser.add_argument('--data-ramdisk', action='store_true',
                         help='/chosen/memory-map RAMDisk placeholder; the loader fills in the real range for a scratch Data seed')
     parser.add_argument('--trust-cache', action='store_true', help='Zeroed TrustCache sidecar handoff placeholder')
+    parser.add_argument('--os-environment', choices=['main', 'ramdisk', 'recoveryos'], default='main')
     args = parser.parse_args()
     if (args.unique_chip_id is None) != (args.chip_id is None):
         parser.error('--unique-chip-id and --chip-id must be supplied together')
@@ -132,7 +133,7 @@ def main():
                           if args.unique_chip_id is not None else []),
                         # This boots the normal target OS. Volatile Data is
                         # described separately by ephemeral-storage below.
-                        ('osenvironment', b'main\0'),
+                        ('osenvironment', args.os_environment.encode() + b'\0'),
                         # Security status as on a dev-fused, undemoted board (tuple 0,0,1,1), as read by MobileGestalt: mobileactivationd's
                         # DeviceType then takes its native "Hactivation" branch (Activated without an activation record; no SEP or
                         # baseband). Values established on hardware by github.com/dipa-studio/ios-sweet (tools/mkadt.py).

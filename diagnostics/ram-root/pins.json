@@ -1,0 +1,9 @@
+{
+  "image_bytes": 184549376,
+  "image_sha256": "aadb59ed21a8f0218a348f070913ab5a7679805c58408534d811170871f1fc05",
+  "file_path": "/sbin/launchd",
+  "file_bytes": 561856,
+  "file_sha256": "8cec9a3c44a443b08e977ccc5d577850316ad428c575dc01f09b018dbd5b6a25",
+  "physical_storage_allowed": false,
+  "start_userland_allowed": false
+}

@@ -7,7 +7,8 @@ native_legacy_display_late_probe() unconditionally, but the real archive
 before the kernel links.
 
 Stage A of the bootstrap links a kernel without the storage and display stacks;
-this archive supplies just those two symbols so it can link. CONFIG_XNU_EXTRA_LD_ARCHIVES
+this archive supplies the display hooks and an optional passive UFS observer
+fallback so it can link. CONFIG_XNU_EXTRA_LD_ARCHIVES
 points at the result.
 """
 import json
