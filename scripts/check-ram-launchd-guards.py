@@ -11,15 +11,21 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--ramdisk', type=Path, required=True)
 parser.add_argument('--launchd', type=Path, required=True)
 parser.add_argument('--syscall-header', type=Path, required=True, help='Generated sys/syscall.h of the pinned XNU source')
+parser.add_argument('--progress', action='store_true', help='Exercise combined run, including continuation and RAM trace')
+parser.add_argument('--restore-trust', action='store_true', help='Require successful original restore module load before md0')
 args = parser.parse_args()
+if args.restore_trust and not args.progress: parser.error('--restore-trust requires --progress')
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / 'out/ram-main-guard-tests'
+OUT = ROOT / ('out/ram-progress-guard-tests' if args.progress else 'out/ram-main-guard-tests')
 OUT.mkdir(parents=True, exist_ok=True)
 old_test = ast.parse((ROOT / 'scripts/check-ram-root-guards.py').read_text())
 api = next(ast.literal_eval(node.value) for node in old_test.body if isinstance(node, ast.Assign)
            and any(isinstance(target, ast.Name) and target.id == 'api' for target in node.targets))
+api = api.replace('static int pid=1,', 'static int target_pid=1;\nstatic int pid=1,').replace('if(!proc) abort();return pid;', 'if(!proc) abort();return proc==&target_pid?target_pid:pid;')
 api += r'''
-typedef void *thread_t;
+typedef void *task_t;
+typedef void *vm_map_t;
+typedef void *proc_t;
 typedef int kern_return_t;
 typedef int thread_flavor_t;
 typedef uint32_t *thread_state_t;
@@ -36,20 +42,27 @@ typedef void *thread_call_param_t;
 #define ARM_DBG_CR_ENABLE_ENABLE 1
 #define NSEC_PER_SEC 1000000000
 static thread_t host_thread=(void *)1;
-static arm_saved_state_t user_state;
+static arm_saved_state_t user_state, retiring_state;
+static vm_map_t active_map=(void *)1;
+static int target_map_reads=0, debug_armed_before_resume=0;
+static int expected_debug_thread=3;
+static thread_t get_threadtask(thread_t t) {return t;}
+static vm_map_t get_task_map(task_t task) {return task;}
+static void *get_bsdtask_info(task_t task) {if(task!=(void *)3) abort();return &target_pid;}
+static vm_map_t vm_map_switch(vm_map_t map) {vm_map_t old=active_map;active_map=map;return old;}
 static arm_debug_state64_t installed_debug;
 static int set_state_error=0, allocate_error=0, debug_missing=0;
 static void (*timeout_callback)(void *,void *);
 static thread_t current_thread(void) {return host_thread;}
-static arm_saved_state_t *get_user_regs(thread_t t) {if(t!=host_thread) abort();return &user_state;}
+static arm_saved_state_t *get_user_regs(thread_t t) {return t==(void *)3?&user_state:&retiring_state;}
 static int is_saved_state64(arm_saved_state_t *s) {return s!=NULL;}
 static uint64_t get_saved_state_sp(arm_saved_state_t *s) {return s->sp;}
 static uint32_t get_saved_state_cpsr(arm_saved_state_t *s) {return s->cpsr;}
 kern_return_t machine_thread_set_state(thread_t t,thread_flavor_t flavor,thread_state_t state,mach_msg_type_number_t count) {
-    if(t!=host_thread || flavor!=ARM_DEBUG_STATE64 || count!=ARM_DEBUG_STATE64_COUNT) abort();
-    if(set_state_error) return set_state_error; memcpy(&installed_debug,state,sizeof(installed_debug));return 0;
+    if(t!=(void *)(uintptr_t)expected_debug_thread || flavor!=ARM_DEBUG_STATE64 || count!=ARM_DEBUG_STATE64_COUNT) abort();
+    if(set_state_error) return set_state_error; if(host_thread==(void *)1) debug_armed_before_resume=1; memcpy(&installed_debug,state,sizeof(installed_debug));return 0;
 }
-static arm_debug_state64_t *find_debug_state64(thread_t t) {if(t!=host_thread) abort();return debug_missing?NULL:&installed_debug;}
+static arm_debug_state64_t *find_debug_state64(thread_t t) {if(t!=(void *)3) abort();return debug_missing?NULL:&installed_debug;}
 static thread_call_t thread_call_allocate(void (*fn)(void *,void *),void *arg) {
     if(arg) abort();timeout_callback=fn;return allocate_error?NULL:(void *)1;
 }
@@ -60,6 +73,23 @@ static int thread_call_enter_delayed(thread_call_t call,uint64_t deadline) {
     if(!call || deadline!=30000000000ULL) abort();return 0;
 }
 '''
+if args.progress:
+    api = api.replace('seconds!=30', 'seconds!=90').replace('30000000000ULL', '90000000000ULL')
+    api += r'''
+static int copyinstr(uint64_t address, char *out, size_t bytes, size_t *copied) {
+    const char *in=(const char *)(uintptr_t)address;
+    if(address==1) return 14;
+    size_t n=strnlen(in,bytes);memcpy(out,in,n);
+    if(n==bytes) return 63;out[n]=0;*copied=n+1;return 0;
+}
+'''
+api = api.replace('static int copyin(', 'static int common_copyin(')
+api += r'''
+static int copyin(user_addr_t address,void *buffer,size_t bytes) {
+    if(active_map!=(void *)3) return 14;
+    target_map_reads++;return common_copyin(address,buffer,bytes);
+}
+'''
 # Keep syscall numbers tied to the target kernel header, not the host OS.
 header = args.syscall_header
 api += '\n' + '\n'.join(line for line in header.read_text().splitlines() if line.startswith('#define\tSYS_'))
@@ -68,6 +98,10 @@ pins = '#define RAM_ROOT_IMAGE_BYTES UINT64_C(184549376)\n#define RAM_ROOT_FILE_
 for name, key in [('image', 'image_sha256'), ('file', 'file_sha256')]:
     pins += 'static const uint8_t ram_root_' + name + '_sha256[32] = {' + ','.join(hex(x) for x in bytes.fromhex(pins_data[key])) + '};\n'
 pins += 'static const uint8_t ram_root_main_bytes[16] = {' + ','.join(hex(x) for x in bytes.fromhex('ff8305d1fc6f12a9f65713a9f44f14a9')) + '};\n'
+if args.restore_trust:
+    api += '\nunsigned fuxi_ram_restore_trust_loaded=267;\n'
+    pins += '#define RAM_ROOT_RESTORE_TRUST 1\n'
+pins += '#define RAM_ROOT_PROGRESS ' + str(int(args.progress)) + '\n'
 assert '#define RAM_ROOT_ALLOW_MAIN_ENTRY 1' in pins
 bodies = []
 for name in ['RamRootProbe.c', 'RamLaunchdProbe.c']:
@@ -92,15 +126,31 @@ int main(int argc,char **argv) {
     launchd[0]^=1;REFUSE("launchd SHA256 mismatch",fuxi_ram_root_probe_after_mount(mdevlookup(0),&root_node));launchd[0]^=1;
     fuxi_ram_root_probe_after_mount(mdevlookup(0),&root_node);REQUIRE(fuxi_ram_root_stage==7);
     uint8_t *image=aligned_alloc(4096,565248);REQUIRE(image);memcpy(image,launchd,561856);
-    uint64_t startup[2]={(uintptr_t)image,1};user_state.sp=(uintptr_t)startup;user_state.cpsr=0;
+    uint64_t startup[5]={(uintptr_t)image,1,(uintptr_t)"/sbin/launchd",0,0};user_state.sp=(uintptr_t)startup;user_state.cpsr=0;
     REFUSE("refused exec",fuxi_ram_user_exec_result(0,"/usr/local/bin/restored_external",1));
     REFUSE("exec failed",fuxi_ram_user_exec_result(13,"/sbin/launchd",1));
-    startup[1]=2;REFUSE("invalid original dyld startup stack",fuxi_ram_user_exec_result(0,"/sbin/launchd",1));startup[1]=1;
-    fuxi_ram_root_stage=8;image[0]^=1;REFUSE("header/entry mismatch",fuxi_ram_main_arm());image[0]^=1;
-    image[85896]^=1;REFUSE("header/entry mismatch",fuxi_ram_main_arm());image[85896]^=1;
-    set_state_error=5;REFUSE("cannot arm",fuxi_ram_main_arm());set_state_error=0;
-    allocate_error=1;REFUSE("cannot allocate diagnostic deadline",fuxi_ram_main_arm());allocate_error=0;
-    fuxi_ram_root_stage=7;fuxi_ram_user_exec_result(0,"/sbin/launchd",1);
+        REFUSE("without replacement-thread checkpoint",fuxi_ram_user_exec_result(0,"/sbin/launchd",1));
+    target_pid=2;REFUSE("invalid replacement thread",fuxi_ram_user_exec_ready((void *)3,1));target_pid=1;
+    fuxi_ram_root_stage=7;
+    startup[1]=3;REFUSE("invalid original dyld startup stack",fuxi_ram_user_exec_ready((void *)3,1));startup[1]=1;
+    fuxi_ram_root_stage=8;image[0]^=1;REFUSE("header/entry mismatch",fuxi_ram_main_arm((void *)3));image[0]^=1;
+    image[85896]^=1;REFUSE("header/entry mismatch",fuxi_ram_main_arm((void *)3));image[85896]^=1;
+    startup[2]=(uintptr_t)"/wrong/program";REFUSE("unexpected original launchd argv",fuxi_ram_main_arm((void *)3));startup[2]=(uintptr_t)"/sbin/launchd";
+    startup[3]=1;REFUSE("invalid original dyld startup stack",fuxi_ram_main_arm((void *)3));startup[3]=0;
+    REQUIRE(active_map==(void *)1);cases++;
+    startup[1]=2;startup[3]=(uintptr_t)"-x";
+    REFUSE("unexpected original launchd argv",fuxi_ram_main_arm((void *)3));
+    startup[3]=(uintptr_t)"-s";fuxi_ram_main_arm((void *)3);REQUIRE(active_map==(void *)1);cases++;
+    startup[1]=1;startup[3]=0;
+    copy_error=14;REFUSE("invalid original dyld startup stack",fuxi_ram_main_arm((void *)3));copy_error=0;
+    REQUIRE(strstr(message,"errno=14") && active_map==(void *)1);cases++;
+    set_state_error=5;REFUSE("cannot arm",fuxi_ram_main_arm((void *)3));set_state_error=0;
+    allocate_error=1;REFUSE("cannot allocate diagnostic deadline",fuxi_ram_main_arm((void *)3));allocate_error=0;
+    fuxi_ram_root_stage=7;fuxi_ram_user_exec_ready((void *)3,1);
+    REQUIRE(host_thread==(void *)1 && retiring_state.sp==0 && active_map==(void *)1);
+    REQUIRE(target_map_reads>0 && debug_armed_before_resume);cases++;
+    fuxi_ram_user_exec_result(0,"/sbin/launchd",1);
+    host_thread=(void *)3;active_map=(void *)3;
     REQUIRE(fuxi_ram_root_stage==8 && installed_debug.bvr[0]==(uintptr_t)image+85896+4 && installed_debug.bcr[0]==0x1e5);
     REQUIRE(!memcmp(image,launchd,561856));
     for(unsigned i=1;i<16;i++) REQUIRE(!installed_debug.bvr[i] && !installed_debug.bcr[i]);
@@ -109,7 +159,7 @@ int main(int argc,char **argv) {
     unsigned blocked[]={SYS_fork,SYS_vfork,SYS_execve,SYS_posix_spawn,SYS___mac_execve,SYS_mount,SYS_unmount,SYS___mac_mount,SYS_fmount,SYS_reboot,SYS_ptrace};
     for(unsigned i=0;i<sizeof(blocked)/sizeof(blocked[0]);i++) REFUSE("blocked syscall",fuxi_ram_main_unix(blocked[i]));
     pid=2;REFUSE("refused context",fuxi_ram_main_svc(0x1000,0,0x56000080,74));pid=1;
-    host_thread=(void *)2;REFUSE("refused context",fuxi_ram_main_svc(0x1000,0,0x56000080,74));host_thread=(void *)1;
+    host_thread=(void *)2;REFUSE("refused context",fuxi_ram_main_svc(0x1000,0,0x56000080,74));host_thread=(void *)3;
     REFUSE("invalid SVC context",fuxi_ram_main_svc(0x1000,5,0x56000080,74));
     debug_missing=1;REFUSE("checkpoint state lost",fuxi_ram_main_svc(0x1000,0,0x56000080,74));debug_missing=0;
     installed_debug.bcr[0]=0;REFUSE("checkpoint state lost",fuxi_ram_main_svc(0x1000,0,0x56000080,74));installed_debug.bcr[0]=0x1e5;
@@ -125,6 +175,71 @@ int main(int argc,char **argv) {
     free(image);free(launchd);free(media);return 0;
 }
 '''
+
+if args.restore_trust:
+    tests = tests.replace('    fuxi_ram_root_probe_before_mount(mdevlookup(0));REQUIRE(fuxi_ram_root_stage==3);', '    fuxi_ram_restore_trust_loaded=0;REFUSE("restore trust module was not loaded",fuxi_ram_root_probe_before_mount(mdevlookup(0)));fuxi_ram_restore_trust_loaded=267;\n    fuxi_ram_root_probe_before_mount(mdevlookup(0));REQUIRE(fuxi_ram_root_stage==3);')
+if args.progress:
+    tests = tests.replace('selector=3;', 'selector=4;').replace('svc_count=2048;', 'svc_count=131072;').replace('timeout before checkpoint', 'bounded run ended')
+    tests = tests.replace('unsigned blocked[]={SYS_fork,SYS_vfork,SYS_execve,SYS_posix_spawn,SYS___mac_execve,SYS_mount,SYS_unmount,SYS___mac_mount,SYS_fmount,SYS_reboot,SYS_ptrace};',
+                          'unsigned blocked_protected[]={SYS_mount,SYS_unmount,SYS___mac_mount,SYS_fmount,SYS_reboot,SYS_ptrace};')
+    tests = tests.replace('for(unsigned i=0;i<sizeof(blocked)/sizeof(blocked[0]);i++) REFUSE("blocked syscall",fuxi_ram_main_unix(blocked[i]));',
+                          'for(unsigned i=0;i<sizeof(blocked_protected)/sizeof(blocked_protected[0]);i++) REFUSE("blocked syscall",fuxi_ram_main_unix(blocked_protected[i]));')
+    tests = tests.replace('host_thread=(void *)2;REFUSE("refused context",fuxi_ram_main_svc(0x1000,0,0x56000080,74));host_thread=(void *)3;',
+                          'host_thread=(void *)2;fuxi_ram_main_svc(0x1000,0,0x56000080,74);cases++;host_thread=(void *)3;')
+    start = tests.index('    REFUSE("RAM_LAUNCHD_MAIN PASS"')
+    end = tests.index('    printf("PASS:', start)
+    tests = tests[:start] + r'''
+    fuxi_ram_progress_unix(SYS_mprotect,0x1234,0);
+    fuxi_ram_progress_unix_result(SYS_mprotect,0,7);
+    REQUIRE(strstr(fuxi_ram_progress_text,"code=74 err=0 rval=7 a0=1234"));cases++;
+    set_state_error=5;REFUSE("cannot clear",fuxi_ram_main_break(checkpoint_pc,0,0xc2000022));
+    set_state_error=0;fuxi_ram_root_stage=8;
+    fuxi_ram_main_break(checkpoint_pc,0,0xc2000022);
+    REQUIRE(fuxi_ram_root_stage==10 && !memcmp(image,launchd,561856));
+    REQUIRE(!installed_debug.bvr[0] && !installed_debug.bcr[0]);cases++;
+    REQUIRE(strstr(fuxi_ram_progress_text,"main=PASS"));cases++;
+    fuxi_ram_main_svc(0x1000,0,0x56000080,20);cases++;
+    host_thread=(void *)2;
+    fuxi_ram_main_svc(0x2000,0,0x56000080,20);
+    fuxi_ram_main_unix(20);
+    fuxi_ram_progress_unix(SYS_mprotect,0x2222,0);
+    host_thread=(void *)3;
+    fuxi_ram_progress_unix(SYS_mprotect,0x3333,0);
+    host_thread=(void *)2;
+    fuxi_ram_progress_unix_result(SYS_mprotect,13,2);
+    REQUIRE(events[1].arg==0x2222 && events[1].error==13 && events[2].error==-9999);cases++;
+    host_thread=(void *)3;
+    fuxi_ram_progress_unix_result(SYS_mprotect,0,3);REQUIRE(events[2].result==3);cases++;
+    const char *path="/usr/local/bin/restored_external";
+    fuxi_ram_progress_unix(SYS_posix_spawn,0,(uintptr_t)path);
+    REQUIRE(spawn_total==1 && strstr(fuxi_ram_progress_text,path));cases++;
+    fuxi_ram_progress_unix_result(SYS_posix_spawn,0,42);
+    REQUIRE(spawns[0].error==0 && spawns[0].result==42);cases++;
+    const char *missing="/private/var/db/missing";
+    fuxi_ram_progress_unix(SYS_stat64,(uintptr_t)missing,0);
+    REQUIRE(strstr(fuxi_ram_progress_text,"stat=/private/var/db/missing"));cases++;
+    fuxi_ram_progress_unix(SYS_write_nocancel,1,(uintptr_t)"waiting for service\n");
+    REQUIRE(strstr(fuxi_ram_progress_text,"write=waiting for service."));cases++;
+    fuxi_ram_progress_unix(SYS_mount,(uintptr_t)"tmpfs",(uintptr_t)"/private/var/tmp");
+    REQUIRE(strstr(fuxi_ram_progress_text,"path=/private/var/tmp"));cases++;
+    REFUSE("blocked syscall",fuxi_ram_progress_unix(SYS_mount,(uintptr_t)"apfs",(uintptr_t)"/dev/disk0s1"));
+    REFUSE("blocked syscall",fuxi_ram_progress_unix(SYS___mac_mount,(uintptr_t)"tmpfs",(uintptr_t)"/private/var/tmp"));
+    puts("TRACE_BEGIN");puts(fuxi_ram_progress_text);puts("TRACE_END");
+    fuxi_ram_progress_unix(SYS_execve,1,0);
+    REQUIRE(strstr(fuxi_ram_progress_text,"unreadable:1"));cases++;
+    char longpath[200];memset(longpath,'a',sizeof(longpath));longpath[199]=0;
+    fuxi_ram_progress_unix(SYS_execve,(uintptr_t)longpath,0);
+    REQUIRE(last_path[95]==0 && strlen(last_path)==95);cases++;
+    for(unsigned i=0;i<20;i++) {fuxi_ram_progress_unix(20,i,0);fuxi_ram_progress_unix_result(20,0,i);}
+    REQUIRE(strlen(fuxi_ram_progress_text)<sizeof(fuxi_ram_progress_text));
+    REQUIRE(!strstr(fuxi_ram_progress_text,"u1 code="));cases++;
+    unsigned saved=unix_count;trace_lock=1;fuxi_ram_progress_unix(20,0,0);
+    REQUIRE(unix_count==saved && dropped_events==1);trace_lock=0;cases++;
+    pid=2;fuxi_ram_main_unix(20);fuxi_ram_main_svc(0x2000,0,0x56000080,20);pid=1;cases++;
+    for(unsigned i=0;i<sizeof(blocked_protected)/sizeof(blocked_protected[0]);i++) REFUSE("blocked syscall",fuxi_ram_main_unix(blocked_protected[i]));
+    REFUSE("unexpected hardware breakpoint",fuxi_ram_main_break(checkpoint_pc,0,0xc2000022));
+''' + tests[end:]
+
 with tempfile.TemporaryDirectory(prefix='fuxi-main-guards-') as temporary:
     work = Path(temporary)
     (work / 'test.c').write_text(api + '\n' + pins + '\n' + '\n'.join(bodies) + '\n' + tests)
@@ -132,6 +247,13 @@ with tempfile.TemporaryDirectory(prefix='fuxi-main-guards-') as temporary:
                     str(work / 'test.c'), '-o', str(work / 'test')], check=True)
     result = subprocess.run([str(work / 'test'),
         str(args.ramdisk.resolve()),
-        str(args.launchd.resolve())], check=True, capture_output=True, text=True)
+        str(args.launchd.resolve())], check=False, capture_output=True, text=True)
     (OUT / 'guard-tests.log').write_text(result.stdout + result.stderr)
-    print(result.stdout, end='')
+    if result.returncode:
+        raise SystemExit(result.stdout + result.stderr)
+    if args.progress:
+        trace = result.stdout.split('TRACE_BEGIN\n',1)[1].split('TRACE_END',1)[0].rstrip('\n') + '\n'
+        (OUT / 'trace-fixture.txt').write_text(trace)
+        print(result.stdout.split('TRACE_END\n',1)[1], end='')
+    else:
+        print(result.stdout, end='')

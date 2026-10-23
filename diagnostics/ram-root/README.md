@@ -211,3 +211,106 @@ rebuilds need not be byte-identical):
 
 - Mount: `3643e73de53a5cb29acfb07e705ab67623866c310a2e3fb7e1d85a49f1f824c2`.
 - User entry: `c96b5449ebab9dbef67223f52dffabf4e5fc117cee591eb94246f10572b1bbd7`.
+
+
+## Continuous progress profile (experimental)
+
+`--stage progress` combines the root, PID1 EL0 and original launchd main
+observations in one temporary boot. Unlike `main-entry`, its hardware breakpoint
+is removed after LC_MAIN+4 and PID1 continues. Other PID1 threads are allowed during dyld and launchd initialization; only the original main thread owns the breakpoint.
+The Apple executable bytes and original trust modules remain unchanged.
+
+The profile records up to eight recent decoded UNIX calls, their first argument,
+raw return word and errno, the most recent open/exec/spawn path, the most recent
+stat64 path and the most recent write payload (printable, truncated), plus the
+last eight exec/spawn entries with each child's return value. Results are matched
+by thread and process. `err=-9999` means dispatch has not returned. A best-effort
+1024-byte RAM snapshot is printed before an ordinary panic, including panics
+outside the probe. A contending recorder skips an event rather than blocking;
+`dropped` reports this. No trace is written to physical storage.
+
+A verified main checkpoint is a recorded milestone, not a stop. After main the
+probe follows process creation: launchd and the children it spawns keep running,
+so their syscalls, exec/spawn results and paths are recorded. A `mount` whose
+filesystem type is exactly `tmpfs` is allowed because it is memory-backed; stops
+remain on invalid context/hash/entry bytes, kernel faults, 90 seconds or 131072
+SVCs, and before every other mount, unmount/`__mac_mount`/fmount, ptrace or
+reboot dispatch.
+Indirect `syscall(0, ...)` is decoded by XNU before the guard and its argument
+register offset is accounted for. No physical storage driver is linked, so
+followed children cannot write to a partition.
+
+The final panic screen can be tested with the actual candidate and actual C
+probe snapshot using `check-xnu-panic-screen.py --candidate KERNEL --ram-progress-file
+out/ram-progress-guard-tests/trace-fixture.txt`. This executes the renderer in
+QEMU synthetic memory; it does not establish a successful XNU or phone boot.
+`check-ram-launchd-guards.py --progress` also checks continuation, clearing the
+breakpoint, per-thread results, path truncation, bounded logs and guards after
+main. The old mount, user-entry and main-entry profiles remain available.
+
+The isolated build additionally needs the local AMFI/PMGR audit candidate and
+its JSON metadata under `work/tree/build/native-prelink/`, and the corresponding
+original decompressed kernelcache under `.cache/firmware/kernelcache.macho/`.
+These are ABI reference inputs only. `out/ram-progress/audit-inputs.json` records
+the supplied local files. The final kernel is rebuilt from the RAM branch.
+
+
+### Exec replacement-thread correction
+
+The first progress phone attempt stopped in the diagnostic before dyld because
+it inspected the retiring exec caller's registers. In this pinned XNU,
+`__mac_execve` creates a new thread and task with `cloneproc(CLONEPROC_EXEC)`.
+The old caller after `execve()` is not the thread that enters dyld.
+
+The ready hook now receives `imgp->ip_new_thread` while `TCRW_CLEAR_FINAL_WAIT`
+still holds it. It reads that thread's saved registers, switches to the target
+task map for bounded stack/code reads, restores the old map, and arms the target
+thread before its final wait is released. The later exec-result callback checks
+errors and ready status only. Both argv layouts (`launchd` and `launchd -s`)
+are checked, including argv[0], the optional `-s`, and argv termination.
+
+Regression fixtures keep the old thread's SP invalid and its map inaccessible,
+while only the new thread/map can satisfy the checks. They verify map restoration
+on both success and failure. `check-ram-exec-handoff.py --exec-source PATH` also
+compiles the actual patched XNU release block, testing five successful/failed
+exec and PID scenarios with the feature both enabled and disabled. Source tests
+and final disassembly verify the ready hook precedes the final wakeup.
+
+The v2 phone test reached 170 SVCs and 152 UNIX calls. Its stage remained 8:
+dyld aborted because `/usr/lib/libSystem.B.dylib` was missing from the two supplied
+system trust modules. The photo, original library and structured observation are
+preserved under `out/ram-progress/attempt-02/`. First-attempt diagnostic evidence
+remains under `attempt-01/`.
+
+### Original restore trust module (v3)
+
+`prepare-fuxi-ram-inputs.py` now also extracts the exact original
+`RestoreTrustCache` from the pinned BuildManifest. Its original version-1 bytes
+are 5898 bytes, contain 267 entries and have SHA256
+`54e80085f2de19d76f870aa63366ef520a905913dc0208381010864f7d1fbb09`.
+The libSystem CDHash shown by the failed boot belongs to this module; it is absent
+from both version-2 system modules.
+
+DarwinBoot's external bundle validator accepts version 2 only. The progress
+profile therefore embeds the unchanged version-1 module in a read-only native
+kernel segment. `RamRestoreTrust.c` checks its pinned SHA256 and passes the whole
+module to the original AMFI `TrustCache.loadModule` API as the first static cache,
+using XNU's existing `trust_cache_static0` wrapper. The two existing version-2
+modules remain unchanged and load afterwards using XNU's existing extra-module
+policy. No module is converted, no hashes are synthesized, no signing check is
+disabled and no AMFI failure is converted to success. A rejected load stops the
+test with the actual returned error. All 267 entries must be queryable through
+AMFI before md0 is mounted.
+
+`--stage progress` enables `CONFIG_XNU_RAM_RESTORE_TRUST` and defaults to
+`INPUTS/original-restore.trustcache`; other stages keep their existing behavior.
+The final archive, source hashes, kernel compile flag, first-static hook and
+unchanged embedded module are verified in `out/ram-progress/verification.json`.
+
+Host validation includes 13 production loader cases and the actual patched
+trust-cache blocks with the feature enabled and disabled. A read-only audit of
+the original RAM disk checked 268 Mach-O files and 52,344 code pages; all were
+valid and covered by the original restore module. These checks do not establish
+that the original ARM64 AMFI loader accepts the module on the phone; v3 still
+requires a temporary boot. The pending image is
+`out/ram-progress/Mu-fuxi-xnu-ram-progress-v3.img`.

@@ -20,7 +20,13 @@ p.add_argument('--candidate', type=Path, default=ROOT / 'build/native-prelink/na
 p.add_argument('--message-file', type=Path, help='Bounded ASCII diagnostic fixture; no printf conversions')
 p.add_argument('--output', type=Path, default=ROOT / 'build/panic-screen-qemu')
 p.add_argument('--exec-policy-format', action='store_true', help='Heap strings, precision, unmapped page and unsafe-pointer refusal')
+p.add_argument('--ram-progress-file', type=Path, help='Actual bounded RAM probe snapshot to display before the panic')
+p.add_argument('--width', type=int, help='Override fixture framebuffer width (tests wrapping)')
+p.add_argument('--height', type=int, help='Override fixture framebuffer height')
 args = p.parse_args()
+progress = args.ram_progress_file.read_text().rstrip('\n') if args.ram_progress_file else ''
+if len(progress) > 1022 or any(c != '\n' and not 32 <= ord(c) <= 126 for c in progress):
+    p.error('RAM progress fixture must be bounded printable ASCII')
 message = args.message_file.read_text().rstrip('\n') if args.message_file else 'PANIC SCREEN OFFLINE'
 heap = 0xfffffff4d0010000
 if args.exec_policy_format:
@@ -38,6 +44,8 @@ candidate = args.candidate
 data = candidate.read_bytes()
 probe.load_segments(data)
 names = probe.rebase(candidate, data)
+if args.ram_progress_file and '_fuxi_ram_progress_text' not in names:
+    p.error('Candidate has no RAM progress snapshot symbol')
 code, load, entry = probe.assemble_c(ROOT / 'scripts/xnu-panic-screen.c',
                                    probe.CAVES[2] + probe.CAVE_SIZE, OUT, names)
 assert load + len(code) <= probe.PANIC_CAVE_END
@@ -49,10 +57,15 @@ def physical(va):
     return 0x40000000 + (va & 0x3fffffff)
 
 
-width, height = (3048, 2032) if (args.message_file or args.exec_policy_format) else (800, 900)
+width, height = (3048, 2032) if (args.message_file or args.exec_policy_format or args.ram_progress_file) else (800, 900)
+width, height = args.width or width, args.height or height
+if width < 18 or height < 100 or width > 4096 or height > 4096:
+    p.error('Invalid fixture framebuffer geometry')
 rowbytes = width * 4
-assert max(map(len, message.split('\n'))) * 18 <= width
-assert height // 8 + 8 + (len(message.split('\n')) + 10) * 42 < height
+display = (progress + '\n' if progress else '') + message
+columns = width // 18
+wrap = lambda lines: [part for line in lines for part in ([line[i:i+columns] for i in range(0,len(line),columns)] or [''])]
+assert height // 8 + 8 + (len(wrap(display.split('\n'))) + 5) * 42 < height
 frame = 0x42000000
 vinfo = struct.pack('<IIIIQ', height, width, 32, rowbytes, 0xfffffff002000000)
 (OUT / 'vinfo.bin').write_bytes(vinfo)
@@ -145,6 +158,9 @@ for file, address in (
     ('free.bin', physical(names['_vm_page_free_count'])),
 ):
     command += ['-device', f'loader,file={OUT / file},addr={address:#x},force-raw=on']
+if '_fuxi_ram_progress_text' in names:
+    (OUT / 'progress.bin').write_bytes((progress + ('\n' if progress else '')).encode('ascii').ljust(1024,b'\0'))
+    command += ['-device', f'loader,file={OUT / "progress.bin"},addr={physical(names["_fuxi_ram_progress_text"]):#x},force-raw=on']
 sockpath = OUT / 'qmp.sock'
 sockpath.unlink(missing_ok=True)
 command += ['-qmp', f'unix:{sockpath},server=on,wait=off']
@@ -205,10 +221,11 @@ syms = subprocess.check_output(['llvm-nm', OUT / 'panic.elf'], text=True)
 font = next(int(line.split()[0], 16) for line in syms.splitlines() if line.endswith(' gFont'))
 glyphs = struct.unpack_from('<95Q', code, font - load)
 pixels = (OUT / 'framebuffer.bin').read_bytes()
-lines = message.split('\n') + [
+lines = display.split('\n') + [
          'TCR=0x00000022a51a251a', 'SCTLR=0x000000003454593d',
          'pages=0x0000000000012345', 'free=0x000000000000abcd']
-for line, text in enumerate(lines):
+wrapped_lines = wrap(lines)
+for line, text in enumerate(wrapped_lines):
     for column, char in enumerate(text):
         glyph = glyphs[ord(char) - 32]
         for y in range(42):
@@ -226,9 +243,10 @@ if '_boot_progress_panic_text' in names:
     raw = (OUT / 'panic-text.bin').read_bytes()
     copied = raw[:raw.index(0)].decode('ascii')
     assert copied == message.replace('\n', ' ')[:255], copied
-report = {'panic_text_copy': copied, 'evidence': 'QEMU TCG execution of diagnostic only; synthetic memory counters',
+report = {'ram_progress': progress, 'panic_text_copy': copied, 'evidence': 'QEMU TCG execution of diagnostic only; synthetic memory counters',
           'renderer_sha256': hashlib.sha256(code).hexdigest(), 'renderer_bytes': len(code),
-          'renderer_va': hex(load), 'matched_lines': lines,
+          'renderer_va': hex(load), 'matched_lines': lines, 'matched_wrapped_lines': wrapped_lines,
+          'framebuffer': {'width': width, 'height': height},
           'hardware_or_xnu_boot_qualified': False}
 (OUT / 'report.json').write_text(json.dumps(report, indent=2) + '\n')
 print(f'PASS: actual ARM64 panic renderer reads high-address counters and draws all {len(lines)} expected lines')

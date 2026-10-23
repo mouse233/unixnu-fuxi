@@ -198,6 +198,11 @@ def assemble_c(source, va, workdir, symbols):
         if not any(base <= text and text + 256 <= base + size for base, size, _, _ in SEGMENTS):
             raise SystemExit('Invalid _boot_progress_panic_text')
         definitions.append(f'-DPANIC_TEXT={text:#x}UL')
+    trace = symbols.get('_fuxi_ram_progress_text')
+    if trace is not None:
+        if not any(base <= trace and trace + 1024 <= base + size for base, size, _, _ in SEGMENTS):
+            raise SystemExit('Invalid _fuxi_ram_progress_text')
+        definitions.append(f'-DRAM_PROGRESS_TEXT={trace:#x}UL')
     subprocess.run([clang, '--target=aarch64-none-elf', '-ffreestanding', '-fno-builtin', '-fno-stack-protector',
                     '-mgeneral-regs-only', '-fno-pic', '-mcmodel=tiny', '-Oz', f'-DVINFO={VINFO_VA:#x}UL',
                     *definitions, f'-I{font_dir}', '-c', source, '-o', obj], check=True)

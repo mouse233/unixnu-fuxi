@@ -38,6 +38,7 @@ api = r'''
 #define UIO_SYSSPACE 1
 #define MNT_RDONLY 1
 typedef uint64_t user_addr_t;
+typedef void *thread_t;
 typedef void *vfs_context_t;
 struct fake_statfs {char f_fstypename[16];};
 struct fake_mount {struct fake_statfs stat; int flags;};
@@ -118,7 +119,12 @@ int main(int argc,char **argv) {
     REFUSE("refused exec",fuxi_ram_user_exec_result(0,"/usr/local/bin/restored_external",1));
     REFUSE("refused exec",fuxi_ram_user_exec_result(0,"/sbin/launchd",2));
     REFUSE("exec failed: errno=13",fuxi_ram_user_exec_result(13,"/sbin/launchd",1));
+    REFUSE("without replacement-thread checkpoint",fuxi_ram_user_exec_result(0,"/sbin/launchd",1));
+    REFUSE("refused ready",fuxi_ram_user_exec_ready(NULL,1));
+    REFUSE("refused ready",fuxi_ram_user_exec_ready((void *)3,2));
+    fuxi_ram_user_exec_ready((void *)3,1);
     fuxi_ram_user_exec_result(0,"/sbin/launchd",1);REQUIRE(fuxi_ram_root_stage==8);
+    REFUSE("refused ready",fuxi_ram_user_exec_ready((void *)3,1));
     uint32_t instruction=0xd4001001;uint64_t pc=(uintptr_t)&instruction+4;
     pid=2;REFUSE("refused SVC",fuxi_ram_user_svc(pc,0,0x56000080,20));pid=1;
     REFUSE("refused SVC",fuxi_ram_user_svc(pc,5,0x56000080,20));

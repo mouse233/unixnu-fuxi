@@ -50,7 +50,7 @@ def main():
             raise ValueError('Require the pinned iPad7,1 21H461 IPSW')
         identity = next(item for item in manifest['BuildIdentities'] if
             item['Info']['DeviceClass'] == 'j120ap' and item['Info']['RestoreBehavior'] == 'Erase')
-        for component in ['RestoreRamDisk', 'StaticTrustCache', 'Cryptex1,SystemTrustCache']:
+        for component in ['RestoreRamDisk', 'RestoreTrustCache', 'StaticTrustCache', 'Cryptex1,SystemTrustCache']:
             entry = identity['Manifest'][component]
             blob = archive.read(entry['Info']['Path'])
             if hashlib.sha384(blob).digest() != entry['Digest']:
@@ -60,6 +60,10 @@ def main():
                 if len(raw) != pins['image_bytes'] or hashlib.sha256(raw).hexdigest() != pins['image_sha256']:
                     raise ValueError('RestoreRamDisk differs from inspected original')
                 disk = raw
+            elif component == 'RestoreTrustCache':
+                if hashlib.sha256(raw).hexdigest() != '54e80085f2de19d76f870aa63366ef520a905913dc0208381010864f7d1fbb09':
+                    raise ValueError('RestoreTrustCache differs from the original version-1 module')
+                restore_trust = raw
             else:
                 if struct.unpack_from('<I', raw)[0] != 2 or len(raw) != 24 + 24 * struct.unpack_from('<I', raw, 20)[0]:
                     raise ValueError('Expected intact original version-2 trust module')
@@ -70,7 +74,7 @@ def main():
     if hashlib.sha256(bundle).hexdigest() != '7416ca4f8377146626bb284e2133c76bee6cb4e3ee0af5d648b186235a7323a7':
         raise ValueError('Original trust modules changed')
     args.output.mkdir(parents=True, exist_ok=True)
-    for name, blob in [('restore.dmg', disk), ('original-static-system.bundle', bundle)]:
+    for name, blob in [('restore.dmg', disk), ('original-static-system.bundle', bundle), ('original-restore.trustcache', restore_trust)]:
         path = args.output / name
         if path.exists() and hashlib.sha256(path.read_bytes()).digest() != hashlib.sha256(blob).digest():
             raise ValueError('Refusing to replace different input: ' + str(path))

@@ -39,6 +39,9 @@ struct ctx {
 #define PANIC_TEXT 0UL
 #endif
 #define PANIC_TEXT_BYTES 256
+#ifndef RAM_PROGRESS_TEXT
+#define RAM_PROGRESS_TEXT 0UL
+#endif
 
 __attribute__((noreturn)) static void park (void)
 {
@@ -201,16 +204,13 @@ static void format (struct ctx *g, const char *fmt, const u64 *args)
 
 static void text (struct ctx *g, const char *s)
 {
-  while (*s) {
-    put (g, (u8)*s++);
-  }
+  const char *end = s + 1024;
+  while (s < end && *s) put(g, (u8)*s++);
 }
 
 static void hex (struct ctx *g, const char *label, u64 v)
 {
   text (g, label);
-  put (g, '0');
-  put (g, 'x');
   number (g, v, 16, 16, 1);
 }
 
@@ -246,6 +246,9 @@ __attribute__((noreturn, used, section(".text.b_main"))) void panic_screen_main 
     }
   }
   g.y += 8;
+  /* A bounded RAM snapshot survives ordinary panics, including dyld faults.
+   * It is best effort if another CPU was updating it at the instant of panic. */
+  if (RAM_PROGRESS_TEXT) text(&g, (const char *)RAM_PROGRESS_TEXT);
   /* The board's live banner keeps showing this text after the next swap paints over the screen (BootProgress.c,
    * boot_progress_panic_text). The first panic's text is kept: a buffer that already holds one is left alone. */
   if (PANIC_TEXT && *(volatile u8 *)PANIC_TEXT == 0) {
@@ -260,14 +263,14 @@ __attribute__((noreturn, used, section(".text.b_main"))) void panic_screen_main 
     u64 tcr, sctlr;
     __asm__ volatile ("mrs %0, tcr_el1" : "=r" (tcr));
     __asm__ volatile ("mrs %0, sctlr_el1" : "=r" (sctlr));
-    hex (&g, "\nTCR=", tcr);
-    hex (&g, "\nSCTLR=", sctlr);
+    hex (&g, "\nTCR=0x", tcr);
+    hex (&g, "\nSCTLR=0x", sctlr);
   }
   /* Resolved from this candidate's symbols by the patcher, never fixed addresses.
    * Values are sampled at panic time and need not form an atomic VM snapshot. */
   (void)MAX_MEM;
-  hex (&g, "\npages=", *(volatile const u32 *)PAGE_TOTAL);
-  hex (&g, "\nfree=", *(volatile const u32 *)PAGE_FREE);
+  hex (&g, "\npages=0x", *(volatile const u32 *)PAGE_TOTAL);
+  hex (&g, "\nfree=0x", *(volatile const u32 *)PAGE_FREE);
   /* The raw argument slots are not dumped: the formatted message above already carries them (room for the PANIC_TEXT copy). */
   mark[0] = 0xC0FFEE11u;
   mark[1] = 0x5CEEDA7Au;

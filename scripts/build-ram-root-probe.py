@@ -12,8 +12,14 @@ ROOT = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--pins', type=Path, required=True)
 parser.add_argument('--user-entry', action='store_true', help='Permit original PID1 until its first EL0 SVC; never dispatch it')
-parser.add_argument('--main-entry', action='store_true', help='Observe original LC_MAIN+4 with hardware debug; block process creation')
+parser.add_argument('--main-entry', action='store_true', help='Observe original LC_MAIN+4 with hardware debug')
+parser.add_argument('--progress', action='store_true', help='Continue past main into follow mode: children run, mount/reboot/ptrace stay blocked')
+parser.add_argument('--restore-trust-cache', type=Path, help='Exact original v1 restore module, embedded unchanged')
 args = parser.parse_args()
+if args.restore_trust_cache and not args.progress:
+    parser.error('--restore-trust-cache requires --progress')
+if args.progress and not args.main_entry:
+    parser.error('--progress requires --main-entry')
 if args.main_entry and not args.user_entry:
     parser.error('--main-entry requires --user-entry')
 pins = json.loads(args.pins.read_text())
@@ -23,10 +29,13 @@ if (pins['image_bytes'] != 184549376 or pins['file_bytes'] != 561856 or
         pins['file_path'] != '/sbin/launchd' or pins['physical_storage_allowed'] or
         pins['start_userland_allowed'] != args.user_entry or
         (args.user_entry and not args.main_entry and pins.get('stop_before_first_user_svc') is not True) or
-        (args.main_entry and (pins.get('stop_at_launchd_main') is not True or pins.get('block_process_creation') is not True or
+        (args.main_entry and (pins.get('stop_at_launchd_main') != (not args.progress) or
+                             pins.get('continue_after_main', False) != args.progress or
+                             pins.get('block_process_creation', True) != (not args.progress) or
+                             pins.get('follow_process_creation', False) != args.progress or
                              pins.get('main_entry_offset') != 85896 or pins.get('main_entry_bytes') != 'ff8305d1fc6f12a9f65713a9f44f14a9'))):
     raise SystemExit('Require exact inspected RAM disk and bounded stage policy')
-for key, enabled in [('XNU_RAM_USER_ENTRY', args.user_entry), ('XNU_RAM_MAIN_PROBE', args.main_entry)]:
+for key, enabled in [('XNU_RAM_USER_ENTRY', args.user_entry), ('XNU_RAM_MAIN_PROBE', args.main_entry), ('XNU_RAM_PROGRESS', args.progress), ('XNU_RAM_RESTORE_TRUST', bool(args.restore_trust_cache))]:
     if key in os.environ and os.environ[key] != str(int(enabled)):
         raise SystemExit(key + ' disagrees with requested diagnostic archive mode')
 out = ROOT / 'build/ram-root-probe'
@@ -34,6 +43,8 @@ out.mkdir(parents=True, exist_ok=True)
 header = '#define RAM_ROOT_IMAGE_BYTES UINT64_C(184549376)\n#define RAM_ROOT_FILE_BYTES 561856\n'
 header += '#define RAM_ROOT_ALLOW_USER_ENTRY ' + str(int(args.user_entry)) + '\n'
 header += '#define RAM_ROOT_ALLOW_MAIN_ENTRY ' + str(int(args.main_entry)) + '\n'
+header += '#define RAM_ROOT_PROGRESS ' + str(int(args.progress)) + '\n'
+header += '#define RAM_ROOT_RESTORE_TRUST ' + str(int(bool(args.restore_trust_cache))) + '\n'
 if args.main_entry:
     header += '#define RAM_ROOT_MAIN_OFFSET UINT64_C(85896)\n'
     header += 'static const uint8_t ram_root_main_bytes[16] = {' + ','.join(hex(x) for x in bytes.fromhex(pins['main_entry_bytes'])) + '};\n'
@@ -74,13 +85,35 @@ if args.main_entry:
     if struct.unpack_from('<4I', main_object.read_bytes()) != (0xfeedfacf, 0x100000c, 0, 1):
         raise SystemExit('Expected ordinary ARM64 main probe object')
     objects.append(main_object)
+if args.restore_trust_cache:
+    restore = args.restore_trust_cache.read_bytes()
+    if (len(restore) != 5898 or struct.unpack_from('<I', restore)[0] != 1 or
+            struct.unpack_from('<I', restore, 20)[0] != 267 or
+            hashlib.sha256(restore).hexdigest() != '54e80085f2de19d76f870aa63366ef520a905913dc0208381010864f7d1fbb09'):
+        raise SystemExit('Require the entire unchanged original RestoreTrustCache v1')
+    restore_header = 'static const uint8_t ram_restore_original[5898] __attribute__((aligned(4))) = {' + ','.join(hex(x) for x in restore) + '};\n'
+    restore_header += 'static const uint8_t ram_restore_sha256[32] = {' + ','.join(hex(x) for x in hashlib.sha256(restore).digest()) + '};\n'
+    (out / 'RamRestoreTrustPins.h').write_text(restore_header)
+    restore_source = ROOT / 'kits/sheng/RamRestoreTrust.c'
+    restore_object = out / 'RamRestoreTrust.o'
+    restore_command = [str(restore_source) if value == str(source) else str(restore_object) if value == str(obj) else value for value in command]
+    (out / 'restore-compile-command.json').write_text(json.dumps(restore_command, indent=2) + '\n')
+    result = subprocess.run(restore_command, cwd=record['directory'], capture_output=True, text=True)
+    (out / 'restore-compile.log').write_text(result.stdout + result.stderr)
+    if result.returncode: raise SystemExit(result.stdout + result.stderr)
+    if struct.unpack_from('<4I', restore_object.read_bytes()) != (0xfeedfacf, 0x100000c, 0, 1):
+        raise SystemExit('Expected ordinary ARM64 restore module object')
+    objects.append(restore_object)
 archive = out / 'libRamRootProbe.a'
 archive.unlink(missing_ok=True)
 subprocess.run(['xcrun', 'ar', 'rcs', archive, *objects], check=True)
 (out / 'build-report.json').write_text(json.dumps(dict(pins=pins,
     source_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),
     archive_sha256=hashlib.sha256(archive.read_bytes()).hexdigest(),
-    user_entry=args.user_entry, main_entry=args.main_entry,
+    user_entry=args.user_entry, main_entry=args.main_entry, progress=args.progress,
     main_source_sha256=hashlib.sha256(main_source.read_bytes()).hexdigest() if args.main_entry else None,
+    restore_trust=bool(args.restore_trust_cache),
+    restore_trust_sha256=hashlib.sha256(restore).hexdigest() if args.restore_trust_cache else None,
+    restore_source_sha256=hashlib.sha256(restore_source.read_bytes()).hexdigest() if args.restore_trust_cache else None,
     hardware_tested=False), indent=2) + '\n')
 print('PASS: bounded RAM-root diagnostic, ordinary ARM64, strict kernel-ABI compilation')

@@ -6,10 +6,20 @@
 #include <sys/vnode_internal.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
+#include <kern/thread.h>
 #include <mach/vm_param.h>
 #include <pexpert/pexpert.h>
 #include <libkern/crypto/sha2.h>
 #include "RamRootProbePins.h"
+#ifndef RAM_ROOT_RESTORE_TRUST
+#define RAM_ROOT_RESTORE_TRUST 0
+#endif
+#if RAM_ROOT_RESTORE_TRUST
+extern unsigned fuxi_ram_restore_trust_loaded;
+#endif
+#ifndef RAM_ROOT_PROGRESS
+#define RAM_ROOT_PROGRESS 0
+#endif
 
 extern dev_t mdevlookup(int);
 extern int mdevgetrange(int, uint64_t *, uint64_t *);
@@ -18,9 +28,10 @@ void fuxi_ram_root_probe_mount_failed(int) __attribute__((noreturn));
 #if RAM_ROOT_ALLOW_USER_ENTRY
 void fuxi_ram_root_probe_after_mount(dev_t, vnode_t);
 void fuxi_ram_user_exec_result(int, const char *, int);
+void fuxi_ram_user_exec_ready(thread_t, int);
 void fuxi_ram_user_svc(uint64_t, uint32_t, uint32_t, uint64_t) __attribute__((noreturn));
 #if RAM_ROOT_ALLOW_MAIN_ENTRY
-extern void fuxi_ram_main_arm(void);
+extern void fuxi_ram_main_arm(thread_t);
 #endif
 #else
 void fuxi_ram_root_probe_after_mount(dev_t, vnode_t) __attribute__((noreturn));
@@ -36,11 +47,14 @@ void fuxi_ram_root_probe_before_mount(dev_t device)
     SHA256_CTX hash;
     fuxi_ram_root_stage = 1;
     if (!PE_parse_boot_argn("ram-root-probe", &enabled, sizeof(enabled)) ||
-        enabled != (RAM_ROOT_ALLOW_MAIN_ENTRY ? 3U : RAM_ROOT_ALLOW_USER_ENTRY ? 2U : 1U))
+        enabled != (RAM_ROOT_PROGRESS ? 4U : RAM_ROOT_ALLOW_MAIN_ENTRY ? 3U : RAM_ROOT_ALLOW_USER_ENTRY ? 2U : 1U))
         panic("RAM_ROOT refused: diagnostic argument missing");
     if (device == NODEV || device != mdevlookup(0) || mdevgetrange(0, &base, &bytes) ||
         base < VM_MIN_KERNEL_ADDRESS || bytes != RAM_ROOT_IMAGE_BYTES || base > UINT64_MAX - bytes)
         panic("RAM_ROOT refused: not expected md0 range; dev=%x bytes=%llu", device, bytes);
+#if RAM_ROOT_RESTORE_TRUST
+    if (fuxi_ram_restore_trust_loaded != 267) panic("RAM_ROOT restore trust module was not loaded");
+#endif
     fuxi_ram_root_stage = 2;
     SHA256_Init(&hash);
     SHA256_Update(&hash, (const void *)(uintptr_t)base, (size_t)bytes);
@@ -103,15 +117,25 @@ void fuxi_ram_root_probe_after_mount(dev_t device, vnode_t root)
 }
 
 #if RAM_ROOT_ALLOW_USER_ENTRY
-void fuxi_ram_user_exec_result(int error, const char *path, int pid)
+/* XNU exec creates a replacement thread. Arm it while FINAL_WAIT still
+ * holds it, before it can execute dyld or race the retiring exec caller. */
+void fuxi_ram_user_exec_ready(thread_t target, int pid)
 {
-    if (fuxi_ram_root_stage != 7 || pid != 1 || strcmp(path, "/sbin/launchd"))
-        panic("RAM_USER refused exec: stage=%u pid=%d path=%s", fuxi_ram_root_stage, pid, path);
-    if (error) panic("RAM_USER original launchd exec failed: errno=%d; no user syscall dispatched", error);
+    if (fuxi_ram_root_stage != 7 || !target || pid != 1)
+        panic("RAM_USER refused ready: stage=%u pid=%d", fuxi_ram_root_stage, pid);
     fuxi_ram_root_stage = 8;
 #if RAM_ROOT_ALLOW_MAIN_ENTRY
-    fuxi_ram_main_arm();
+    fuxi_ram_main_arm(target);
 #endif
+}
+
+void fuxi_ram_user_exec_result(int error, const char *path, int pid)
+{
+    if (pid != 1 || strcmp(path, "/sbin/launchd"))
+        panic("RAM_USER refused exec: stage=%u pid=%d path=%s", fuxi_ram_root_stage, pid, path);
+    if (error) panic("RAM_USER original launchd exec failed: errno=%d; no user syscall dispatched", error);
+    if (fuxi_ram_root_stage != 8 && fuxi_ram_root_stage != 9 && fuxi_ram_root_stage != 10)
+        panic("RAM_USER exec returned without replacement-thread checkpoint: stage=%u", fuxi_ram_root_stage);
 }
 
 void fuxi_ram_user_svc(uint64_t pc, uint32_t cpsr, uint32_t esr, uint64_t syscall)
