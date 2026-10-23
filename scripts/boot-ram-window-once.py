@@ -4,7 +4,6 @@ import argparse
 import datetime
 import hashlib
 import json
-import shutil
 import subprocess
 from pathlib import Path
 
@@ -14,7 +13,7 @@ def main():
     p.add_argument('--image', type=Path, required=True)
     p.add_argument('--expected-sha256', required=True)
     p.add_argument('--serial', default='fcde91e')
-    p.add_argument('--profile', choices=['ram-window', 'usb-ram'], default='ram-window')
+    p.add_argument('--profile', choices=['ram-window', 'usb-ram', 'usb-system'], default='ram-window')
     a = p.parse_args()
     image = a.image.resolve()
     if hashlib.sha256(image.read_bytes()).hexdigest() != a.expected_sha256:
@@ -23,14 +22,31 @@ def main():
     if a.profile == 'ram-window':
         verified = (report.get('fat_roundtrip') and report.get('delivered_loader_matches_build') and
                     report.get('baseline_kernel_ramdisk_trust_identical'))
+    elif a.profile == 'usb-system':
+        # A handoff boot additionally requires this exact image's payload/ADT/loader
+        # checks, and that its ramdisk carries the FUXIPAYL tag: without the tag the
+        # firmware never publishes the payload volume and the boot stops in the menu.
+        payload_path = image.parent / 'payload-verification.json'
+        payload = json.loads(payload_path.read_text()) if payload_path.is_file() else {}
+        kmem_path = image.parent / 'kmem-tests.json'
+        kmem = json.loads(kmem_path.read_text()) if kmem_path.is_file() else {}
+        verified = (report.get('compressed_firmware_roundtrip') and
+                    report.get('system_handoff') is True and report.get('kernel_handoff') is True and
+                    report.get('receiver_only') is False and
+                    set(report.get('delivered_modules', {})) == {'FuxiUsbRamDxe', 'UsbfnDwc3Dxe'} and
+                    payload.get('boot_sha256') == a.expected_sha256 and
+                    payload.get('payload_tag') == 'FUXIPAYL' and
+                    kmem.get('boot_sha256') == a.expected_sha256 and
+                    kmem.get('kernel_sha256') == payload.get('kernel_sha256') and
+                    kmem.get('remaining_va_lower_bound', 0) >= 512 * 2**20)
     else:
         verified = (report.get('receiver_only') and report.get('compressed_firmware_roundtrip') and
                     set(report.get('delivered_modules', {})) == {'FuxiUsbRamDxe', 'UsbfnDwc3Dxe'} and
                     report.get('kernel_handoff') is False)
     if report.get('boot_sha256') != a.expected_sha256 or not verified:
         raise SystemExit('candidate verification is absent or belongs to a different image')
-    fastboot = shutil.which('fastboot')
-    if not fastboot:
+    fastboot = '/opt/homebrew/bin/fastboot'
+    if not Path(fastboot).is_file():
         raise SystemExit('fastboot not found')
     record = dict(checked_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),
                   boot_sha256=a.expected_sha256, flash_performed=False, queries=[],

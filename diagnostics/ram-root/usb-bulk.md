@@ -552,3 +552,443 @@ CONNECT_DONE 之后仍会用实际速率对应的 max packet 做 MODIFY。
 判读方式：状态阶段不再报 `Status 1`，`USBRAM: setup` 序列继续推进到
 `req=05`（SET_ADDRESS）、`req=09`（SET_CONFIGURATION）与
 `USBRAM: configuration 1`，主机侧出现 `1209:0001` 并可用 libusb 打开。
+
+注意：SET_ADDRESS 由底层驱动内部处理，不会出现在接收器的 `USBRAM: setup`
+日志里。不能以缺少 `req=05` 判断失败；应查看 configuration、接口和实际自测。
+
+## v18 实机结果与路线复核
+
+已读取 Command Code 会话 `b8eb4f27-4573-453e-8e79-f6fa1ba407c7` 的文字与
+操作历史，并查看本地 `out/usb-ram-v18/screen-evidence.jpeg`。原照片留在本机。
+v18 能偶发收到 GET_DESCRIPTOR，但反复 reset，CONTROL_SETUP 的
+STARTTRANSFER 也返回状态 1；主机无 1209:0001，发送器未打开设备。
+这足以否定 v18 是修复的结论，不能证明所有 reset 资源生命周期假说均已被排除。
+
+总体方向（USB 接收对象到 RAM、枚举后先做 1 MiB 校验）合理。此前把资源不足、
+PHY/repeater 和 SMMU 回读的推测过早称作根因或端到端验证，证据强度不足。
+这次继续保留已有链路配置，只改有直接代码证据的 EP0 生命周期。
+
+## v19：完成时清除 EP0 资源索引
+
+撤销 v18 在 bus reset 分支执行的两次 EP0 INIT，恢复 v17 的重新挂 SETUP。
+在 EP0 XFERCOMPLETE 进入状态处理前清零 ResourceIndex，与通用端点及上游
+Linux `dwc3_ep0_xfer_complete()` 一致。这样后续数据/状态阶段不会对已经完成的
+资源发送 ENDTRANSFER。保留现有 reset 中止活动传输的逻辑。
+
+日志增加 EP0 事件进入时的 `rsc`，ENDTRANSFER 失败同时记录端点、旧索引与
+EFI_STATUS；没有修改其错误恢复策略。PHY、路由、Bulk 和描述符保持原实现。
+H2（过期索引导致后续命令失败）是本轮实机待验证假说，不把主机模拟当成硬件结果。
+
+上游对照（2026-10-23）：
+
+- [EP0 完成路径](https://github.com/torvalds/linux/blob/master/drivers/usb/dwc3/ep0.c)：
+  COMPLETE 清除活动标志与资源索引；正常控制阶段用 STARTTRANSFER。
+- [资源配置和命令状态](https://github.com/torvalds/linux/blob/master/drivers/usb/dwc3/gadget.c)：
+  命令状态 1 按无资源处理；DEPSTARTCFG 的全端点重置用于上电/软复位初始化，
+  不能由状态 1 推导出 bus reset 时应重置全端点分配。
+
+构建目录 `out/usb-ram-v19`；镜像 SHA256：
+`0f76bd4b8c0316422ab5815d08b4d39f368a4104b541a3a98d04617dfa35cf1c`，
+1,859,584 字节。14 项审计、20 项路由、21 项协议用例与交付镜像解包核验通过。
+另有 5 项直接编译实际 Dwc3Endpoint.c 的模拟 MMIO 用例（ASan/UBSan）：
+IN/OUT 三阶段、两阶段 SET_ADDRESS、活动 SETUP reset、活动 IN 数据 reset。
+它们覆盖资源退休、避免过期 ENDTRANSFER 和 reset 不重建分配；不模拟真实 PHY、
+DMA 或 USB 主机。v18 原代码和在 v19 恢复 v18 reset 改动的负向对照都被拒绝。
+
+```sh
+python3 scripts/check-dwc3-ep0.py --uefi ../uefi-fuxi \
+  --edk2 /Volumes/External/VSCode/UniXNU/uefi-fuxi/Mu_Basecore \
+  --report out/usb-ram-v19/ep0-tests.json
+```
+
+v19 构建完成时尚未启动。下一验收点仍是成功配置并打开
+`ff/58/01` 的 Bulk 接口，然后在窗口内完成 1 MiB END 实际 RAM SHA256 校验。
+若仍失败，应按 `evt/status/ep/state/rsc` 序列区分陈旧事件、状态阶段方向与资源
+问题。不要在一轮同时改 PHY、SMMU 和描述符，也不先发送完整对象。
+
+## v19 首次实机（2026-10-23 22:12，UTC+8）
+
+核对 fcde91e / fuxi / unlocked=yes 后临时启动一次：Sending 与 Booting 均 OKAY，
+总耗时 1.482 秒。紧接着自动启动自测，20 秒内始终未成功打开接收器。
+主机 ioreg 捕获到 VID/PID=1209:0001、EP0=64、UsbLinkSpeed=480000000、
+bNumConfigurations=1。随后 libusb 只重查一次发现/打开（未重试协议数据）：
+它也读到同一设备描述符，但 active config=0，USBDeviceOpen 返回 0xe00002d8，
+映射 libusb -99；本机 IOKit 头文件将 0xe00002d8 定义为 kIOReturnNotReady。
+因此设备描述符可见的进度已恢复，完整配置枚举仍未通过；
+没有发送 HELLO、BEGIN 或测试 payload，不能宣称 1 MiB 自测通过。
+
+屏幕结果待用户照片，不能从主机打开错误独立判断 EP0 状态阶段故障是否已解决。
+本地证据：device-test.json、host-usb.plist/json、self-test.log、
+libusb-diagnostic.log、device-observation.json（均在 out/usb-ram-v19）。
+
+## v19 照片复核：有效的零资源编号与提前切换 STATUS
+
+IMG_6930.JPG 已保存为 `out/usb-ram-v19/screen-evidence.JPG`，SHA256：
+`635483b7c272d3e5d9877640b8a69350e20b7f50360984c4c318ab1d1a20de1b`。
+关键转录和解释见同目录 photo-analysis.json。
+
+照片显示 EP0 OUT STARTTRANSFER 成功返回 `reg=00000006`，即资源索引 0；
+EP0 IN 返回 `reg=00010006`，即资源索引 1。`Dwc3EndTransfer()` 原来以索引为
+0 为由直接返回，导致仍活动的 EP0 OUT 被当成不存在，reset 重挂 SETUP 可能与
+原传输冲突。上游 EP0 代码也明确允许结束资源编号为零的 OUT 传输。
+
+另一组顺序是 `evt=3 status=2 ep=1 state=1 rsc=1`，紧接着发送
+`cmd=10908`（resource=1 的 ENDTRANSFER），随后在 EP1 启动 STATUS。
+此时仍在 DATA 状态，驱动不应因为一个 STATUS NOTREADY 就中止尚未完成的 DATA。
+后面的 `evt=1 ... state=2` 只能证明完成事件到来时软件已切到 STATUS，
+不能证明真正的状态事务已完成；它也可能是被中止 DATA 的迟到事件。
+之后 SETUP（TRB 0x20）和描述符 DATA（TRB 0x50）均有资源不足错误。
+
+v19 的模拟模型把 OUT/IN 索引设为 1/2，漏掉了硬件的 0/1 情况；原来 5 项通过
+不能排除此缺陷。v20 模型按实际编号修正，并加入照片中的提前 STATUS 顺序。
+
+## v20：用活动标志结束传输，等待 DATA 完成再启动 STATUS
+
+在 v19 基础上，仅改 EP0 生命周期相关逻辑：
+
+- ENDTRANSFER 根据 TransferStarted 判断活动状态，允许对索引为 0 的活动 OUT
+  发出命令，仍不对已完成传输重复 END。
+- DATA COMPLETE 后才切换到等待 STATUS；STATUS NOTREADY 在 DATA 阶段不再取消
+  数据，也不启动状态 TRB。校验状态方向：三阶段与数据相反，无数据请求为 IN。
+- 正常状态启动不再先发 ENDTRANSFER，启动成功后才标记 Ep0StatusStarted。
+- EP0 事件日志加入 `run`（软件活动标志），避免把 rsc=0 直接解释为无活动。
+
+对照 [Linux EP0 状态处理](https://github.com/torvalds/linux/blob/master/drivers/usb/dwc3/ep0.c)：
+状态 NOTREADY 有下一预期事件门槛；完成 DATA 后才等待 STATUS，控制 OUT 的零资源
+索引可用于 ENDTRANSFER。新增方向门槛也按控制传输方向约束验证。
+
+9 项实际端点驱动模拟 MMIO 用例已通过 ASan/UBSan：原有 IN/OUT 控制事务、
+SET_ADDRESS、reset，加上活动零索引、重复 END、照片事件顺序、无数据请求状态方向。
+v19 基线、恢复零索引哨兵的 v20、恢复 v19 状态处理的 v20 三个负向对照均被拒绝。
+这仍是模拟模型，不证明真实控制器的 DMA、异步 END 完成时序或主机 USB 行为。
+PHY、SMMU、Bulk 和描述符未改。实机构建与交付结果见下一候选记录。
+
+## v20 实机与两张照片
+
+镜像 SHA256 `b9ecd4b042fbecbd2174ae888f0f16fff024393e5717e98f8f6a44e25e2384c7`，
+1,859,584 字节；64 项主机用例与实际交付模块核验通过。
+2026-10-23 22:21（UTC+8）临时启动，Sending/Booting 均 OKAY（1.535 秒），
+立即执行自测。主机读到 1209:0001、480 Mb/s，libusb 仍报 config=0，
+USBDeviceOpen 0xe00002d8 / -99，20 秒内未打开，没有发送协议数据。
+
+IMG_6931 和 IMG_6932 的原始 HEIC 及用于阅读的 JPEG 均保存在
+`out/usb-ram-v20`，哈希和关键转录见 photo-analysis.json。
+前一修正确有可见变化：`evt=3 status=2 ep=1 state=1 run=1` 后，
+出现 `evt=1 ... ep=1 state=1 run=1`，即 DATA COMPLETE 先到，再切到 STATUS。
+但紧接着出现 `evt=1 ... ep=0 state=2 run=0`，软件把未活动 OUT 的完成事件当作
+状态完成，重新挂 SETUP并遇到资源不足；后面 `evt=1 ... ep=1 state=0 run=0`
+又被当成 SETUP，使用旧缓冲重复处理 GET_DESCRIPTOR。
+
+这些行直接证明当前处理器未核对完成事件归属。事件是否来自旧 END/reset、属于
+哪一代传输，尚不能只凭照片确定。新增照片还显示退出时
+`Stop timed out! DSTS=0x00137FB1`，最终 buffers retained；这轮不能声称
+控制器正常停止或 SMMU 路由已恢复。
+
+## v21：验证完成事件属于当前活动控制阶段
+
+只针对完成事件误判继续修改：在清除资源/切换阶段前检查 TransferStarted、
+当前阶段预期物理端点、共享 EP0 TRB 的 HWO 已清除，以及 STATUS 是否成功提交。
+未通过检查时不修改端点记账、不解析 SETUP、不报告数据成功、不重新武装。
+额外的 ignore COMPLETE 原因日志最多 12 条；DATA NOTREADY 也仅在 DATA 阶段处理。
+
+主机夹具现在与实际分配路径一致，让 EP0 IN/OUT 共享 TRB pool。
+12 项 ASan/UBSan 场景覆盖原有事务及 v20 照片顺序、已取消传输的重复完成、
+新 TRB 仍归硬件所有时的迟到事件、方向不符的完成。v20 基线、去掉 HWO 检查、
+去掉方向检查的变体均被拒绝。模拟通过仍不证明真实异步 END、DMA 或主机交互通过。
+如果 v21 仍失败，下一步应看 ignore 日志中的 want/armed/TRB 和实际 COMPLETE
+先后关系，再决定是否需要等待 END 命令完成事件后才能重挂；本轮没有同时重做这部分。
+
+v21 镜像已构建，SHA256：
+`abcea15a6e9805c5caeb688f9927d5dc582f480f5d81b3beed8296ccc80508fe`，
+1,859,584 字节。14/20/21/12 共 67 项主机用例及实际交付模块核验通过。
+尚未实机启动，当前 fastboot 探测无设备；报告和下一轮命令见
+`out/usb-ram-v21/REVIEW.md`。
+
+v21 随后首次实机临时启动：Sending/Booting 均 OKAY，1.833 秒。
+立即自测在 20 秒内未发现可打开的 1209:0001，libusb 调试日志未缓存到该设备
+描述符，主机 ioreg 捕获同样无匹配项；没有发送协议数据。
+与 v20 相比，此次主机观测没有恢复描述符可见，原因待屏幕照片确认。
+重点应看 ignore COMPLETE 中的 want/armed/TRB，避免在没有事件证据时直接
+认定 HWO、方向或活动标志哪个检查错误。实机证据见同目录 device-observation.json。
+
+## v21 照片与路线修正
+
+IMG_6934/6935 原始 HEIC、阅读用 JPEG、哈希和关键转录保存在
+`out/usb-ram-v21` 的 photo-analysis.json。日志显示
+`evt=1 status=12 ep=0 state=0 rsc=0 run=1` 被 HWO 检查拒绝，
+共享 TRB 为 `00000C23/00000008`。随后 EP0 END 命令超时，程序仍继续提交
+STARTTRANSFER、DEPSTARTCFG/SETEPCONFIG，最终 Stop 也超时，DSTS=0x00110991。
+
+这确认 HWO 检查阻止了状态推进，但不能仅据照片断言硬件收到新 SETUP 后一定不
+清 HWO，也不能排除这其实是旧 END 产生的完成事件遇上已重用的 TRB。
+v21 的模拟模型默认 END 在命令寄存器返回后立即结束，又把 HWO 清零当成必需条件，
+无法验证真实异步事件边界；那一条“去掉 HWO 的变体被拒绝”不能当成硬件正确性证明。
+
+上游代码将 END 的待完成标志保留到 EPCMDCMPLT；Linux 端点文档也指出强制 END
+不会立即完成，而且不会更新 TRB 进度或清 HWO。控制 EP0 完成路径不以 HWO 位
+作为单独的完成事件否决条件。参考：
+[Linux EP0](https://github.com/torvalds/linux/blob/master/drivers/usb/dwc3/ep0.c)、
+[Linux gadget](https://github.com/torvalds/linux/blob/master/drivers/usb/dwc3/gadget.c)、
+[Linux DWC3 文档](https://www.kernel.org/doc/html/v6.19-rc3/driver-api/usb/dwc3.html)。
+
+## v22：异步取消与延迟重挂 EP0
+
+EP0 END 命令提交后保留 EndTransferPending、活动标志、资源索引和共享 TRB，
+不再靠固定 100 微秒后清空它们。重挂 SETUP 先排队，只有两个方向都收到对应的、
+成功的 END EPCMDCMPLT 后才复用 TRB。等待期间的旧 COMPLETE 不解析为新阶段，
+其他命令的 EPCMDCMPLT 也不能释放 END 待完成标志。
+
+END 拒绝、超时或完成事件报告错误时锁住 EP0 的继续提交，保留未确认结束的所有权；
+后续 reset/connect、SETUP、状态提交和接收器的直接 STALL 都不会继续向 EP0 发命令。
+CONNECT_DONE 若在 END 待完成期间到来，先延迟，确认取消结束后才按协商速率 MODIFY；
+已启用 EP0 不再因为暂时没有传输而走完整 INIT/资源重分配。
+
+保留活动、方向及已提交 STATUS 的完成事件检查；撤销单独的 HWO 否决条件。
+这不代表 HWO 总能忽略，Bulk 处理保持原实现。事件 7 日志额外显示 END done，
+忽略 COMPLETE 的日志含两个方向的 end 标志。停止控制器的其他流程未改变，
+v20/v21 的 Stop 超时仍是待实机复核问题。
+
+主机模型改为显式延迟 END ack。18 项 ASan/UBSan 场景覆盖双向 END 交错、
+共享 TRB 在 ack 前保持原样、CONNECT_DONE 延迟、无关/重复 ack、END 拒绝和超时、
+失败事件、停机后的迟到 ack、不以 HWO 单独拒绝合法的 EP0 COMPLETE。
+连同 14 审计、20 路由、21 协议用例，共 73 项通过。v21 基线、恢复 HWO 过滤、
+去掉 SETUP 等待、去掉 CONNECT_DONE 延迟的四种负向对照均被拒绝。
+这些结果只验证模型中的生命周期约束，不能证明真实取消事件顺序、DMA、枚举或正常停机。
+
+## v22 实机通过：完整配置与 1 MiB RAM 校验
+
+镜像 SHA256 `1ea39613b1ac09ba8350124c4b943e841cc852e0a2c160bb9c2435de0c957141`，
+1,863,680 字节。最终镜像与当前 C/头文件哈希匹配，交付模块核验通过。
+检测到 fcde91e 已在 fastboot 后临时启动一次，Sending/Booting 均 OKAY（2.035 秒）。
+
+首次自测 20 秒发现窗口未打开设备，没有发送任何协议帧。稍后 ioreg 能读到产品名，
+同一接收窗口内仅再次发现/打开一次，即时 1 MiB 自测成功（没有重传协议 DATA）。
+成功报告为 `out/usb-ram-v22/self-test-recheck.json`：
+
+```
+object_id=0 bytes=1048576 ram_readback_verified=true
+sha256=fbbab289f7f94b25736c58be46a994c441fd02552cc6022352e3d86d2fab7c83
+partition_writes=false kernel_handoff=false
+```
+
+主机 USB 属性独立确认 configuration=1、interface=0、class/subclass/protocol=
+ff/58/01、两个端点、链路 480 Mb/s。IMG_6936 照片确认
+`USBRAM: configuration 1` 和
+`USBRAM VERIFIED id=0 PA=C6428000 bytes=1048576 (RAM only)`。
+照片和主机协议校验共同支持这次硬件门槛通过。控制传输数据/状态阶段可正常循环，
+不再仅依据 VID/PID 可见判定通过。
+
+完整证据在同目录 REVIEW.md、device-observation.json、host-usb-after-pass.json、
+photo-analysis.json 和原始照片/日志。下一阶段为完整对象传输与停机验证；
+不能把 1 MiB 成功扩大成大对象、跨 4 GiB 实传或正常回滚已经通过。
+后续发现等待可放宽到 60 秒，仍只等待设备发现，不自动重试不确定的协议数据。
+
+
+## 完整对象实机通过与 v23 停机候选
+
+2026-10-23，v22 在同一次 USB 会话中完成两个完整对象的 END 实际 RAM SHA256：
+OS 6,077,580,800 字节，SystemOS 3,303,014,400 字节，共 9,380,595,200 字节。
+哈希分别为 e5634d04a8ac35f024845f583394e0a35deb26a04cb0c00286a8674e25a9a4f2、
+b4908cde41d23e6bc05e6af51a2c9eeb00cf0f863a6a18b1600c96a3fd70414f。
+原始报告在 out/usb-ram-full-v22/attempt-02-reopen/full-transfer.json；
+源检查、发现、传输和 END 扫描合计 531.853 秒。
+
+独立 v23 候选 SHA256 为
+5fc9f064551b737edf0dc1154aaca85a2f0430f28ac99e7a8b672731fb3a5670，
+临时启动成功，1 MiB 实机回归已通过。83 个驱动/协议主机用例及 6 个运行器用例
+通过，实际 C 端点/停机测试启用 ASan/UBSan。交付模块及源码哈希已核验。
+
+停机实现独立于一般事件处理：先 END 活动资源，再清 RUN_STOP，等待 halted 时
+确认事件消费；这期间不重挂 SETUP 或 Bulk。只有 DSTS.DEVCTRLHLT 确认后才清理
+端点和事件环并恢复 SMMU 路由。失败时保留 DMA 内存与路由，不继续新传输。
+依据与反例测试见 out/usb-ram-v23/REVIEW.md、stop-negative-controls.json。
+
+停机硬件门槛是 DWC3 STOP: HALTED、route release result=0 restored=1 和
+USBRAM QUIESCE: Success。接收器 180 秒无通信后的 receive status=Timeout
+是主动结束会话的原因，与独立的 QUIESCE 停机返回值不同。
+此阶段不交接内核；USB 消失不替代屏幕停机证据。
+
+v23 自然超时后主机已看不到接收器。IMG_6937 进一步确认
+DWC3 STOP: HALTED DSTS=00C25CB0 events=0、route release result=0 restored=1、
+USBRAM QUIESCE: Success，故正常停机与路由恢复的实机验收通过。
+末行 receive status=Time out 是 180 秒无通信后退出接收的原因。
+完整双对象和正常停机分别来自 v22、v23 两次会话；尚未交接 XNU。
+
+## v24：双镜像到 DarwinBoot/XNU 的只读挂载候选
+
+统一 12 GiB 窗口（基址 2 MiB 对齐、低 14 位 0x4000）：前 512 MiB 为内核与
+启动数据，OS 6,077,580,800 字节自窗口+512 MiB 起（APFS 容器在字节 17,408），
+SystemOS 3,303,014,400 字节在其后 2 MiB 对齐边界。两个对象的源 SHA256 固化在
+UniXNURamObjects.h；接收器 END、DarwinBoot 采纳前、XNU 探针各做一次全量
+RAM SHA256。
+
+接收器在双对象 END 通过且停机（HALTED + 路由恢复）后发布 UR_HANDOFF 协议并
+返回 DXE；失败仍 Park。DarwinBoot 要求 UrValid、窗口恰为 12 GiB、整窗被
+EfiLoaderData 实际覆盖，采纳后不复制镜像，把 live 描述写入 ADT 的
+RamSystemObjects（136 字节占位），TopOfKernelData 按 UR_RETAIN_END 计算。
+XNU 新增两个只读 RAM 块设备（64 位偏移、字节偏移、拒绝写入/越界、>4 GiB
+容量修正）与 RamSystemProbe：把 OS/SystemOS 只读挂载到 /mnt1、/mnt2，
+停在第一个用户态服务之前（panic RAM_SYSTEM PASS）。
+
+候选 SHA256 cccb58571e61fb4dd96cff95c7534f826a82734d972d5742f951cf09c745cc4e
+（203,190,272 字节 = FV + 192 MiB payload FAT）。接收/停机机制源码与 v22/v23
+实机通过版本逐字节一致；主机验证包含既有镜像核验（verify=0）与新增的
+payload/ADT/loader 检查（check-usb-system-mount.py）。内核因 bootstrap pool
+36 页修复重新构建（prelink 5c9c2348…051c）；固件含 DarwinBoot 的
+CopyMem 类型与内存图 NumberOfPages 溢出防护两处修复，在 Linux 容器内重建。
+
+实机验收点与步骤见 out/usb-system-mount-v24/REVIEW.md。
+此时尚未交接实机：不宣称普通系统启动，不写分区，不进入用户态。
+
+## v24 实机结果与打包修正（2026-10-24）
+
+上一版交付镜像 `cccb5857…45cc4e` 已实机三次（00:08–00:33）：
+
+- `attempt-02`：双对象完整传输通过——OS 6,077,580,800 与 SystemOS
+  3,303,014,400 字节的 END 实际 RAM SHA256 均匹配，586.309 秒；随后接收器
+  从主机消失。
+- 但设备**没有**停在 panic，而是回到 UniXNU 菜单显示 `built-in configuration`
+  + 红字 `no boot entry found`。交接链一步都没走到：DarwinBoot 从未被调用，
+  12 GiB 窗口从未被采纳。因此上文 v24 条目里"尚未交接实机"之后的结果是
+  传输通过、交接未到达。
+- `attempt-01` 被运行器的 profile 门拒绝（未开始传输）；`attempt-03` 为无传输
+  启动，屏幕只剩接收器初始化与 EP0 枚举跟踪，更早输出已被刷出屏外。
+
+根因是**打包**，不是固件逻辑：固件用 `FuxiPayloadHeader()`
+（`uefi-fuxi/.../FuxiPayloadDxe/PayloadBounds.h`）扫描 initrd，要求 FAT 引导
+扇区的 **OEM 名字段（bytes 3..10）恰好是 `FUXIPAYL`**，其余 BPB 字段按结构
+校验。上一版镜像的 ramdisk 直接由 `unixnu.bootimg.build` 装入，OEM 名仍是
+mtools 默认的 `MTOO4049`，于是 `FuxiFindPayload()` 不匹配、`FuxiPayloadDxe`
+静默返回、没有 SimpleFileSystem 卷发布，菜单回落到内置配置。逐条对照，该
+ramdisk 满足除 OEM 标记外的全部条件。
+
+`unixnu.bootimg.build` 只把 FD、DTB 和 ramdisk 装成 v3 boot image，**不打任何
+标记**；唯一打标记的是 `scripts/package-fuxi-xnu-boot.py`，
+`diagnostics/ram-root/README.md` 也写明它 "stamps FUXIPAYL"。历史实机通过的
+`ram-progress-v5`、`ram-mem6g-high`、`ram-mem12g` 的 ramdisk 都是 `FUXIPAYL`，
+正是由它打包。另注意 `check-usb-system-mount.py` 原先把 ramdisk 的 SHA 绑定到
+未打标记的 `work/payload/payload.img`，等于把缺陷固化进验收并给出 verify=0。
+
+本次修正：
+
+- 交付镜像改由 `scripts/package-fuxi-xnu-boot.py --size-mib 192` 打包；
+  `out/usb-system-mount-v24/finalize.py` 负责固件重建 + 打包 + 绑定 v23 主机
+  测试记录。
+- `scripts/build-fuxi-usb-ram.py` 的占位 ramdisk 改为打包器唯一接受的
+  `b'dummy'`（与 `build-ram-window-candidate.py` 一致），固件构建产物留存为
+  `base.img` 供打包器消费。
+- `check-usb-system-mount.py` 改为校验 `FUXIPAYL` 标记、打包器 manifest 身份与
+  BPB 结构，并分别记录标记前后的两个 payload SHA；`boot-ram-window-once.py` 的
+  `usb-system` profile 增加 `payload_tag == FUXIPAYL` 要求，标记缺失时拒绝启动。
+- 撤回三处 `CpuDeadLoop` 诊断驻留（`FuxiPayloadDxe` 的 10 个失败分支、
+  `DarwinBoot` 拒绝路径、`UniXNULib` 配置未找到分支），已确认从交付 FD 中消失。
+
+新候选 SHA256 `5a0290652cb05651084773ae2e734027fae388f1ee200c1af995b3c955f98e6c`
+（203,190,272 字节；payload 标记后 SHA `1b783405…e3e3`、标记前 `3bb98638…ab7f`；
+FD `3fc2b14c…`，prelink 内核 `5c9c2348…051c`），打包器 manifest 记录
+`payload_tag=FUXIPAYL`。主机验证 `check-fuxi-usb-ram-image.py` 与
+`check-usb-system-mount.py` 均为 0。**尚未实机。**
+
+下一验收点仍是本条开头那座门槛，新增一项观察：本轮是第一次有接收器版本在
+会话结束后进入菜单（此前都 Park），所以 UniXNU 菜单真正加载 `unixnu.toml`
+时是否自动进入 `xnu` 条目在本机尚未验证过；若停在菜单等待按键，那是路径
+走通而非失败。
+
+## v24 接手实机：菜单已通过，交接几何被拒（2026-10-24）
+
+打包修正后重新临时启动（`5a029065…`，attempt-04）：双对象传输与 END 实际 RAM
+SHA256 均通过（OS 6,077,580,800 + SystemOS 3,301,014,400 字节，566.08 秒），
+接收器从主机消失。**菜单第一次显示了我们的条目** `fuxi RAM diagnostic:
+system-mount`——`FUXIPAYL` 修正实机成立，FAT 卷已发布、`unixnu.toml` 已读到。
+同时确认：**菜单不会自动进入条目，需要手动选择**（此前所有接收器版本都以 Park
+结束，从没进过菜单，这一点本次才第一次验证）。
+
+选中条目后屏幕一闪而过：
+
+```
+DARWINBOOT: boot refused: Compromised Data; firmware retained
+```
+
+根因是交接几何，不是内核/内存/APFS：固件与加载器对窗口基址的对齐要求不一致。
+
+- `FuxiUsbRamDxe` 把窗口放在 `ALIGN_VALUE(Raw, 2 MiB) + 0x4000`，`UrValid()` 也硬性
+  要求 `Window & 0x1fffff == 0x4000`。
+- `DarwinBoot` 采纳前要求 `(Objects.Window & 2 MiB-1) == (Kernel.Base & 2 MiB-1)`：
+  bootstrap 用 2 MiB block 映射，窗口物理基址必须与内核链基址模 2 MiB 同余。
+  `Kernel.Base` 是 kernel.macho 所有非空段 vmaddr 的最小值。
+- 交付内核的 `__PRELINK_TEXT` 在 `0xfffffff00427c000`，低 21 位为 `0x7c000`。
+  `0x4000 ≠ 0x7c000` → 第 637 行的 `||` 判 `EFI_COMPROMISED_DATA`。
+
+这不是内核重建造成的漂移：**所有**现存内核构建（含实机成功启动 XNU 的
+`ram-progress`）低 21 位都是 `0x7c000`。非交接路径没有这个问题，因为 DarwinBoot
+自己按 `Kernel.Base` 选窗口，天然同余；只有交接路径把这个值写死成了 `0x4000`。
+
+修正：`UniXNURamObjects.h` 新增 `UR_WINDOW_SKEW`/`UR_SKEW_MASK`，接收器与
+`UrValid()` 都改用它；`check-usb-system-mount.py` 从交付 payload 的 kernel.macho
+重新推导该值并与头文件常量比对，内核重建导致 prelink 段移动时在主机侧就被拦住。
+另外把 DarwinBoot 交接分支的拒绝路径改为逐条打印具体原因（UR_HANDOFF 非法 / 窗口
+大小 / skew 不同余 / 无 LoaderData 覆盖 / 最终 RAM SHA256 不符）并在拒绝时 Park：
+菜单零点几秒内重绘，否则拒绝原因只剩一闪。该 Park 只在这一条分支触发，交接通过后
+应重新评估是否保留。
+
+新候选 SHA256 `e5b9593f81287e91971b206f5d2ed240ccd3f3aa713dda97f5bd82d1771f8cfe`
+（203,190,272 字节；payload 打标后 `1b783405…e3e3`、标记前 `3bb98638…ab7f`；
+prelink 内核不变 `5c9c2348…051c`）。主机验证 `check-fuxi-usb-ram-image.py` 与
+`check-usb-system-mount.py` 均为 0，`window_skew=0x7c000` 与内核基址低 21 位一致。
+**尚未实机。**
+
+下一验收点：接收器枚举与双对象校验 → `USBRAM SYSTEM: window=… skew=7c000` →
+停机 → 手动选中菜单条目 → `DARWINBOOT: adopted USB window` →
+`final RAM SHA256 id=1/2 PASS` → XNU `RAM_SYSTEM /mnt1 /mnt2 mounted readonly`
+→ panic `RAM_SYSTEM PASS`。仍未验证：12 GiB 窗口的 LoaderData 覆盖、`UR_FRONT`
+的 512 MiB 预算、XNU 对 `UR_RETAIN_END` 之外页面的处理、34 扇区偏移的 APFS 挂载。
+
+
+## v24 attempt-05：XNU 已进入，早期 VM 初始化 panic（2026-10-24）
+
+镜像 `e5b9593f81287e91971b206f5d2ed240ccd3f3aa713dda97f5bd82d1771f8cfe`。
+`out/usb-system-mount-v24/attempt-05/full-transfer.json` 确认 OS 6,077,580,800
+字节、SystemOS 3,303,014,400 字节，两对象 END 实际 RAM SHA256 均通过，
+565.909 秒，未写分区。上条 attempt-04 的 SystemOS 大小误记为 3,301,014,400；
+当前报告与协议常量使用的是 3,303,014,400。
+
+用户提供 IMG_6950.HEIC，已归档到同一 attempt 目录。照片明确显示 XNU panic：
+
+```
+kmem_range_init: vm_map_locate_space failing for claim compressor
+@vm_kern.c:3731
+```
+
+因此这次已越过此前的 DarwinBoot 拒绝点并进入 XNU 早期 VM 初始化，
+不是全量哈希等待，继续等待不会自行推进。未到 RAM_SYSTEM 只读挂载探针，
+不能宣称 /mnt1、/mnt2 挂载通过或普通系统启动成功。照片未覆盖停机三标记和
+DarwinBoot 最终哈希日志；主机 USB 消失不替代这些屏幕证据。
+`full-transfer.json` 的 `kernel_handoff=true` 是 profile 配置位，
+`normal_controller_stop_verified=false` 仍保持原值。
+
+下一步定位 compressor 虚拟地址范围预留失败，检查 12 GiB 物理窗口与
+XNU 虚拟地址规划的关系；尚未确定根因，未构建或临时启动下一候选。
+
+## v25：修正 compressor 的早期 VA 预算（2026-10-24）
+
+v24 attempt-05 的 `claim compressor` panic 已由真实 XNU 容量计算函数复现其
+超预算条件：最坏连续 heap VA 约 25.68 GiB，固定 zone VA 24 GiB，原版
+compressor claim 约 12.625 GiB（包括 freezer swap reserve），总和无法放入。
+`kmem_add_extra_claims` 中的无符号剩余空间减法还会下溢。
+
+新增 `native-compressor-early-freezer-mode.patch`，把现有
+`-disable_freezer_cseg_acct` 处理提前到首次 `vm_compressor_set_size`；
+挂载诊断 payload 同时加 `vm_compression_limit=131072`（4 KiB 页的 512 MiB 池）
+与该 flag。未指定参数的默认行为保持一致，不跳过 panic，不改物理保留对象。
+修正 claim 为 537,018,368 字节。按最坏 slide/对齐并保守扣除其他固定开销后，
+余量下界 662,548,480 字节；该模型只适用于这份固定内核和布局。
+
+新候选 `out/usb-system-mount-v25/`，SHA256
+`163f05519cb001c97c15f710c7024e437be6f8eb95ba0aae582e1405e7fe5879`，
+203,190,272 字节；prelink `4c56668b…7ba`，skew 仍为 0x7c000。
+四项必需主机检查、payload 检查、真实 C sizing 的七项回归（ASan/UBSan）、
+反汇编检查与启动门五种情况均通过。完整结果、命令和边界见候选 REVIEW.md
+及 `diagnostics/ram-root/usb-system-mount-v25.md`。
+
+用户已进入 fastboot，v25 attempt-01 已开始。尚待双对象传输与照片结果；
+此处不宣称新候选已越过实机 panic 或已挂载 APFS。
