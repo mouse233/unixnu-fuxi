@@ -1020,3 +1020,19 @@ v25 的 compressor 修复在实机成立：XNU 已越过 KMEM 初始化并运行
 故在 VFS_MOUNT 之前就返回 EINVAL。设备路径 namei 也仍用 UIO_USERSPACE，
 需要专门为 RAM_SYSTEM 内核字符串改成 UIO_SYSSPACE。下一候选 v26
 将同时修正并严格限定 RAM 设备/路径配对与只读 apfs，实机验收继续停在用户态前。
+
+## v26：只读 RAM APFS 挂载 SPI 修正候选（2026-10-24）
+
+新增 zz-ram-system-mount-spi.patch：为 mount_common 的 local-args 内核挂载
+拒绝条件加入 RAM_SYSTEM 专用例外，并把其设备路径的 namei 改为 UIO_SYSSPACE。
+入口严格配对 /dev/md1→/mnt1、/dev/md2→/mnt2；保护要求内核、apfs、只读，
+拒绝更新挂载，保留其他内核挂载原规则。v25 的 compressor 修复不变。
+
+镜像 out/usb-system-mount-v26/Mu-fuxi-usb-ram.img，203,190,272 字节，
+SHA256 `791840bcbcf95b77d85592e00bd9b148ed7716470306766ed4576f5c06aa9838`，
+prelink `7c8bfa41…ad8a0`，skew 0x7c000。四项必需主机检查、payload/ADT
+检查、KMEM 七项回归、真实 C 挂载入口/拒绝/路径回归（ASan/UBSan），以及
+八种启动门情况均通过；启动门要求当前镜像/内核的挂载 SPI 报告。
+
+详细步骤和限制见候选 REVIEW.md 及 usb-system-mount-v26.md。
+当前等待 fastboot，尚未实机，不能宣称 APFS 挂载通过。

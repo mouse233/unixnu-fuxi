@@ -39,7 +39,7 @@ def configure(parent, out):
             path.unlink()
     # Hardware conclusions and delivered-image checks must be produced again.
     for name in ('device-test.json', 'verification.json', 'payload-verification.json',
-                 'kmem-tests.json', 'state.json', 'restore-mountpoints.json'):
+                 'kmem-tests.json', 'mount-spi-tests.json', 'state.json', 'restore-mountpoints.json'):
         (out / name).unlink(missing_ok=True)
     for name in ('board-effective.json', 'pins.json'):
         path = out / name
@@ -59,7 +59,8 @@ def configure(parent, out):
     (out / 'parent.json').write_text(json.dumps({
         'path': str(parent),
         'image_sha256': json.loads((parent / 'candidate.json').read_text())['sha256'],
-        'change': 'early freezer accounting boot argument and 512 MiB compressor pool',
+        'configuration': 'early freezer accounting boot argument and 512 MiB compressor pool',
+        'change': 'implementation changes and validation must be recorded in REVIEW.md',
         'hardware_result': 'pending',
     }, indent=2) + '\n')
 

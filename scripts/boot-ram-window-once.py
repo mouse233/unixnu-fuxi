@@ -30,6 +30,8 @@ def main():
         payload = json.loads(payload_path.read_text()) if payload_path.is_file() else {}
         kmem_path = image.parent / 'kmem-tests.json'
         kmem = json.loads(kmem_path.read_text()) if kmem_path.is_file() else {}
+        spi_path = image.parent / 'mount-spi-tests.json'
+        spi = json.loads(spi_path.read_text()) if spi_path.is_file() else {}
         verified = (report.get('compressed_firmware_roundtrip') and
                     report.get('system_handoff') is True and report.get('kernel_handoff') is True and
                     report.get('receiver_only') is False and
@@ -38,7 +40,9 @@ def main():
                     payload.get('payload_tag') == 'FUXIPAYL' and
                     kmem.get('boot_sha256') == a.expected_sha256 and
                     kmem.get('kernel_sha256') == payload.get('kernel_sha256') and
-                    kmem.get('remaining_va_lower_bound', 0) >= 512 * 2**20)
+                    kmem.get('remaining_va_lower_bound', 0) >= 512 * 2**20 and
+                    spi.get('boot_sha256') == a.expected_sha256 and
+                    spi.get('kernel_sha256') == payload.get('kernel_sha256'))
     else:
         verified = (report.get('receiver_only') and report.get('compressed_firmware_roundtrip') and
                     set(report.get('delivered_modules', {})) == {'FuxiUsbRamDxe', 'UsbfnDwc3Dxe'} and

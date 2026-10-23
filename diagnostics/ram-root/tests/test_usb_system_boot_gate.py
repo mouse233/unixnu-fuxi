@@ -15,7 +15,8 @@ RUNNER = Path(__file__).resolve().parents[3] / 'scripts/boot-ram-window-once.py'
 class UsbSystemBootGate(unittest.TestCase):
     def test_bound_kmem_evidence_required_before_device_query(self):
         main = runpy.run_path(str(RUNNER), run_name='boot_fixture')['main']
-        for scenario in ('valid', 'missing', 'stale-image', 'stale-kernel', 'exhausted'):
+        for scenario in ('valid', 'missing', 'stale-image', 'stale-kernel', 'exhausted',
+                         'missing-spi', 'stale-spi-image', 'stale-spi-kernel'):
             with self.subTest(scenario=scenario), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 image = root / 'boot.img'
@@ -26,16 +27,23 @@ class UsbSystemBootGate(unittest.TestCase):
                               delivered_modules={'FuxiUsbRamDxe': 'x', 'UsbfnDwc3Dxe': 'y'})
                 payload = dict(boot_sha256=sha, kernel_sha256='kernel', payload_tag='FUXIPAYL')
                 kmem = dict(boot_sha256=sha, kernel_sha256='kernel', remaining_va_lower_bound=512 << 20)
+                spi = dict(boot_sha256=sha, kernel_sha256='kernel')
                 if scenario == 'stale-image':
                     kmem['boot_sha256'] = 'old'
                 if scenario == 'stale-kernel':
                     kmem['kernel_sha256'] = 'old'
                 if scenario == 'exhausted':
                     kmem['remaining_va_lower_bound'] -= 4096
+                if scenario == 'stale-spi-image':
+                    spi['boot_sha256'] = 'old'
+                if scenario == 'stale-spi-kernel':
+                    spi['kernel_sha256'] = 'old'
                 for name, data in [('verification.json', report), ('payload-verification.json', payload)]:
                     (root / name).write_text(json.dumps(data))
                 if scenario != 'missing':
                     (root / 'kmem-tests.json').write_text(json.dumps(kmem))
+                if scenario != 'missing-spi':
+                    (root / 'mount-spi-tests.json').write_text(json.dumps(spi))
                 argv = [str(RUNNER), '--image', str(image), '--expected-sha256', sha,
                         '--profile', 'usb-system']
                 with patch.object(sys, 'argv', argv), patch('subprocess.run') as command:
