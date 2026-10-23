@@ -221,3 +221,36 @@ python3 scripts/check-usb-smmu-route.py --uefi ../uefi-fuxi \
 
 既有 context 候选已构建核验，SHA256：
 `e2b27346542b70fad2f8a26274d937439d747c7c1c8d81df2860f5eea23b2147`。尚未实机启动，等待 fastboot 就绪。
+
+## 既有 context 路由的首次实机结果
+
+镜像 `e2b27346542b70fad2f8a26274d937439d747c7c1c8d81df2860f5eea23b2147`
+已临时启动（Sending/Booting OKAY）。屏幕依次显示
+`USB CONTEXT existing bank=5 checked=1 CBAR=000100FF SCTLR=000000E0 desiredS2CR=00000005`、
+`USB ROUTE result=0 slot=0 SMR=80000040 S2CR=00000005 active=1 restored=0`、
+读回 `SMR=80000040 S2CR=00000005`、保存值 `00000060/00020000`，
+最后是 `USB ROUTE VERIFIED; first DMA permitted`。
+
+按本树 `Silicon/Qualcomm/QcomPkg/Library/ArmSmmuDetachLib/SmmuV2.h` 的定义
+（`S2CR.TYPE`：0=translation、2=fault；`CBAR.TYPE`：1=S1 translation/S2 bypass、
+VMID 字段 0xFF），这些值与预期一致：SID 0x40 指向已禁用的 bank 5，
+context 寄存器未被改写。寄存器写入与读回一致只说明路由已生效，
+不能说明 DMA 已经通过。
+
+随后 EP0 的初始 STARTTRANSFER 在重试后以控制器状态 1 失败，
+控制器被停止（最后一行 `S1 read DCTL for run/stop`）。
+主机侧 `ioreg` 与 `system_profiler` 中没有 `1209:0001`，
+fastboot 与 adb 也为空。失败点已从"首次 DMA 挂住"变成
+"首次 DMA 命令被拒绝"，但原因未定：可能 SMMU 仍在 abort 该 stream，
+也可能是控制器在尚未收到 SETUP 时提前 armed 被拒绝。
+
+## 下一次读数（v7）
+
+v7 保持同一路由策略，只在失败路径增加只读快照：`GFSR` 与 `GFSYNR0..2`
+（指出出错的 stream）、路由槽 `SMR/S2CR`、路由 context 的
+`SCTLR/CBAR/FSR/FAR`，以及 DWC3 的 `DSTS/GSTS/DCTL/GEVNTCOUNT`
+和事件环里尚未取走的 dword。快照不写寄存器、不清故障、不取走事件，
+失败行为与不带快照时相同。
+
+判读方法：`GFSR=0` 且无 pending event 说明 DMA 路径已通，
+问题在 EP0 时序；`GFSR!=0` 且 `GFSYNR1=0x40` 说明该 stream 仍在 abort。

@@ -156,6 +156,31 @@
         "context_bank_register_writes": false,
         "global_smmu_register_writes": false
       }
+    },
+    {
+      "local_evidence": "out/usb-ram-v6",
+      "observation": {
+        "image_sha256": "e2b27346542b70fad2f8a26274d937439d747c7c1c8d81df2860f5eea23b2147",
+        "fastboot_result": "Sending OKAY; Booting OKAY; total 1.582s",
+        "usb_receiver_enumerated": false,
+        "test_bytes_sent": 0,
+        "flash_performed": false,
+        "screen_evidence": "user photo of the diagnostic console",
+        "visible_lines": [
+          "USB CONTEXT existing bank=5 checked=1 CBAR=000100FF SCTLR=000000E0 desiredS2CR=00000005",
+          "USB ROUTE result=0 slot=0 SMR=80000040 S2CR=00000005 active=1 restored=0",
+          "USB ROUTE attempted readback SMR=80000040 S2CR=00000005 saved=00000060/00020000",
+          "USB ROUTE VERIFIED; first DMA permitted (hardware transfer unproven)",
+          "FUXI EP: command written; polling",
+          "ep0 command failure with controller status 1 (last lines only partly legible)",
+          "FUXI DWC3: S1 read DCTL for run/stop"
+        ],
+        "route_installed": true,
+        "first_dma_attempted": true,
+        "failure_stage": "initial EP0 OUT STARTTRANSFER was rejected with command status 1 after its retries; the controller was then stopped",
+        "host_observation": "no 1209:0001 receiver in ioreg or system_profiler; fastboot and adb both empty after the receive window",
+        "root_cause": "unresolved; an SMMU abort and a controller-side rejection have not been separated"
+      }
     }
   ],
   "saved_live_dt_usb_iommu": {
@@ -180,16 +205,17 @@
     "current_android_dt_read": "permission denied; use saved capture"
   },
   "next_candidate": {
-    "local_evidence": "out/usb-ram-v6",
-    "image_sha256": "e2b27346542b70fad2f8a26274d937439d747c7c1c8d81df2860f5eea23b2147",
+    "local_evidence": "out/usb-ram-v7",
+    "image_sha256": "f178629e8bdf2ebe63999da210aefc095ee62637cca39b7a73f18e76c9dc08ca",
     "strategy": "existing-disabled-context",
     "host_cases": 21,
     "audit_host_cases": 14,
     "route_host_cases": 20,
     "delivered_modules": {
-      "FuxiUsbRamDxe": "510b9422387451989f11c575155f7ebc33ca7fc69cee67e545a996bfea420b75",
-      "UsbfnDwc3Dxe": "f00faf85f054dfd036c2ee335e54d48a30309800db5046f58f2c80ac3ba9745d"
+      "FuxiUsbRamDxe": "103cb02765a4a48968965d7bf184b0e409e5f647734ad99c0e85fdbdfbd2a18d",
+      "UsbfnDwc3Dxe": "76aebf9df9d5ef1c2e1a4a6883d4e11b4f5da53ceec772867987e095411d7d5b"
     },
+    "diagnostics": "read-only GFSR/GFSYNR0-2, route slot SMR/S2CR, context SCTLR/CBAR/FSR/FAR, DWC3 DSTS/GSTS/DCTL/GEVNTCOUNT and pending event dwords at every failure path",
     "hardware_result": "not yet booted; awaiting fastboot readiness"
   }
 }
