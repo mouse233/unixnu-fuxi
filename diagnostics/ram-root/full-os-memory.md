@@ -1,7 +1,8 @@
 # Full OS/SystemOS RAM root: P0 audit and P1 memory window
 
-P0 is host-only. P1 only changes the `darwinboot-memory-size` window and the ADT;
-it does not touch storage, userdata or any partition.
+P0 is host-only. P1 qualifies the owned-memory window through ADT and firmware
+changes; it does not touch storage, userdata or any partition. The later audit
+and 12 GiB candidate are documented in [commandcode-audit.md](commandcode-audit.md).
 
 ## P0: image audit
 
@@ -142,9 +143,10 @@ pages=0x16b07b   (1,486,971 pages = 6,090,633,216 bytes = 5.672 GiB)
 free =0x1635ab   (1,455,531 pages = 5.552 GiB)
 ```
 
-- The window is 6.000 GiB and the kernel image, kexts, RAM disk and launchd all
-  ran from it, so the 15.43 GiB high bank is real, writable memory, not just an
-  FDT description.
+- The 6.000 GiB window boots XNU and launchd. Given the allocator and the
+  published map, allocation from the high bank is supported by the evidence.
+  This does not qualify the entire 15.43 GiB bank or test every address; the
+  original photograph has now been recovered from the session JSONL.
 - Overhead is 335.5 MiB, the same ~330 MiB the 4.75 GiB profile shows; the page
   count grew by 1.232 GiB.
 - The restore environment behaves exactly as before (`main=PASS`, then
@@ -161,8 +163,10 @@ Two incidental fixes were needed to get here:
   `FuxiPayloadDxe` was excluded and the boot manager found no `unixnu.toml`
   volume (`no boot entry found`). `board.toml` now sets it to 1.
 
-Still open: a single window is capped at 8 GiB by `DarwinWindowSizeValid`, while
-the full-OS budget is 10.27 GiB, and the 8.74 GiB image transport is unresolved.
+At attempt-07, a single window was still capped at 8 GiB by
+`DarwinWindowSizeValid`, below the 10.27 GiB estimate. The audit continuation
+raises the parser bound; device qualification beyond 6 GiB and the 8.74 GiB
+image transport remain unresolved.
 Splitting the OS (5.66) and SystemOS (3.08) into two windows would fit the
 current cap but needs a second-window handoff in DarwinBoot.
 
@@ -181,3 +185,10 @@ python3 scripts/build-fuxi-ram-diagnostic.py ... --stage progress \
   --owned-memory-size 0x180000000 --output out/ram-progress
 python3 scripts/check-ram-memory-window.py --adt kernel.macho.adt --bytes 0x180000000
 ```
+
+## Audit continuation (2026-10-23)
+
+The parser now accepts up to 16 GiB; this is an input bound, not qualified RAM.
+The independent 12 GiB candidate adds a mandatory sparse, cache-maintained
+read/write check before XNU for windows above 8 GiB. Host verification and
+device qualification are recorded separately; see the audit linked above.

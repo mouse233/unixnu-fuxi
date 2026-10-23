@@ -1,0 +1,220 @@
+diff --git a/DarwinBootPkg/Driver/DarwinBoot.c b/DarwinBootPkg/Driver/DarwinBoot.c
+index 25ce2d2..955e5d6 100644
+--- a/DarwinBootPkg/Driver/DarwinBoot.c
++++ b/DarwinBootPkg/Driver/DarwinBoot.c
+@@ -3,6 +3,7 @@
+ #include <Guid/FileInfo.h>
+ #include <Library/BaseLib.h>
+ #include <Library/BaseMemoryLib.h>
++#include <Library/CacheMaintenanceLib.h>
+ #include <Library/DebugLib.h>
+ #include <Library/MemoryAllocationLib.h>
+ #include <Library/UefiBootServicesTableLib.h>
+@@ -17,6 +18,18 @@
+ #include "PackedRamdisk.h"
+ #include "WindowSize.h"
+ 
++STATIC UINT64 ProbeRead (UINT64 Address) {
++  WriteBackInvalidateDataCacheRange ((VOID *)(UINTN)Address, sizeof (UINT64));
++  return *(volatile UINT64 *)(UINTN)Address;
++}
++STATIC VOID ProbeWrite (UINT64 Address, UINT64 Value) {
++  *(volatile UINT64 *)(UINTN)Address = Value;
++  WriteBackInvalidateDataCacheRange ((VOID *)(UINTN)Address, sizeof (UINT64));
++}
++#define DARWIN_PROBE_READ(Address) ProbeRead (Address)
++#define DARWIN_PROBE_WRITE(Address, Value) ProbeWrite (Address, Value)
++#include "WindowProbe.h"
++
+ #define WINDOW_SIZE  SIZE_256MB
+ #define BLOCK_SIZE   SIZE_2MB
+ #define MAX_SEGMENTS 64
+@@ -601,6 +614,29 @@ Boot (
+   if (EFI_ERROR (Status)) { goto Fail; }
+   Status = AllocateWindow (&Kernel, WindowSize, &Address);
+   if (EFI_ERROR (Status)) { goto Fail; }
++  // Requests above the old 8 GiB bound always pass a sparse memory check before
++  // any kernel data is placed in the allocation. A mismatch refuses the boot.
++  if (WindowSize > 0x200000000ULL) {
++    unsigned long long *Saved;
++    unsigned long long Failed = 0;
++    CHAR16 Line[96];
++    Saved = AllocatePool ((UINTN)(WindowSize / DARWIN_PROBE_STEP + 1) * sizeof (*Saved));
++    if (Saved == NULL) { Status = EFI_OUT_OF_RESOURCES; goto Fail; }
++    UnicodeSPrint (Line, sizeof (Line), L"MEM TEST PA %lx SIZE %lx", Address, WindowSize);
++    DiagDraw (Line, 0);
++    if (!DarwinWindowProbe (Address, WindowSize, Saved, &Failed)) {
++      FreePool (Saved);
++      UnicodeSPrint (Line, sizeof (Line), L"MEM FAIL PA %lx AT %lx", Address, (UINT64)Failed);
++      DiagDraw (Line, 1);
++      Status = EFI_DEVICE_ERROR;
++      goto Fail;
++    }
++    FreePool (Saved);
++    UnicodeSPrint (Line, sizeof (Line), L"MEM PASS PA %lx SIZE %lx", Address, WindowSize);
++    DiagDraw (Line, 1);
++    Print (L"DARWINBOOT: sparse memory check PASS pa=0x%lx size=0x%lx samples=%lu\n",
++           Address, WindowSize, WindowSize / DARWIN_PROBE_STEP + 1);
++  }
+   ArgsAddress = ALIGN_VALUE (Address + Kernel.End - Kernel.Base, SIZE_16KB);
+   TreeAddress = ArgsAddress + EFI_PAGE_SIZE;
+   RamdiskAddress = ALIGN_VALUE (TreeAddress + TreeSize, EFI_PAGE_SIZE);
+diff --git a/DarwinBootPkg/Driver/DarwinBoot.inf b/DarwinBootPkg/Driver/DarwinBoot.inf
+index 3a90c96..f2821cc 100644
+--- a/DarwinBootPkg/Driver/DarwinBoot.inf
++++ b/DarwinBootPkg/Driver/DarwinBoot.inf
+@@ -13,6 +13,8 @@
+   BootArgs.h
+   BootVideo.h
+   DiagFont.h
++  WindowSize.h
++  WindowProbe.h
+   Entry.S
+ 
+ [Packages]
+@@ -22,6 +24,7 @@
+ [LibraryClasses]
+   BaseLib
+   BaseMemoryLib
++  CacheMaintenanceLib
+   DebugLib
+   MemoryAllocationLib
+   PrintLib
+diff --git a/DarwinBootPkg/Driver/WindowSize.h b/DarwinBootPkg/Driver/WindowSize.h
+index 055549a..7e722e3 100644
+--- a/DarwinBootPkg/Driver/WindowSize.h
++++ b/DarwinBootPkg/Driver/WindowSize.h
+@@ -4,6 +4,6 @@
+ // Allocation still requires one real conventional-memory run. This is a
+ // parser bound, never a declaration of available RAM or an allocation fallback.
+ static inline int DarwinWindowSizeValid(unsigned long long size) {
+-  return size >= 0x10000000ULL && size <= 0x200000000ULL && !(size & 0x1fffffULL);
++  return size >= 0x10000000ULL && size <= 0x400000000ULL && !(size & 0x1fffffULL);
+ }
+ #endif
+diff --git a/Test/make-fixtures.py b/Test/make-fixtures.py
+index 79d491a..22ede52 100755
+--- a/Test/make-fixtures.py
++++ b/Test/make-fixtures.py
+@@ -82,7 +82,7 @@ def main():
+             'unavailable-memory-window': [('darwinboot-memory-size', struct.pack('<Q', 0x40000000))],
+             'small-memory-window': [('darwinboot-memory-size', struct.pack('<Q', 0))],
+             'unaligned-memory-window': [('darwinboot-memory-size', struct.pack('<Q', 0x10001000))],
+-            'large-memory-window': [('darwinboot-memory-size', struct.pack('<Q', 0x200200000))],
++            'large-memory-window': [('darwinboot-memory-size', struct.pack('<Q', 0x400200000))],
+             'duplicate-memory-window': [('darwinboot-memory-size', struct.pack('<Q', 0x20000000))] * 2,
+             'misplaced-memory-window': [('darwinboot-memory-size', struct.pack('<Q', 0x20000000))]}.items():
+         extra_trees[name] = (node('device-tree', properties, [node('chosen')]) if name == 'misplaced-memory-window'
+diff --git a/Test/window-size.c b/Test/window-size.c
+index 12b98ec..ee24af0 100644
+--- a/Test/window-size.c
++++ b/Test/window-size.c
+@@ -2,8 +2,8 @@
+ #include <assert.h>
+ #include "../DarwinBootPkg/Driver/WindowSize.h"
+ int main(void) {
+- const unsigned long long yes[]={0x10000000ULL,0xe0000000ULL,0x100000000ULL,0x130000000ULL,0x200000000ULL};
+- const unsigned long long no[]={0,0xfffffffULL,0x10000001ULL,0x130001000ULL,0x200200000ULL,~0ULL};
++ const unsigned long long yes[]={0x10000000ULL,0xe0000000ULL,0x100000000ULL,0x130000000ULL,0x200000000ULL,0x200200000ULL,0x300000000ULL,0x400000000ULL};
++ const unsigned long long no[]={0,0xfffffffULL,0x10000001ULL,0x130001000ULL,0x400200000ULL,~0ULL};
+  for(unsigned i=0;i<sizeof(yes)/sizeof(yes[0]);++i)assert(DarwinWindowSizeValid(yes[i]));
+  for(unsigned i=0;i<sizeof(no)/sizeof(no[0]);++i)assert(!DarwinWindowSizeValid(no[i]));
+ }
+diff --git a/DarwinBootPkg/Driver/WindowProbe.h b/DarwinBootPkg/Driver/WindowProbe.h
+new file mode 100644
+--- /dev/null
++++ b/DarwinBootPkg/Driver/WindowProbe.h
+@@ -0,0 +1,47 @@
++// SPDX-License-Identifier: BSD-2-Clause-Patent
++#ifndef DARWINBOOT_WINDOW_PROBE_H
++#define DARWINBOOT_WINDOW_PROBE_H
++
++// Sparse diagnostic only: one 64-bit word per 2 MiB and the final word.
++// All address tags are written before reading any of them, detecting aliases
++// between sampled addresses as well as stuck bits. The caller owns the entire
++// allocation; firmware never probes arbitrary FDT addresses or free memory.
++// READ/WRITE include cache maintenance in firmware; tests substitute faulty RAM.
++#define DARWIN_PROBE_STEP 0x200000ULL
++static inline unsigned long long DarwinProbeOffset(unsigned long long index,
++                                                   unsigned long long size) {
++  return index < size / DARWIN_PROBE_STEP ? index * DARWIN_PROBE_STEP : size - 8;
++}
++static inline int DarwinWindowProbe(unsigned long long base, unsigned long long size,
++                                    unsigned long long *saved, unsigned long long *failed) {
++  unsigned long long count = size / DARWIN_PROBE_STEP + 1;
++  unsigned long long i, address, expected;
++  unsigned pass;
++  int ok = 1;
++  for (i = 0; i < count; ++i) {
++    address = base + DarwinProbeOffset(i, size);
++    saved[i] = DARWIN_PROBE_READ(address);
++  }
++  for (pass = 0; pass < 2 && ok; ++pass) {
++    for (i = 0; i < count; ++i) {
++      address = base + DarwinProbeOffset(i, size);
++      expected = address ^ 0xa55aa55a5aa55aa5ULL;
++      DARWIN_PROBE_WRITE(address, pass ? ~expected : expected);
++    }
++    for (i = 0; i < count; ++i) {
++      address = base + DarwinProbeOffset(i, size);
++      expected = address ^ 0xa55aa55a5aa55aa5ULL;
++      if (DARWIN_PROBE_READ(address) != (pass ? ~expected : expected)) {
++        *failed = address;
++        ok = 0;
++        break;
++      }
++    }
++  }
++  for (i = 0; i < count; ++i) {
++    address = base + DarwinProbeOffset(i, size);
++    DARWIN_PROBE_WRITE(address, saved[i]);
++  }
++  return ok;
++}
++#endif
+diff --git a/Test/window-probe.c b/Test/window-probe.c
+new file mode 100644
+--- /dev/null
++++ b/Test/window-probe.c
+@@ -0,0 +1,41 @@
++// SPDX-License-Identifier: BSD-2-Clause-Patent
++#include <assert.h>
++#include <stdio.h>
++#include <string.h>
++#define BASE 0xa00004000ULL
++#define SIZE 0x300000000ULL
++#define COUNT (SIZE / 0x200000ULL + 1)
++static unsigned long long words[COUNT], before[COUNT], saved[COUNT];
++static int alias, stuck;
++static unsigned long long slot(unsigned long long address) {
++  assert(address >= BASE && address <= BASE + SIZE - 8);
++  unsigned long long offset = address - BASE;
++  assert(offset == SIZE - 8 || offset % 0x200000ULL == 0);
++  unsigned long long index = offset == SIZE - 8 ? COUNT - 1 : offset / 0x200000ULL;
++  if (alias && index == COUNT - 2) index = 0;
++  return index;
++}
++static unsigned long long read_word(unsigned long long address) {
++  return words[slot(address)];
++}
++static void write_word(unsigned long long address, unsigned long long value) {
++  words[slot(address)] = stuck ? value & ~1ULL : value;
++}
++#define DARWIN_PROBE_READ(address) read_word(address)
++#define DARWIN_PROBE_WRITE(address, value) write_word(address, value)
++#include "../DarwinBootPkg/Driver/WindowProbe.h"
++int main(void) {
++  unsigned long long failed = 0;
++  for (unsigned i = 0; i < COUNT; ++i) words[i] = before[i] = i * 0x12345678ULL;
++  assert(DarwinWindowProbe(BASE, SIZE, saved, &failed));
++  assert(memcmp(words, before, sizeof(words)) == 0);
++  alias = 1;
++  assert(!DarwinWindowProbe(BASE, SIZE, saved, &failed));
++  assert(failed == BASE);
++  assert(memcmp(words, before, sizeof(words)) == 0);
++  alias = 0; stuck = 1;
++  assert(!DarwinWindowProbe(BASE, SIZE, saved, &failed));
++  assert(failed >= BASE && failed < BASE + SIZE);
++  assert(memcmp(words, before, sizeof(words)) == 0);
++  printf("PASS: 12 GiB range, %llu samples, address alias/stuck-bit detection, restoration\n", COUNT);
++}

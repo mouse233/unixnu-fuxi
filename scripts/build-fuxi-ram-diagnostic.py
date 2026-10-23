@@ -20,13 +20,13 @@ def main():
     parser.add_argument('--restore-trust-cache', type=Path, help='Exact original v1 module (progress defaults to INPUTS/original-restore.trustcache)')
     parser.add_argument('--unique-chip-id', required=True)
     parser.add_argument('--owned-memory-size', type=lambda value: int(value, 0),
-                        help='Override the darwinboot-memory-size window (256 MiB..8 GiB, 2 MiB aligned)')
+                        help='Override the darwinboot-memory-size window (256 MiB..16 GiB, 2 MiB aligned)')
     parser.add_argument('-j', '--jobs', type=int, default=10)
     parser.add_argument('--plan-only', action='store_true', help='Write effective config/board without building')
     args = parser.parse_args()
     if args.owned_memory_size is not None and (
-            not 0x10000000 <= args.owned_memory_size <= 0x200000000 or args.owned_memory_size % 0x200000):
-        parser.error('--owned-memory-size must be 256 MiB..8 GiB and 2 MiB aligned')
+            not 0x10000000 <= args.owned_memory_size <= 0x400000000 or args.owned_memory_size % 0x200000):
+        parser.error('--owned-memory-size must be 256 MiB..16 GiB and 2 MiB aligned')
     device = Path(__file__).resolve().parents[1]
     base, inputs = args.base.expanduser().resolve(), args.inputs.expanduser().resolve()
     out = (args.output or device / 'out' / ('ram-' + args.stage)).expanduser().resolve()

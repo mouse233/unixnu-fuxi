@@ -1,0 +1,13 @@
+{
+  "session_id": "189ecc19-576d-40c0-9f30-6fb45bc8117c",
+  "jsonl_path": "/Users/zhuxiaocheng/.commandcode/projects/volumes-external-vs-code-uni-xnu/189ecc19-576d-40c0-9f30-6fb45bc8117c.jsonl",
+  "jsonl_sha256": "b3dee5dea9fc0593b9c4e6d27d3db4df1075fbfccad6c3734aa8316ea3ffedae",
+  "jsonl_lines": 690,
+  "photo_jsonl_line": 675,
+  "photo_sha256": "54c7290e526db6d4ba5656d084bcb3571e4935e05040b9d8ecaa3d2e75e682fb",
+  "photo_path": "out/ram-progress/attempt-07/photo-original.jpg",
+  "photo_verified_pages": "0x16b07b",
+  "qualification": "6 GiB boot and counters observed; whole high bank not tested",
+  "prior_transcript_free": "0x1635ab",
+  "free_counter_note": "Retained from the previous transcript; exact low digits are not independently certified by this audit."
+}

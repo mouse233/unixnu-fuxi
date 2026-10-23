@@ -8,7 +8,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--adt', type=Path, required=True)
 parser.add_argument('--bytes', type=lambda value: int(value, 0), required=True)
 args = parser.parse_args()
-if not 0x10000000 <= args.bytes <= 0x200000000 or args.bytes % 0x200000:
+if not 0x10000000 <= args.bytes <= 0x400000000 or args.bytes % 0x200000:
     raise SystemExit('requested window is outside the DarwinBoot parser bound')
 adt = args.adt.read_bytes()
 

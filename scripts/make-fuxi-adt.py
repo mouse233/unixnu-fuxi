@@ -75,7 +75,7 @@ def main():
     parser.add_argument('--dram-size', type=lambda value: int(value, 0), required=True,
                         help='Actual observed DRAM size, e.g. 0x230000000')
     parser.add_argument('--owned-memory-size', type=lambda value: int(value, 0), default=None,
-                        help='Explicit DarwinBoot contiguous window request, 256 MiB..8 GiB in 2 MiB steps')
+                        help='Explicit DarwinBoot contiguous window request, 256 MiB..16 GiB in 2 MiB steps')
     parser.add_argument('--root-match-volume-uuid', default=None,
                         help='/chosen/root-matching: select the root by the UUID of an IOMedia (the standard source mechanism)')
     parser.add_argument('--unique-chip-id', type=lambda value: int(value, 16), default=None,
@@ -100,9 +100,9 @@ def main():
     if args.unique_chip_id is not None and not (0 < args.unique_chip_id < 1 << 64 and 0 < args.chip_id < 1 << 32):
         parser.error('--unique-chip-id must fit 8 bytes and --chip-id 4 bytes, both nonzero')
     if args.owned_memory_size is not None and (
-            not 0x10000000 <= args.owned_memory_size <= 0x200000000
+            not 0x10000000 <= args.owned_memory_size <= 0x400000000
             or args.owned_memory_size % 0x200000):
-        parser.error('Owned memory must be 256 MiB to 8 GiB, aligned to 2 MiB')
+        parser.error('Owned memory must be 256 MiB to 16 GiB, aligned to 2 MiB')
 
     try:
         cpu_regs = [int(value, 0) for value in args.cpu_regs.split(',')]

@@ -1,5 +1,8 @@
 # fuxi RAM-root bring-up
 
+2026-10-23：已审计 Command Code 会话并构建、临时启动 12 GiB 抽样内存诊断候选，
+真机画面待核验。路线结论、修正项和复现入口见 [commandcode-audit.md](commandcode-audit.md)。
+
 ## Isolated RAM experiment branch
 
 Use `feat/ramdisk-test` in all three repositories (`unixnu-source`,
