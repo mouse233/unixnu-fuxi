@@ -1,0 +1,92 @@
+{
+  "image": "/Volumes/External/VSCode/UniXNU/unixnu-source/out/fuxi/userdata/userdata-root.img",
+  "image_bytes": 9382658048,
+  "manifest_version": 1,
+  "windows": [
+    {
+      "name": "OS",
+      "offset": 1048576,
+      "size": 6077580800,
+      "block_size": 512,
+      "flags": 1,
+      "sha256": "e5634d04a8ac35f024845f583394e0a35deb26a04cb0c00286a8674e25a9a4f2",
+      "sha256_verified": true,
+      "gpt": [
+        {
+          "index": 0,
+          "type": "7c3457ef-0000-11aa-aa11-00306543ecac",
+          "first_lba": 34,
+          "last_lba": 11870241,
+          "name": ""
+        }
+      ],
+      "apfs_partition": {
+        "index": 0,
+        "type": "7c3457ef-0000-11aa-aa11-00306543ecac",
+        "first_lba": 34,
+        "last_lba": 11870241,
+        "name": ""
+      },
+      "apfs_container": {
+        "offset": 0,
+        "block_size": 4096,
+        "block_count": 1483776,
+        "container_uuid": "50f8a67f-afc1-4a1b-bcbb-82162674c67f"
+      },
+      "volume": {
+        "name": "DawnUpdate21H461.J120J121J207J208OS",
+        "uuid": "04769D26-2CA0-4825-B443-E2E5F88300F2",
+        "filesystem": "Case-sensitive APFS",
+        "filesystem_type": "apfs",
+        "sealed": "No",
+        "read_only": true,
+        "block_size": 4096,
+        "container_uuid": "50F8A67F-AFC1-4A1B-BCBB-82162674C67F",
+        "roles": [
+          "System"
+        ],
+        "capacity_in_use": 5696471040
+      }
+    },
+    {
+      "name": "SystemOS",
+      "offset": 6079643648,
+      "size": 3303014400,
+      "block_size": 512,
+      "flags": 1,
+      "sha256": "b4908cde41d23e6bc05e6af51a2c9eeb00cf0f863a6a18b1600c96a3fd70414f",
+      "sha256_verified": true,
+      "gpt": null,
+      "apfs_container": {
+        "offset": 0,
+        "block_size": 4096,
+        "block_count": 806400,
+        "container_uuid": "e886f82c-ee56-4b52-af5f-e70bf46320c4"
+      },
+      "volume": {
+        "name": "DawnUpdate21H461.J120J121J207J208SystemCryptex",
+        "uuid": "8846FE78-2910-4297-AF97-D59BB6F8FC16",
+        "filesystem": "Case-sensitive APFS",
+        "filesystem_type": "apfs",
+        "sealed": "Yes",
+        "read_only": true,
+        "block_size": 4096,
+        "container_uuid": "E886F82C-EE56-4B52-AF5F-E70BF46320C4",
+        "roles": [],
+        "capacity_in_use": 3172610048
+      }
+    }
+  ],
+  "budget": {
+    "window_bytes": 9380595200,
+    "kernel_bytes": 51933184,
+    "data_bytes": 1073741824,
+    "overhead_bytes": 525313510,
+    "total_bytes": 11031583718,
+    "total_gib": 10.274,
+    "current_xnu_window_bytes": 5100273664,
+    "fits_current_window": false,
+    "darwin_window_limit_bytes": 8589934592,
+    "fits_single_darwin_window": false
+  }
+}

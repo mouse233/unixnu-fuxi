@@ -19,9 +19,14 @@ def main():
     parser.add_argument('--output', type=Path)
     parser.add_argument('--restore-trust-cache', type=Path, help='Exact original v1 module (progress defaults to INPUTS/original-restore.trustcache)')
     parser.add_argument('--unique-chip-id', required=True)
+    parser.add_argument('--owned-memory-size', type=lambda value: int(value, 0),
+                        help='Override the darwinboot-memory-size window (256 MiB..8 GiB, 2 MiB aligned)')
     parser.add_argument('-j', '--jobs', type=int, default=10)
     parser.add_argument('--plan-only', action='store_true', help='Write effective config/board without building')
     args = parser.parse_args()
+    if args.owned_memory_size is not None and (
+            not 0x10000000 <= args.owned_memory_size <= 0x200000000 or args.owned_memory_size % 0x200000):
+        parser.error('--owned-memory-size must be 256 MiB..8 GiB and 2 MiB aligned')
     device = Path(__file__).resolve().parents[1]
     base, inputs = args.base.expanduser().resolve(), args.inputs.expanduser().resolve()
     out = (args.output or device / 'out' / ('ram-' + args.stage)).expanduser().resolve()
@@ -95,10 +100,13 @@ def main():
     ] + (['launchdsuffix=release'] if user_entry else [])
     ctx.board['payload']['adt'].update(packed_data_ramdisk=False, os_environment='ramdisk')
     ctx.board['payload']['adt'].pop('root_match_volume_uuid', None)
+    if args.owned_memory_size is not None:
+        ctx.board['payload']['adt']['owned_memory_size'] = hex(args.owned_memory_size)
     (out / 'board-effective.json').write_text(json.dumps(ctx.board, indent=2) + '\n')
     (out / 'build-layout.json').write_text(json.dumps(dict(stage=args.stage,
         base=str(base), device=str(device), output=str(out), cache=str(ctx.out_root),
-        tree=str(ctx.tree), uefi=str(args.uefi.expanduser().resolve())), indent=2) + '\n')
+        tree=str(ctx.tree), uefi=str(args.uefi.expanduser().resolve()),
+        owned_memory_size=ctx.board['payload']['adt'].get('owned_memory_size')), indent=2) + '\n')
     if args.plan_only:
         print('Plan written to', out)
         return
