@@ -292,6 +292,22 @@
         "host_observation": "no 1209:0001 and no USB attach event",
         "root_cause": "missing QSCRATCH VBUS/session override, plus a wrong ref-clock branch in the PHY init"
       }
+    },
+    {
+      "local_evidence": "out/usb-ram-v13",
+      "observation": {
+        "image_sha256": "1c3cbe58941a0b2e2e5a4d9b27a0652c6c218a92bbd5538c5909067545150fa2",
+        "fastboot_result": "first Booting attempt failed with usb_read e00002ed; the retry printed Booting OKAY [1.444s]",
+        "usb_receiver_enumerated": false,
+        "test_bytes_sent": 0,
+        "flash_performed": false,
+        "screen_evidence": "user photo",
+        "phy_state": "COMMON0=0x4B (FSEL=4, 38.4 MHz preserved), CFG0=0x02 (common-mode override still set), HS_PHY_CTRL2=0x17 with VBUSVLDEXT0=1",
+        "link_state": 4,
+        "host_observation": "no 1209:0001 and no USB attach event within the 20 s poll",
+        "conclusion": "SoC side PHY looks initialised and VBUS is visible, but the host still sees no connection",
+        "next_suspect": "the D+/D- termination lives in the PMIC eUSB2 repeater, which this tree cannot configure without an SPMI driver"
+      }
     }
   ],
   "saved_live_dt_usb_iommu": {
@@ -316,17 +332,18 @@
     "current_android_dt_read": "permission denied; use saved capture"
   },
   "next_candidate": {
-    "local_evidence": "out/usb-ram-v13",
-    "image_sha256": "1c3cbe58941a0b2e2e5a4d9b27a0652c6c218a92bbd5538c5909067545150fa2",
+    "local_evidence": "out/usb-ram-v14",
+    "image_sha256": "2df332cbe199d757ff4746a293b502656d995c049338b48e3e8e68b28a3dff88",
     "strategy": "existing-disabled-context",
     "host_cases": 21,
     "audit_host_cases": 14,
     "route_host_cases": 20,
     "delivered_modules": {
-      "FuxiUsbRamDxe": "f135767c219fb24d75bf731a82b0345cd98b725db910663bc0292c03e61f05f4",
-      "UsbfnDwc3Dxe": "7c19816bba7b857724c53b39369724f024b9b3a3aa01953431343f5003ddb1b9"
+      "FuxiUsbRamDxe": "be63741b0ab29b0ebc115ed0bf4d0998f30685ecf1f7ea8cfaf547415e94025b",
+      "UsbfnDwc3Dxe": "832438a02d7aedf472365b05f3cb987364b1cadb264fb19252c5254542ad3c2e"
     },
-    "change": "select the eUSB2 PLL divider from the inherited FSEL (38.4 MHz on this unit) and set the QSCRATCH VBUS/session override for device mode",
+    "change": "CPBIAS 0 and CMN_CTRL_OVERRIDE_EN cleared at the end, matching the newer upstream eUSB2 sequence",
+    "diagnostics": "16 read-only PHY register readbacks plus QSCRATCH GEN/HS/SS, printed after the link is enabled",
     "hardware_result": "not yet booted; awaiting fastboot readiness"
   }
 }

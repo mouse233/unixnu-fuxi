@@ -405,3 +405,28 @@ v13 做两处修正：按继承的 `FSEL` 选择分频（4 → 38.4 MHz 用
 `0xC8/0x0`，否则 19.2 MHz 用 `0x90/0x1`），并在 PHY 初始化后设置
 `0xa600010`/`0xa600030` 的 VBUS/会话覆盖位，打印读回值。
 其余（路由、跳过 PHY 软复位、只读快照）不变。
+
+## v13 实机结果：PHY 序列落地，VBUS 可见，链路仍未建立
+
+`Dwc3SoftReset` 的 PHY 脉冲被跳过、PHY 按继承的 38.4 MHz 分支初始化后，
+快照显示 `COMMON0` 回到 `0x4B`（PHY_ENABLE|SIDDQ_SEL|RETENABLEN|FSEL=4），
+`CFG0=0x02`（CMN override 仍为开），`HS_PHY_CTRL2(0x64)=0x17`，
+其中 bit0 `VBUSVLDEXT0=1`、bit2 `USB2_SUSPEND_N=1`、bit4 `VBUS_DET_EXT_SEL=1`。
+
+也就是说 PHY 看到了 VBUS，PLL 分频与 38.4 MHz 参考时钟一致，
+但 `FUXI LINK` 仍是 `link=4 speed=1 sofn=0`，主机无枚举。
+在 eUSB2 架构里，D+/D- 的上拉与驱动位于 **PMIC 的 eUSB2 repeater**，
+SoC 侧 PHY 只是单端接口；本树没有 SPMI/PMIC 驱动，
+所以 repeater 的使能/参数是否仍保持在设备模式无法由固件确认。
+
+## v14：对齐更新后的上游序列并全量回读
+
+对比更新后的上游 `snps-eusb2` 驱动，发现两处差异：`PHY_CFG_PLL_CPBIAS`
+应取 0，且初始化结束必须清掉 `CMN_CTRL_OVERRIDE_EN`（我们之前一直留在开）。
+v14 同步这两点，并把回读扩展到 16 个 PHY 寄存器两个批次打印，
+同时打印 wrapper 的 `QSCRATCH GEN/HS/SS`（`0xa600008/0x10/0x30`），
+以便确认 VBUS/会话覆盖位到底有没有写进去、ABL 原本是什么值。
+
+判读方式：若 `CFG0` 变为 0 而链路仍为 4，则 SoC 侧序列已与上游一致，
+问题基本落在 PMIC repeater 或供电；若 `QSCRATCH HS` 的 bit20/bit28
+写不进去，则说明这个 wrapper 的布局与上游假设不同。
