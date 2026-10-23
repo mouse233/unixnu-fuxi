@@ -36,6 +36,8 @@ python3 scripts/build-fuxi-usb-ram.py \
 ```sh
 python3 scripts/check-usb-ram.py --uefi ../uefi-fuxi \
   --report out/usb-ram/host-tests.json
+python3 scripts/check-usb-smmu-audit.py --uefi ../uefi-fuxi \
+  --report out/usb-ram/smmu-tests.json
 python3 scripts/check-fuxi-usb-ram-image.py --uefi ../uefi-fuxi
 ```
 
@@ -156,3 +158,43 @@ CR0.CLIENTPD=0、USFCFG=1，即未匹配 stream 按架构配置进入故障处�
 控制器通常需要有效的 DMA 映射；把缓冲限制在 4 GiB 以下并不建立这种映射。
 后续路由修改还要考虑 [Qualcomm S2CR BYPASS 读回异常](https://github.com/torvalds/linux/blob/master/drivers/iommu/arm/arm-smmu/arm-smmu-qcom.c)。
 需要精确匹配、读回校验和失败回滚，不应直接关闭整个 apps SMMU。
+
+
+## 精确 USB 路由试验（默认关闭）
+
+`FUXI_USB_TRY_SID_ROUTE=1` / 构建脚本 `--try-usb-route` 显式启用试验库。
+不加该参数仍是只读审计镜像，预期停在 AUDIT STOP，不能运行发送测试。
+
+路由引擎重新扫描完整的非扩展 SMR 表，要求 apps SMMU client 已启用、
+未匹配策略为 fault、无既有 USB 匹配、扫描完整且存在无效条目；否则停住。
+先在该无效条目设置 S2CR BYPASS（仅 USB），读回核对，再启用
+`SMR=0x80000040`（SID=0x40、mask=0）。激活后再次核对 S2CR。
+读回异常按保存原值回滚；回滚也验证，失败单独报告并阻止 DMA。
+只写所选条目的 SMR/S2CR，不修改全局 CR0、其他有效条目或 context bank。
+成功读回只是允许继续试验，不是对物理 DMA 或设备安全策略的硬件验收。
+
+12 项实际路由引擎 ASan/UBSan 用例验证配置顺序、精确/重叠匹配、缺少空闲槽、
+状态变化、Qualcomm BYPASS→FAULT、回滚失败及保持所有其他寄存器不变。
+停止控制器后才能移除路由；移除前检查条目仍属于该会话，然后先撤销有效匹配，
+再恢复 S2CR。控制器停止失败时保留路由和 DMA 缓冲。
+
+试验构建还需执行并保存：
+
+```sh
+python3 scripts/check-usb-smmu-route.py --uefi ../uefi-fuxi \
+  --report out/usb-ram-route/route-tests.json
+```
+
+`--output`、三个测试报告和镜像核验都要指向同一目录。
+交付核验同时检查实际 EFI 模块中的 route-trial 标记与三组测试源码哈希。
+发送器的 `--wait-seconds 15` 只等待设备发现，不自动重试任何协议数据传输。
+
+
+精确路由版 SHA256 `201c2ba38ead647d229c47485d3fedc0232dc734e4e0947dd2c5669f59d1728a`
+已完成 47 项主机测试及交付核验，第二次临时启动 Sending/Booting 成功。
+`IMG_6908.HEIC` 实机确认：slot 0，BYPASS 请求 `S2CR=0x000100ff`
+读回 `0x000200ff`（FAULT），result=4；原 `SMR=0x60/S2CR=0x20000`
+完整恢复，active=0/restored=1，未发出 STARTTRANSFER。
+这确认了本机对该 BYPASS 编码的异常处理，不能直接靠这个编码打通 DMA。
+下一步检查不被其他有效 stream 引用、SCTLR.M=0、CBAR.TYPE=S1_TRANS_S2_BYPASS
+的既有 context bank，尝试以 TRANS 指向它。仍需读回核验和实际 DMA 验收。

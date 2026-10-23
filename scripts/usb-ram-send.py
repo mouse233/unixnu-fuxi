@@ -13,6 +13,7 @@ import io
 import json
 import struct
 import sys
+import time
 from pathlib import Path
 
 MAGIC = b'UNXRAM01'
@@ -186,7 +187,10 @@ def main():
     p.add_argument('--vid', type=lambda s: int(s, 0), default=0x1209)
     p.add_argument('--pid', type=lambda s: int(s, 0), default=1)
     p.add_argument('--report', type=Path)
+    p.add_argument('--wait-seconds', type=float, default=0, help='wait only for device discovery; never retry a transfer')
     args = p.parse_args()
+    if not 0 <= args.wait_seconds <= 60:
+        p.error('--wait-seconds must be between 0 and 60')
     if args.research_image and args.kind == 'test':
         p.error('--research-image requires --kind os or systemos')
     if args.kind == 'both' and not args.research_image:
@@ -195,7 +199,16 @@ def main():
     sources = [source(argparse.Namespace(**{**vars(args), 'kind': kind})) for kind in kinds]
     transport = None
     try:
-        transport = UsbTransport(args.vid, args.pid)
+        deadline = time.monotonic() + args.wait_seconds
+        while True:
+            try:
+                transport = UsbTransport(args.vid, args.pid)
+                break
+            except RuntimeError as error:
+                if ('not found or inaccessible' not in str(error) or
+                        time.monotonic() >= deadline):
+                    raise
+                time.sleep(min(0.5, max(0, deadline - time.monotonic())))
         def progress(done, total):
             if done == total or done % (16 * 2**20) == 0:
                 print(f'{done}/{total} bytes', file=sys.stderr)

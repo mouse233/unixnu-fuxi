@@ -65,13 +65,23 @@ for name, digest in tests['source_sha256'].items():
             'host tests ran different receiver sources')
 require(tests['sender_sha256'] == sha(Path(__file__).with_name('usb-ram-send.py').read_bytes()),
         'sender changed since host tests')
-if candidate.get('dma_audit_only'):
+if candidate.get('dma_audit_only') or candidate.get('usb_sid_route_enabled'):
     audit = json.loads((out / 'smmu-tests.json').read_text())
     for name, digest in audit['source_sha256'].items():
         require(sources['Platforms/Xiaomi/fuxiPkg/Library/FuxiUsbfnLib/' + name] == digest,
                 'audit tests ran different sources')
     require(b'USBRAM AUDIT STOP: no STARTTRANSFER issued' in inner, 'audit gate absent')
-    require(candidate.get('dma_transfer_enabled') is False, 'audit mode mismatch')
+    if candidate.get('dma_audit_only'):
+        require(candidate.get('dma_transfer_enabled') is False, 'audit mode mismatch')
+        require(b'USB ROUTE VERIFIED; first DMA permitted' not in inner, 'route trial present in audit-only firmware')
+if candidate.get('usb_sid_route_enabled'):
+    route = json.loads((out / 'route-tests.json').read_text())
+    for name, digest in route['source_sha256'].items():
+        require(sources['Platforms/Xiaomi/fuxiPkg/Library/FuxiUsbfnLib/' + name] == digest,
+                'route tests ran different sources')
+    require(b'USB ROUTE VERIFIED; first DMA permitted' in inner, 'route trial absent from delivered firmware')
+    require(candidate.get('dma_transfer_enabled') is True and not candidate.get('dma_audit_only'),
+            'route trial mode mismatch')
 report = dict(boot_sha256=sha(boot), boot_bytes=len(boot), fd_sha256=sha(fd),
               delivered_modules=modules, source_sha256=sources,
               compressed_firmware_roundtrip=True, os_version_raw='0x220001a7',
@@ -79,6 +89,8 @@ report = dict(boot_sha256=sha(boot), boot_bytes=len(boot), fd_sha256=sha(fd),
               kernel_handoff=False, partition_io=False,
               dma_audit_only=bool(candidate.get('dma_audit_only')),
               dma_transfer_enabled=candidate.get('dma_transfer_enabled', True),
-              smmu_audit_host_cases=audit['cases'] if candidate.get('dma_audit_only') else None)
+              smmu_audit_host_cases=audit['cases'] if (candidate.get('dma_audit_only') or candidate.get('usb_sid_route_enabled')) else None,
+              usb_sid_route_enabled=bool(candidate.get('usb_sid_route_enabled')),
+              smmu_route_host_cases=route['cases'] if candidate.get('usb_sid_route_enabled') else None)
 (out / 'verification.json').write_text(json.dumps(report, indent=2) + '\n')
 print(json.dumps(report, indent=2))

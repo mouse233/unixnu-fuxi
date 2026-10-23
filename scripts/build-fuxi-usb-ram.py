@@ -16,6 +16,7 @@ p = argparse.ArgumentParser(description=__doc__)
 for name in ['base', 'uefi', 'edk2']:
     p.add_argument('--' + name, type=Path, required=True)
 p.add_argument('--output', type=Path, default=Path('out/usb-ram'))
+p.add_argument('--try-usb-route', action='store_true', help='try exact SID0040 route with readback/rollback; default only audits')
 a = p.parse_args()
 device = Path(__file__).resolve().parents[1]
 base, uefi, edk2, out = [x.resolve() for x in [a.base, a.uefi, a.edk2, a.output]]
@@ -39,6 +40,7 @@ for name in ['package', 'drivers']:
 ctx.board['firmware']['submodules'] = []
 ctx.board['firmware']['packages'].append('{uefi}/Silicon/Samsung')
 ctx.board['firmware']['defines']['FUXI_USB_RAM_RECEIVER'] = '1'
+ctx.board['firmware']['defines']['FUXI_USB_TRY_SID_ROUTE'] = '1' if a.try_usb_route else '0'
 ctx.board['firmware']['defines']['FUXI_PAYLOAD_DIAGNOSTIC'] = '0'
 ctx.uefi = uefi
 fd = firmware.build(ctx, {}, uefi, edk2, 'DEBUG')
@@ -49,7 +51,7 @@ for name in ['FuxiUsbRamDxe', 'UsbfnDwc3Dxe']:
 paths = [*sorted((uefi / 'Platforms/Xiaomi/fuxiPkg/Drivers/FuxiUsbRamDxe').glob('*.[ch]')),
          *sorted((uefi / 'Platforms/Xiaomi/fuxiPkg/Library/FuxiUsbfnLib').glob('*.[ch]')),
          uefi / 'Platforms/Xiaomi/fuxiPkg/Drivers/FuxiUsbRamDxe/FuxiUsbRamDxe.inf',
-         uefi / 'Platforms/Xiaomi/fuxiPkg/Library/FuxiUsbfnLib/FuxiUsbfnLib.inf',
+         *sorted((uefi / 'Platforms/Xiaomi/fuxiPkg/Library/FuxiUsbfnLib').glob('*.inf')),
          uefi / 'Silicon/Samsung/SamsungPkg/Drivers/UsbfnDwc3Dxe/UsbfnDwc3Dxe.inf',
          *sorted((uefi / 'Silicon/Samsung/SamsungPkg/Drivers/UsbfnDwc3Dxe').glob('*.[ch]')),
          uefi / 'Platforms/Xiaomi/fuxiPkg/fuxi.dsc', uefi / 'Platforms/Xiaomi/fuxiPkg/Include/DXE.inc']
@@ -59,8 +61,10 @@ dummy = out / 'dummy-ramdisk.img'
 dummy.write_bytes(b'USBRAM diagnostic')
 image = bootimg.build(ctx, uefi, fd, uefi / 'Resources/DTBs/fuxi.dtb', dummy, out / 'Mu-fuxi-usb-ram.img')
 report = dict(image=str(image), sha256=hashlib.sha256(image.read_bytes()).hexdigest(),
-              bytes=image.stat().st_size, mode='UEFI read-only USB SMMU audit before first DMA',
-              dma_audit_only=True, dma_transfer_enabled=False,
+              bytes=image.stat().st_size,
+              mode='UEFI exact USB SID route trial' if a.try_usb_route else 'UEFI read-only USB SMMU audit before first DMA',
+              dma_audit_only=not a.try_usb_route, dma_transfer_enabled=a.try_usb_route,
+              usb_sid_route_enabled=a.try_usb_route,
               controller='DWC3 USB2, SM8550 inherited ABL PHY/clocks', hardware_result='pending',
               kernel_handoff=False, partition_io=False)
 (out / 'candidate.json').write_text(json.dumps(report, indent=2) + '\n')

@@ -112,6 +112,50 @@
         "hardware_transfer_verified": false,
         "interpretation": "no nonsecure route matched SID 0x40; consistent with failure on DMA but no fault PC captured"
       }
+    },
+    {
+      "local_evidence": "out/usb-ram-v5/attempt-01",
+      "observation": {
+        "image_sha256": "201c2ba38ead647d229c47485d3fedc0232dc734e4e0947dd2c5669f59d1728a",
+        "fastboot_result": "Sending OKAY; Booting usb_read failed e00002ed",
+        "screen_result": "not recorded; user reentered fastboot and requested retry",
+        "hardware_transfer_verified": false,
+        "flash_performed": false
+      }
+    },
+    {
+      "local_evidence": "out/usb-ram-v5/attempt-02",
+      "observation": {
+        "image_sha256": "201c2ba38ead647d229c47485d3fedc0232dc734e4e0947dd2c5669f59d1728a",
+        "fastboot_result": "Sending OKAY; Booting OKAY; total 1.681s",
+        "photos": [
+          {
+            "name": "IMG_6907.HEIC",
+            "sha256": "8e2db07c7d75cdc810b091a23ccecf19bed45766143a5eb1c3bc274a78a3c71d"
+          },
+          {
+            "name": "IMG_6908.HEIC",
+            "sha256": "a1b4b728572fddd59a09c757504376bbd918b5a0f366d70640ab2188891c62d2"
+          }
+        ],
+        "usb_result": "USB RAM receiver 1209:0001 not found or inaccessible",
+        "route_result": 4,
+        "slot": 0,
+        "attempted_s2cr": "0x000100ff",
+        "observed_s2cr": "0x000200ff",
+        "saved_smr": "0x00000060",
+        "saved_s2cr": "0x00020000",
+        "restored_smr": "0x00000060",
+        "restored_s2cr": "0x00020000",
+        "route_active": false,
+        "rollback_verified": true,
+        "first_starttransfer_issued": false,
+        "screen_result": "expected pre-DMA park after BYPASS encoding rejection",
+        "hardware_transfer_verified": false,
+        "flash_performed": false,
+        "context_bank_register_writes": false,
+        "global_smmu_register_writes": false
+      }
     }
   ],
   "saved_live_dt_usb_iommu": {
