@@ -308,6 +308,23 @@
         "conclusion": "SoC side PHY looks initialised and VBUS is visible, but the host still sees no connection",
         "next_suspect": "the D+/D- termination lives in the PMIC eUSB2 repeater, which this tree cannot configure without an SPMI driver"
       }
+    },
+    {
+      "local_evidence": "out/usb-ram-v14",
+      "observation": {
+        "image_sha256": "2df332cbe199d757ff4746a293b502656d995c049338b48e3e8e68b28a3dff88",
+        "fastboot_result": "Sending OKAY; Booting OKAY; total 1.531s",
+        "usb_receiver_enumerated": false,
+        "test_bytes_sent": 0,
+        "flash_performed": false,
+        "screen_evidence": "user photo taken after the receive window ended",
+        "phy_state": "POST matches the newer upstream sequence: COMMON0=0x4B (38.4 MHz), CTL1=0x00, CTL8=0x18, CTL9=0x48, CFG0=0x00 (override cleared)",
+        "wrapper_state": "QSCRATCH readback at 0xa600010/0x30 was zero, so that base is probably not the wrapper",
+        "link_state": 4,
+        "shutdown": "after the 180 s timeout the receiver stopped the controller and restored SMR=00000060 (release result=0 restored=1)",
+        "host_observation": "no 1209:0001 and no USB attach event",
+        "root_cause": "wrapper (QSCRATCH) base still unidentified; PMIC repeater state still unknown"
+      }
     }
   ],
   "saved_live_dt_usb_iommu": {
@@ -332,18 +349,17 @@
     "current_android_dt_read": "permission denied; use saved capture"
   },
   "next_candidate": {
-    "local_evidence": "out/usb-ram-v14",
-    "image_sha256": "2df332cbe199d757ff4746a293b502656d995c049338b48e3e8e68b28a3dff88",
+    "local_evidence": "out/usb-ram-v15",
+    "image_sha256": "052631d4ad9b7cff2990195e4e022245e7ead17cbab004e1e829e4f40f236f6e",
     "strategy": "existing-disabled-context",
     "host_cases": 21,
     "audit_host_cases": 14,
     "route_host_cases": 20,
     "delivered_modules": {
-      "FuxiUsbRamDxe": "be63741b0ab29b0ebc115ed0bf4d0998f30685ecf1f7ea8cfaf547415e94025b",
-      "UsbfnDwc3Dxe": "832438a02d7aedf472365b05f3cb987364b1cadb264fb19252c5254542ad3c2e"
+      "FuxiUsbRamDxe": "debc83f0f0b3f31846518a4902cbd0045b435fdc0f9d5191fa6828f98ac77f12",
+      "UsbfnDwc3Dxe": "0b50044cf3e4cac384286e153e5e5bd65fd30782fa8232c683fb995a90d62412"
     },
-    "change": "CPBIAS 0 and CMN_CTRL_OVERRIDE_EN cleared at the end, matching the newer upstream eUSB2 sequence",
-    "diagnostics": "16 read-only PHY register readbacks plus QSCRATCH GEN/HS/SS, printed after the link is enabled",
+    "change": "write the VBUS/session override at core_base + 0xF8800 and read back both candidate bases",
     "hardware_result": "not yet booted; awaiting fastboot readiness"
   }
 }

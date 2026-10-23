@@ -430,3 +430,23 @@ v14 同步这两点，并把回读扩展到 16 个 PHY 寄存器两个批次打�
 判读方式：若 `CFG0` 变为 0 而链路仍为 4，则 SoC 侧序列已与上游一致，
 问题基本落在 PMIC repeater 或供电；若 `QSCRATCH HS` 的 bit20/bit28
 写不进去，则说明这个 wrapper 的布局与上游假设不同。
+
+## v14 实机结果：PHY 回读完整，wrapper 仍不可见
+
+v14 启动后链路仍为 `link=4`，主机未枚举。180 秒窗口结束后接收器正常收尾：
+`USBRAM STOP status=time out; buffers retained; hardware result needs review`，
+随后停止控制器并把路由恢复为 `SMR=00000060`（`release result=0 restored=1`），
+说明新增的失败/退出路径没有破坏回滚。
+
+PHY 回读显示 SoC 侧序列与上游一致（`COMMON0=4B` 保留 38.4 MHz、
+`CTL1=00`、`CTL8=18`、`CTL9=48`、`CFG0=00` 即已清掉 common-mode override），
+但 `QSCRATCH` 三分量在 `0xa600010/0x30` 上读回为 0，
+与"VBUS 覆盖应该置位"的预期不符，说明这个基址很可能不是真正的 wrapper。
+
+## v15：把 QSCRATCH 定位到 core + 0xF8800
+
+Qualcomm 把 USB wrapper 放在 `core_base + 0xF8800`（DWC3 核心寄存器从 +0xC100 开始，
+两者不重叠）。v15 把 VBUS/会话覆盖写到 `0xa6f8800 + 0x10/0x30`，
+并在 PRE/POST 各回读一次新基址和旧的 `0xa600000+0x10/0x30` 作为对照。
+判读方式：新的 `HS` 出现 bit20|bit28、`SS` 出现 bit24，且链路转为 0 或主机枚举，
+说明 wrapper 基址就是它；若新基址读回也全 0，则 wrapper 位置还要再定位。
