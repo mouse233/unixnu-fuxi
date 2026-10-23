@@ -99,9 +99,38 @@ Candidate built with the current progress profile:
   `out/ram-progress/mem6g-verification.json`).
 - Host guard cases: root 24, main 45, progress 66; renderer matched the payload.
 
-The device boot is still pending. Use `out/ram-progress/boot-mem6g.py`, which
-checks the image hash, the 6 GiB verification record and the device identity
-before one temporary `fastboot boot`.
+Use `out/ram-progress/boot-mem6g.py`, which checks the image hash, the 6 GiB
+verification record and the device identity before one temporary
+`fastboot boot`. The result of that run is below.
+
+### Device result (attempt-06)
+
+The 6 GiB window is refused by the UEFI memory map before XNU starts:
+
+```text
+NO WINDOW 180000000 BIG RUN 1346E2000 @ 8C000
+FREE 8C0000000 + 1346E2000
+```
+
+- Largest conventional run: `0x8C0000000 + 0x1346E2000` = 5,174,599,680 bytes
+  (4.8192 GiB), ending at `0x9F46E2000`. No other run reaches 4 MiB.
+- The current 4.75 GiB window leaves 70.9 MiB of headroom; the largest
+  2 MiB-aligned window this firmware can hand over is 4.8184 GiB.
+- The 15.43 GiB bank at `0xA00000000..0xDDB900000` is not published. The firmware
+  descriptor is `XNU Window` = `0x8C0000000 + 0x140000000` in
+  `uefi-fuxi/Platforms/Xiaomi/fuxiPkg/Library/MemoryMapLib/MemoryMapLib.c:106`;
+  the comments at lines 100-105 already list the unpublished banks and note that
+  "an XNU window larger than 5 GiB has to bring them in".
+
+So the P1 gate confirms the audit: the limit is the firmware memory map, not
+XNU. The next changes are:
+
+1. Publish the free part of `0xA00000000..0xDDB900000` as `EfiConventionalMemory`
+   after confirming the reservations that start at `0xDDB900000`.
+2. Raise `DarwinWindowSizeValid` (`WindowSize.h`, currently 8 GiB) before asking
+   for more than 8 GiB in one window.
+3. Keep the ~194 MiB gap after `0x9F46E2000` and the firmware tail out of the
+   window; DarwinBoot needs one contiguous run.
 
 This step writes only RAM. No partition, userdata or boot slot is modified.
 
