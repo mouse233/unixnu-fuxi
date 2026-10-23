@@ -110,3 +110,20 @@ DarwinBoot/XNU 交接。内核 36 页启动表修复也必须重建后才能继�
 首次启动尝试发送成功，但 Booting 报 `usb_read failed with status e00002ed`；
 尚不能证明镜像执行到接收器。主机未发现接收器，ADB 也未连接。
 屏幕结果待补充；摘要见 [usb-bulk-evidence.json](usb-bulk-evidence.json)。
+
+
+第二次临时启动分步版：Sending/Booting 都 OKAY，用户报告到达
+`S12 core initialization complete` 后黑屏、重启 Android。
+ADB 可见，`ro.boot.bootreason=bootloader`，仍无法说明具体重启机制。
+因此可以把最后已确认的执行点推进到核心初始化完成；端点配置、EP0 首次
+DMA、RUN_STOP=1 和事件处理均不能视为通过。
+
+下一版增加 S13（StartController 返回）、S14（端点配置入口）、
+S15（EP0 配置）、S16（Bulk 配置）、S17（首次 EP0 DMA 及地址）、
+S18（启用连接）、S19（端点配置返回）和限额端点命令日志。
+同时让首次 EP0 SETUP 提交失败时向上返回错误，避免忽略错误后继续连接。
+这项错误传播修复不等于已找到重启根因；后续正常事件里的 EP0 重挂错误处理
+仍沿用通用驱动原实现。USB 测试不通过前，不发送完整 OS。
+
+S13–S19 候选已完成构建、21 项主机测试和交付模块核验，SHA256：
+`43a0dff0c7bc9d56cb197177edca60547481a95504d013ee21cc4556ed95476b`；尚未启动到手机。

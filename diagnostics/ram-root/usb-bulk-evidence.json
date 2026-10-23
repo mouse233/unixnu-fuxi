@@ -31,7 +31,7 @@
       }
     },
     {
-      "local_evidence": "out/usb-ram-v2",
+      "local_evidence": "out/usb-ram-v2/attempt-01",
       "observation": {
         "image_sha256": "6ed2d53f4595cadef06575d4b2340e97c2d3650519a487997feefdaabb2af4f9",
         "fastboot_result": "download OKAY; Booting usb_read failed with status e00002ed",
@@ -40,6 +40,34 @@
         "test_bytes_sent": 0,
         "flash_performed": false
       }
+    },
+    {
+      "local_evidence": "out/usb-ram-v2/attempt-02",
+      "observation": {
+        "image_sha256": "6ed2d53f4595cadef06575d4b2340e97c2d3650519a487997feefdaabb2af4f9",
+        "fastboot_result": "Sending OKAY; Booting OKAY; total 1.231s",
+        "usb_result": "USB RAM receiver 1209:0001 not found or inaccessible",
+        "test_bytes_sent": 0,
+        "flash_performed": false,
+        "screen_result": "user reports S12 then black screen and reboot to Android",
+        "screen_evidence": "user message; no photo",
+        "last_reported_marker": "S12 core initialization complete",
+        "android_bootreason": "bootloader",
+        "root_cause": "unresolved; later endpoint configuration/EP0 DMA/connection stages not traced"
+      }
     }
-  ]
+  ],
+  "next_candidate": {
+    "local_evidence": "out/usb-ram-v3",
+    "image_sha256": "43a0dff0c7bc9d56cb197177edca60547481a95504d013ee21cc4556ed95476b",
+    "host_cases": 21,
+    "delivered_modules": {
+      "FuxiUsbRamDxe": "d2e7a4186d63c881f7637d88092a3a4b06cfec6ede5abfbb505c404da1322ab3",
+      "UsbfnDwc3Dxe": "cc10f964efa14fde10a05631cbfe8e9225e4de96ac62ff0354449aa705cb5185"
+    },
+    "compressed_firmware_roundtrip": true,
+    "hardware_result": "not yet booted",
+    "initial_ep0_error_propagation": true,
+    "diagnostic_markers": "S0-S19 plus bounded endpoint command submit/write/complete logs"
+  }
 }
