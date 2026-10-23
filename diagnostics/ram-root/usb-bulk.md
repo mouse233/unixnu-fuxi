@@ -485,3 +485,33 @@ v16 不改行为，只加三处只读跟踪，用来判断枚举停在哪一步�
 问题在 EP0 arm/链路速率；有 setup 行但紧接着 reply failed，
 问题在 EP0 数据/状态阶段；有 GET_DESCRIPTOR 却反复 reset，
 则要检查返回的描述符（尤其 512 字节 bulk 端点与最高速率的一致性）。
+
+## v16 实机结果：主机 reset 后没有发出 SETUP
+
+v16 的跟踪把链路事件拆开后看清了循环：
+
+```
+USBRAM: bus reset; session cleared
+USBRAM: detach; session cleared
+USBRAM: speed=3
+```
+
+整个 180 秒里**没有任何 `USBRAM: setup` 行**，也没有 `setup reply failed`。
+说明主机 reset 之后从未把 SETUP 送到设备端代码，枚举停在
+"reset 完成、控制传输未开始"。
+
+对照驱动逻辑：`Dwc3Ep0ResetState()` 只结束了 EP0 IN，没有清 EP0 OUT 的
+`TransferStarted`；随后 `CONNECT_DONE` 里的 `Ep0Rearm = !TransferStarted`
+因此为假，`Dwc3Ep0OutStart()` 被跳过。USB reset 会作废已挂的 setup TRB，
+所以 EP0 OUT 实际上再也没有被武装。上游 `dwc3_gadget_reset_interrupt()`
+正是在每次 reset 后调用 `dwc3_ep0_out_start()`。
+
+## v17：reset 后重新武装 EP0 OUT
+
+v17 在 USB reset 分支里、`Dwc3Ep0ResetState()` 之后调用
+`Dwc3Ep0OutStart()`，并在 `Dwc3Ep0OutStart()` 与 `Dwc3HandleEp0Event()`
+增加不受 trace 预算限制的只读日志（`FUXI EP0: arm` / `FUXI EP0: evt=…`）。
+
+判读方式：出现 `FUXI EP0: arm` 且随后出现 `FUXI EP0: evt=4 …`（XFERCOMPLETE
+在 Setup 状态）说明 SETUP 已被接收；再配合 `USBRAM: setup rt=…` 即可看出
+枚举推进到哪个请求。若仍无 SETUP，则问题回到链路速率/描述符协商。

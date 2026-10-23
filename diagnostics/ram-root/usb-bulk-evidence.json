@@ -346,6 +346,21 @@
         "failure_stage": "enumeration: the link is up but no configuration is completed",
         "next_suspect": "speed reporting flips between 2 and 3 (3 means DSTS.CONNECTSPD=4, an SS encoding that makes no sense on this USB2 link)"
       }
+    },
+    {
+      "local_evidence": "out/usb-ram-v16",
+      "observation": {
+        "image_sha256": "ff9caf4d5d6e87c785df4ffcc63c797c4fc75e457da8134d9ee06618ffa545da",
+        "fastboot_result": "Sending OKAY; Booting OKAY; total 1.632s",
+        "usb_receiver_enumerated": false,
+        "test_bytes_sent": 0,
+        "flash_performed": false,
+        "screen_evidence": "user photo of the trace",
+        "observed": "reset and detach alternate with speed=3, but no USBRAM: setup line at all",
+        "host_observation": "still not enumerated",
+        "diagnosis": "after a USB reset EP0 OUT is never re-armed: Dwc3Ep0ResetState() only ends EP0 IN, so TransferStarted stays set and CONNECT_DONE skips Dwc3Ep0OutStart()",
+        "reference": "upstream dwc3_gadget_reset_interrupt() calls dwc3_ep0_out_start() on every reset"
+      }
     }
   ],
   "saved_live_dt_usb_iommu": {
@@ -370,17 +385,17 @@
     "current_android_dt_read": "permission denied; use saved capture"
   },
   "next_candidate": {
-    "local_evidence": "out/usb-ram-v16",
-    "image_sha256": "ff9caf4d5d6e87c785df4ffcc63c797c4fc75e457da8134d9ee06618ffa545da",
+    "local_evidence": "out/usb-ram-v17",
+    "image_sha256": "1c3e5d485d6c1bc559b73451504128dc1db7de582b2aafd0405825a006624bef",
     "strategy": "existing-disabled-context",
     "host_cases": 21,
     "audit_host_cases": 14,
     "route_host_cases": 20,
     "delivered_modules": {
-      "FuxiUsbRamDxe": "936c9e6bd900a4dab4dad90c24aa692702f3894511c744e0ce7bd533d5c29b3f",
-      "UsbfnDwc3Dxe": "a372ba8da3b49578115b9786183780bacb749d8cfeca86505d093d69cef17dfb"
+      "FuxiUsbRamDxe": "0c849c3a6b873ed9e412433d8492577ca2cdb23b187a1b8a66388a5d4fa9311a",
+      "UsbfnDwc3Dxe": "f40e9cdf21acceae6fa3b5479641e089d37dc60df6f674729d7fafa881508c8c"
     },
-    "change": "split reset from detach and trace every SETUP packet with rt/req/val/idx/len plus setup reply failures",
+    "change": "re-arm EP0 OUT in the USB reset branch and trace EP0 arm plus EP0 events",
     "hardware_result": "not yet booted; awaiting fastboot readiness"
   }
 }
