@@ -89,9 +89,14 @@ python3 out/<新的候选目录>/finalize.py
 
 ## 实机验证
 
-v25 attempt-01 已由用户确认进入 fastboot 后启动，等待双对象传输结果和屏幕证据。
-本轮仅 `fastboot boot`，未写分区。传输结束后需手动选择
-`fuxi RAM diagnostic: system-mount`。
+v25 attempt-01 已完成临时启动与双对象传输，用时 550.602 秒。OS
+6,077,580,800 字节与 SystemOS 3,303,014,400 字节的 END 实际 RAM SHA256
+均通过。主机已看不到 USB 接收器；这不能替代 HALTED、路由恢复、QUIESCE
+的屏幕证据，运行器保留 `normal_controller_stop_verified=false`。
+完整报告与主机观察在 `attempt-01/full-transfer.json`、`host-observation.json`。
+
+本轮仅 `fastboot boot`，未写分区。已提示用户手动选择
+`fuxi RAM diagnostic: system-mount`；尚待 DarwinBoot/XNU 屏幕结果。
 
 ```sh
 cd /Volumes/External/VSCode/UniXNU/ramdisk-test/UniXNU-fuxi

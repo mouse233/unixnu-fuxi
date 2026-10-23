@@ -992,3 +992,16 @@ compressor claim 约 12.625 GiB（包括 freezer swap reserve），总和无法�
 
 用户已进入 fastboot，v25 attempt-01 已开始。尚待双对象传输与照片结果；
 此处不宣称新候选已越过实机 panic 或已挂载 APFS。
+
+## v25 attempt-01：双对象 END RAM 校验通过，待 XNU 照片（2026-10-24）
+
+镜像 `163f0551…5879`，用户确认 fastboot 后，经 serial/product/unlocked
+检查完成一次临时启动。OS 6,077,580,800 字节、SystemOS 3,303,014,400 字节
+的 END 实际 RAM SHA256 都匹配，合计 550.602 秒。
+记录：`out/usb-system-mount-v25/attempt-01/full-transfer.json`、
+`host-observation.json`。接收器已从主机消失；正常停机三标记仍待屏幕证据，
+保留 `normal_controller_stop_verified=false`。
+
+已提示用户手动选择 `fuxi RAM diagnostic: system-mount`。
+当前尚不能确认 XNU 越过 kmem_range_init、两个 APFS 卷挂载成功或
+`RAM_SYSTEM PASS`。后续必须把最终照片结论追加回本日志与 REVIEW.md。
