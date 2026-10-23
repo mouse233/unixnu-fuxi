@@ -198,3 +198,26 @@ python3 scripts/check-usb-smmu-route.py --uefi ../uefi-fuxi \
 这确认了本机对该 BYPASS 编码的异常处理，不能直接靠这个编码打通 DMA。
 下一步检查不被其他有效 stream 引用、SCTLR.M=0、CBAR.TYPE=S1_TRANS_S2_BYPASS
 的既有 context bank，尝试以 TRANS 指向它。仍需读回核验和实际 DMA 验收。
+
+
+## 既有禁用 context 的 TRANS 路径
+
+当前 `--try-usb-route` 候选改用 `FurInstallViaContext`；原 BYPASS 事务保留用于
+回归测试和解释上一轮证据。默认构建仍只读审计。
+新路径将所有 S2CR 中的 TRANS 引用都视为 context 占用（含无效 SMR 的引用），
+在 1 MiB aperture 内从高位 context 向下查找，保留 bank 0。
+只接受 `CBAR.TYPE=1`（S1 translation/S2 bypass）且 `SCTLR.M=0` 的既有状态；
+不写任何 CB 寄存器、不更改已有页表。找不到合适 context 时返回 result=7 并停住。
+
+在空闲 SMR 下先写 `S2CR=TRANS|CBNDX`，要求读回含 CBNDX 在内完全一致；
+激活精确 SID 后再次核对路由及 context 状态。context 改变也回滚，保留外部改变。
+复用既有禁用上下文的方案与 Linux 的 Qualcomm bypass-context 处理思路一致，
+但本实验不创建或重配 context。尚未证明该路径在本机实际可用。
+
+生产事务测试现有 20 项，新增 context 占用、禁用条件、S2 模式、配置变化、
+精确 CBNDX 和 64 KiB 寄存器页场景；与 14 项审计及 21 项协议测试合计 55 项。
+交付清单显式记录 `usb_sid_route_strategy=existing-disabled-context`，
+并检查实际 EFI 中的策略日志标记。只满足主机检查不能宣称手机 USB 已通。
+
+既有 context 候选已构建核验，SHA256：
+`e2b27346542b70fad2f8a26274d937439d747c7c1c8d81df2860f5eea23b2147`。尚未实机启动，等待 fastboot 就绪。

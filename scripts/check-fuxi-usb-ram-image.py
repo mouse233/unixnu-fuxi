@@ -80,6 +80,8 @@ if candidate.get('usb_sid_route_enabled'):
         require(sources['Platforms/Xiaomi/fuxiPkg/Library/FuxiUsbfnLib/' + name] == digest,
                 'route tests ran different sources')
     require(b'USB ROUTE VERIFIED; first DMA permitted' in inner, 'route trial absent from delivered firmware')
+    if candidate.get('usb_sid_route_strategy') == 'existing-disabled-context':
+        require(b'USB CONTEXT existing bank=' in inner, 'context-route strategy absent from delivered firmware')
     require(candidate.get('dma_transfer_enabled') is True and not candidate.get('dma_audit_only'),
             'route trial mode mismatch')
 report = dict(boot_sha256=sha(boot), boot_bytes=len(boot), fd_sha256=sha(fd),
@@ -91,6 +93,7 @@ report = dict(boot_sha256=sha(boot), boot_bytes=len(boot), fd_sha256=sha(fd),
               dma_transfer_enabled=candidate.get('dma_transfer_enabled', True),
               smmu_audit_host_cases=audit['cases'] if (candidate.get('dma_audit_only') or candidate.get('usb_sid_route_enabled')) else None,
               usb_sid_route_enabled=bool(candidate.get('usb_sid_route_enabled')),
+              usb_sid_route_strategy=candidate.get('usb_sid_route_strategy'),
               smmu_route_host_cases=route['cases'] if candidate.get('usb_sid_route_enabled') else None)
 (out / 'verification.json').write_text(json.dumps(report, indent=2) + '\n')
 print(json.dumps(report, indent=2))

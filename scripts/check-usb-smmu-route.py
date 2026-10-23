@@ -18,9 +18,9 @@ test = r'''
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
-static FUA32 regs[1024],before[1024],writes,offsets[20],values[20],mode,smr_reads,s2cr_reads;
+static FUA32 regs[0x100000/4],before[0x100000/4],writes,offsets[20],values[20],mode,smr_reads,s2cr_reads,context_reads;
 static FUA32 rd(void *ctx,FUA32 at) {
-  (void)ctx;assert(at<0x1000 && !(at&3));
+  (void)ctx;assert(at<sizeof(regs) && !(at&3));
   if(at==0x804) {
     smr_reads++;
     if(mode==4 && smr_reads==2) regs[at/4]=0x80000222;
@@ -29,6 +29,7 @@ static FUA32 rd(void *ctx,FUA32 at) {
     s2cr_reads++;
     if(mode==5 && s2cr_reads==4)regs[at/4]=0x200ff;
   }
+  if(at==0xc5000 && mode==6 && ++context_reads==4)regs[at/4]|=1;
   return regs[at/4];
 }
 static void wr(void *ctx,FUA32 at,FUA32 value) {
@@ -38,17 +39,18 @@ static void wr(void *ctx,FUA32 at,FUA32 value) {
   if(mode==1 && at==0xc04 && (value>>16)==2)return;
   if(mode==2 && at==0x804 && value==0x80000040)return;
   if(mode==5 && at==0x804 && value!=0x80000040 && writes>2)return;
+  if(mode==7 && at==0xc04 && value==69)value=68;
   regs[at/4]=value;
 }
 static void init(void) {
-  memset(regs,0,sizeof(regs));mode=writes=smr_reads=s2cr_reads=0;
+  memset(regs,0,sizeof(regs));mode=writes=smr_reads=s2cr_reads=context_reads=0;
   regs[0x20/4]=(1u<<27)|8;regs[0x24/4]=0x60000046;regs[0]=0x00290406;
   for(unsigned i=0;i<8;i++){regs[(0x800+4*i)/4]=0x80000100+i;regs[(0xc00+4*i)/4]=0x20000+i;}
   regs[0x804/4]=0x1234;regs[0xc04/4]=0x200ff;
   memcpy(before,regs,sizeof(regs));
 }
 static void others(void) {
-  for(unsigned i=0;i<1024;i++)if(i!=0x804/4 && i!=0xc04/4)assert(regs[i]==before[i]);
+  for(unsigned i=0;i<sizeof(regs)/sizeof(regs[0]);i++)if(i!=0x804/4 && i!=0xc04/4)assert(regs[i]==before[i]);
 }
 int main(void) {
  FUR_STATE s={0};FUA32 result;
@@ -98,6 +100,35 @@ int main(void) {
  puts("post-activation route change and failed invalidation retain conservative ownership");
  writes=0;assert(FurInstall(rd,wr,0,&s)==FurChanged && !writes);
  puts("active or uncertain ownership cannot be installed over");
+ memset(&s,0,sizeof(s));init();regs[0x1114/4]=0x10000;regs[0xc5000/4]=0x100;
+ memcpy(before,regs,sizeof(regs));
+ assert(FurInstallViaContext(rd,wr,0,&s)==FurOk && s.Context==69 && s.ContextChecked && s.DesiredS2cr==69);
+ assert(regs[0xc04/4]==69 && s.Active);others();
+ assert(FurRemove(rd,wr,0,&s)==FurOk && !memcmp(regs,before,sizeof(regs)));
+ puts("TRANS uses an existing disabled S1/S2-bypass context without changing any context register");
+ memset(&s,0,sizeof(s));init();regs[0x1114/4]=regs[0x1110/4]=0x10000;
+ regs[0xc1c/4]=69;memcpy(before,regs,sizeof(regs));
+ assert(FurInstallViaContext(rd,wr,0,&s)==FurOk && s.Context==68);others();
+ puts("context referenced by another stream is excluded");
+ memset(&s,0,sizeof(s));init();regs[0x1114/4]=regs[0x1110/4]=0x10000;
+ regs[0x814/4]=0;regs[0xc14/4]=69;
+ assert(FurInstallViaContext(rd,wr,0,&s)==FurOk && s.Context==68);
+ puts("even inactive TRANS references reserve their context");
+ memset(&s,0,sizeof(s));init();regs[0x1114/4]=regs[0x1110/4]=0x10000;regs[0xc5000/4]=1;
+ assert(FurInstallViaContext(rd,wr,0,&s)==FurOk && s.Context==68);
+ puts("an enabled but unreferenced context is never reused or disabled");
+ memset(&s,0,sizeof(s));init();regs[0x1114/4]=0x30000;
+ assert(FurInstallViaContext(rd,wr,0,&s)==FurNoContext && !writes);
+ puts("stage-two translation contexts and missing identity contexts stop before writes");
+ memset(&s,0,sizeof(s));init();regs[0x1114/4]=0x10000;mode=6;
+ assert(FurInstallViaContext(rd,wr,0,&s)==FurChanged && s.RestoreOk && !s.Active && regs[0xc5000/4]==1);
+ puts("context changed after activation triggers rollback without overwriting the changed context");
+ memset(&s,0,sizeof(s));init();regs[0x1114/4]=0x10000;mode=7;
+ assert(FurInstallViaContext(rd,wr,0,&s)==FurBypassRejected && s.RestoreOk && !s.Active);
+ puts("TRANS readback must preserve the exact context index");
+ memset(&s,0,sizeof(s));init();regs[0x24/4]=0xa0000008;regs[0x1001c/4]=0x10000;
+ assert(FurInstallViaContext(rd,wr,0,&s)==FurOk && s.Context==7 && s.ContextBase==0xf0000);
+ puts("identity-context selection supports 64 KiB register pages within the physical aperture");
  return 0;
 }
 '''

@@ -65,6 +65,7 @@ report = dict(image=str(image), sha256=hashlib.sha256(image.read_bytes()).hexdig
               mode='UEFI exact USB SID route trial' if a.try_usb_route else 'UEFI read-only USB SMMU audit before first DMA',
               dma_audit_only=not a.try_usb_route, dma_transfer_enabled=a.try_usb_route,
               usb_sid_route_enabled=a.try_usb_route,
+              usb_sid_route_strategy='existing-disabled-context' if a.try_usb_route else None,
               controller='DWC3 USB2, SM8550 inherited ABL PHY/clocks', hardware_result='pending',
               kernel_handoff=False, partition_io=False)
 (out / 'candidate.json').write_text(json.dumps(report, indent=2) + '\n')

@@ -178,5 +178,18 @@
     ],
     "runtime_abl_smmu_registers_observed": true,
     "current_android_dt_read": "permission denied; use saved capture"
+  },
+  "next_candidate": {
+    "local_evidence": "out/usb-ram-v6",
+    "image_sha256": "e2b27346542b70fad2f8a26274d937439d747c7c1c8d81df2860f5eea23b2147",
+    "strategy": "existing-disabled-context",
+    "host_cases": 21,
+    "audit_host_cases": 14,
+    "route_host_cases": 20,
+    "delivered_modules": {
+      "FuxiUsbRamDxe": "510b9422387451989f11c575155f7ebc33ca7fc69cee67e545a996bfea420b75",
+      "UsbfnDwc3Dxe": "f00faf85f054dfd036c2ee335e54d48a30309800db5046f58f2c80ac3ba9745d"
+    },
+    "hardware_result": "not yet booted; awaiting fastboot readiness"
   }
 }
