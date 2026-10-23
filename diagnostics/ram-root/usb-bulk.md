@@ -450,3 +450,38 @@ Qualcomm 把 USB wrapper 放在 `core_base + 0xF8800`（DWC3 核心寄存器从 
 并在 PRE/POST 各回读一次新基址和旧的 `0xa600000+0x10/0x30` 作为对照。
 判读方式：新的 `HS` 出现 bit20|bit28、`SS` 出现 bit24，且链路转为 0 或主机枚举，
 说明 wrapper 基址就是它；若新基址读回也全 0，则 wrapper 位置还要再定位。
+
+## v15 实机结果：链路首次真正连通
+
+v15 把 QSCRATCH 覆盖写到 `core + 0xF8800` 之后，行为发生了质变：
+控制器开始持续收到 USB 事件，屏幕反复出现
+
+```
+USBRAM: bus reset/detach; session cleared
+USBRAM: speed=3            (偶发 speed=2)
+```
+
+并且 180 秒窗口结束、停止控制器时读到的 `DSTS=00002732`：
+`USBLNKST=0`（U0/在线），`SOFFN=0x4E6` 且在推进，说明当时主机正在发 SOF、
+链路是稳定在线的。这是本项目第一次让 DWC3 真正连上主机，
+也确认了 wrapper 基址就是 `0xa6f8800`。
+
+同时回滚路径仍然完整：停止后 `write offset=800 value=00000060`、
+`write offset=c00 value=00020000`，`route release result=0 restored=1`。
+
+主机侧仍看不到设备，说明卡在枚举阶段。`speed` 在 2/3 之间跳变
+（3 对应 DSTS.CONNECTSPD=4，即超速编码，对 USB2-only 链路不合理），
+更像是链路速率上报不稳，而不是真正的 SS 连接。
+
+## v16：枚举跟踪
+
+v16 不改行为，只加三处只读跟踪，用来判断枚举停在哪一步：
+
+- 把原来的 `bus reset/detach` 拆成 `bus reset` 与 `bus detach`；
+- 每个 `EfiUsbMsgSetupPacket` 打印 `rt/req/val/idx/len`；
+- `Setup()` 返回失败时打印 `USBRAM: setup reply failed %r`。
+
+判读方式：完全没有 setup 行说明主机 reset 后没有发出控制传输，
+问题在 EP0 arm/链路速率；有 setup 行但紧接着 reply failed，
+问题在 EP0 数据/状态阶段；有 GET_DESCRIPTOR 却反复 reset，
+则要检查返回的描述符（尤其 512 字节 bulk 端点与最高速率的一致性）。

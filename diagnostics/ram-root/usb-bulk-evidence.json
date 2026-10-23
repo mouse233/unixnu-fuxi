@@ -325,6 +325,27 @@
         "host_observation": "no 1209:0001 and no USB attach event",
         "root_cause": "wrapper (QSCRATCH) base still unidentified; PMIC repeater state still unknown"
       }
+    },
+    {
+      "local_evidence": "out/usb-ram-v15",
+      "observation": {
+        "image_sha256": "052631d4ad9b7cff2990195e4e022245e7ead17cbab004e1e829e4f40f236f6e",
+        "fastboot_result": "Sending OKAY; Booting OKAY; total 2.182s",
+        "usb_receiver_enumerated": false,
+        "test_bytes_sent": 0,
+        "flash_performed": false,
+        "screen_evidence": "user photos; repeated reset/speed lines",
+        "link_established": true,
+        "evidence": [
+          "repeated USBRAM bus reset/detach with speed=3 (occasionally 2)",
+          "at shutdown DSTS=0x00002732: USBLNKST=0 (U0/on) and SOFFN=0x4E6 advancing, so the host was sending SOFs",
+          "route released with restored=1"
+        ],
+        "wrapper_base_confirmed": "0xa6f8800 (core + 0xF8800)",
+        "host_observation": "macOS still does not enumerate the device; USB logs are debug-level and not persisted, so absence there is not evidence",
+        "failure_stage": "enumeration: the link is up but no configuration is completed",
+        "next_suspect": "speed reporting flips between 2 and 3 (3 means DSTS.CONNECTSPD=4, an SS encoding that makes no sense on this USB2 link)"
+      }
     }
   ],
   "saved_live_dt_usb_iommu": {
@@ -349,17 +370,17 @@
     "current_android_dt_read": "permission denied; use saved capture"
   },
   "next_candidate": {
-    "local_evidence": "out/usb-ram-v15",
-    "image_sha256": "052631d4ad9b7cff2990195e4e022245e7ead17cbab004e1e829e4f40f236f6e",
+    "local_evidence": "out/usb-ram-v16",
+    "image_sha256": "ff9caf4d5d6e87c785df4ffcc63c797c4fc75e457da8134d9ee06618ffa545da",
     "strategy": "existing-disabled-context",
     "host_cases": 21,
     "audit_host_cases": 14,
     "route_host_cases": 20,
     "delivered_modules": {
-      "FuxiUsbRamDxe": "debc83f0f0b3f31846518a4902cbd0045b435fdc0f9d5191fa6828f98ac77f12",
-      "UsbfnDwc3Dxe": "0b50044cf3e4cac384286e153e5e5bd65fd30782fa8232c683fb995a90d62412"
+      "FuxiUsbRamDxe": "936c9e6bd900a4dab4dad90c24aa692702f3894511c744e0ce7bd533d5c29b3f",
+      "UsbfnDwc3Dxe": "a372ba8da3b49578115b9786183780bacb749d8cfeca86505d093d69cef17dfb"
     },
-    "change": "write the VBUS/session override at core_base + 0xF8800 and read back both candidate bases",
+    "change": "split reset from detach and trace every SETUP packet with rt/req/val/idx/len plus setup reply failures",
     "hardware_result": "not yet booted; awaiting fastboot readiness"
   }
 }
