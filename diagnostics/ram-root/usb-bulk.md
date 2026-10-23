@@ -308,3 +308,74 @@ v9 在 `UsbfnPlatformPhyInit`（控制器仍处于 ABL 状态时）抓一份
 ABL 那份是唯一被证明能连上主机的状态（fastboot 就工作在这个状态），
 两份的差异直接指出我们改坏或漏配了哪个寄存器。
 快照全部只读，不改变启动行为。
+
+## v10 实机结果：ABL 与 POST 快照的差异
+
+v10 重新把两条快照打印在链路使能附近，照片可以读到（部分数字受屏幕字号限制）：
+
+- `FUXI SNAP ABL … GCTL=00102001 PHYCFG=00102400 PIPECTL=0B014102
+  DCFG=00480E00 DCTL=10F00000 … DEVTEN=00000127 …`
+- `FUXI SNAP POST … GCTL=00102000 PHYCFG=00102400 PIPECTL=0B014102
+  DCFG=00480E00 … DCTL=90F00000（RunStop 之后）…`
+- `FUXI LINK t=0ms DSTS=… link=4 speed=1 sofn=0 DCTL=90F00000
+  PHYCFG=00102400 GEVNTCOUNT=0`
+
+结论有三点。第一，`DCFG`、`PHYCFG`、`PIPECTL` 在 ABL 与 POST 之间完全一致，
+所以 UTMI 位宽、速度配置和速率不是被我们改坏的。第二，唯一确定的差异是
+`GCTL` 的 bit0（DSBLCLKGTNG）：ABL 置 1，我们的初始化把它清掉，
+这是该驱动的常规行为。第三，ABL 快照里 `DCTL` 的 RUN_STOP 已经是 0，
+说明交接时控制器已经被停住，因此这份快照不是"链路可用"的参照，
+不能作为逐位对齐的目标。
+
+因此链路起不来更可能发生在 PHY 本身：ABL 初始化好的外部 USB2 PHY
+在 `Dwc3SoftReset` 里被 `GUSB2PHYCFG.PHYSOFTRST` 脉冲复位，
+而本固件没有重新初始化该 PHY 的能力。
+
+## v11：跳过 PHY 软复位
+
+v11 增加 `FUXI_USB_KEEP_PHY`（构建脚本 `--keep-phy`，默认关闭），
+只跳过 `GUSB2PHYCFG.PHYSOFTRST` 的置位/释放；核心软复位、时钟门控、
+端点与 SMMU 路由都不变。镜像里保留一条
+`FUXI USB: skip USB2 PHY soft reset` 标记，核验脚本在 `usb_keep_phy`
+为真时强制要求它存在。
+
+判读方式：若链路仍停在 link=4，说明问题不在这次脉冲，
+而在 PHY 需要显式初始化（或 Type-C/供电通路）；若链路起来并出现
+`GEVNTCOUNT != 0` 或主机枚举，则说明 ABL 的 PHY 状态必须保留。
+
+## 根因方向：这台机器用的是 eUSB2 PHY
+
+v11（跳过 `PHYSOFTRST` 脉冲）的链路仍是 `link=4`、`sofn=0`、`GEVNTCOUNT=0`，
+主机没有任何 attach。也就是说，那次脉冲不是原因，而 PHY 需要显式初始化。
+
+保存的 live DT 给出了决定性信息（`live-fdt.dtb`，SHA256 `3ac98f56…674e`）：
+
+```
+ssusb@a600000: qcom,use-eusb2-phy;
+hsphy@88e3000: compatible = "qcom,usb-snps-eusb2-phy";
+               reg = <0x88e3000 0x154 0xc276000 0x04>;
+               usb-repeater = <&eusb2-repeater>;
+eusb2-repeater@fd00 (PMIC): compatible = "qcom,pmic-eusb2-repeater";
+```
+
+即 DWC3 的 UTMI 口接的是一颗 **Synopsys eUSB2 PHY**，它的模拟前端是 PMIC
+里的 eUSB2 repeater。之前的固件完全没有初始化这颗 PHY，
+所以 DWC3 虽然 RUN_STOP=1，也拿不到可用的 UTMI 链路。
+
+## v12：按上游序列初始化 eUSB2 PHY
+
+v12 在 `UsbfnPlatformPhyInit` 里、DWC3 核心初始化之前，按上游
+`phy-qcom-snps-eusb2.c`（19.2 MHz 参考时钟分支）的寄存器序列初始化
+`0x88e3000`：CMN override、POR、PHY_ENABLE/RETENABLEN、APB logic reset、
+FSEL、PLL 分频与偏置、TX 参数、VBUS 外部检测、SUSPEND_N，最后清 POR。
+它不触碰 PMIC repeater、vdd/vdda12 和参考时钟——这些仍需 ABL 留下，
+本固件没有对应驱动。
+
+因为 `Dwc3SoftReset` 的 `PHYSOFTRST` 脉冲会把刚写好的 PHY 再复位，
+v12 必须同时使用 `--keep-phy`。初始化前后各打印一条只读快照
+（`FUXI PHY PRE` / `FUXI PHY POST`），核验脚本要求镜像里存在
+`FUXI PHY eUSB2 init sequence applied` 标记。
+
+判读方式：`PHY POST` 与上游写入值一致且主机出现 `1209:0001`，
+说明这条路径成立；若 PHY 寄存器写不进去或链路仍为 4，
+则问题在 PMIC repeater/供电/参考时钟，而不是 SoC 侧 PHY 序列。

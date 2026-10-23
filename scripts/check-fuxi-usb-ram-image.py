@@ -88,6 +88,11 @@ if candidate.get('usb_sid_route_enabled'):
         require(b'FUXI SNAP %a' in inner, 'bootloader snapshot absent from delivered firmware')
     require(candidate.get('dma_transfer_enabled') is True and not candidate.get('dma_audit_only'),
             'route trial mode mismatch')
+if candidate.get('usb_eusb2_phy_init'):
+    require(b'FUXI PHY eUSB2 init sequence applied' in inner, 'eUSB2 init absent from delivered firmware')
+if candidate.get('usb_keep_phy'):
+    require(candidate.get('usb_sid_route_enabled'), 'keep-phy without a route trial')
+    require(b'FUXI USB: skip USB2 PHY soft reset' in inner, 'keep-phy marker absent from delivered firmware')
 report = dict(boot_sha256=sha(boot), boot_bytes=len(boot), fd_sha256=sha(fd),
               delivered_modules=modules, source_sha256=sources,
               compressed_firmware_roundtrip=True, os_version_raw='0x220001a7',

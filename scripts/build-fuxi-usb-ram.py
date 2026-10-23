@@ -17,6 +17,7 @@ for name in ['base', 'uefi', 'edk2']:
     p.add_argument('--' + name, type=Path, required=True)
 p.add_argument('--output', type=Path, default=Path('out/usb-ram'))
 p.add_argument('--try-usb-route', action='store_true', help='try exact SID0040 route with readback/rollback; default only audits')
+p.add_argument('--keep-phy', action='store_true', help='keep the ABL USB2 PHY state instead of pulsing PHYSOFTRST')
 a = p.parse_args()
 device = Path(__file__).resolve().parents[1]
 base, uefi, edk2, out = [x.resolve() for x in [a.base, a.uefi, a.edk2, a.output]]
@@ -41,6 +42,7 @@ ctx.board['firmware']['submodules'] = []
 ctx.board['firmware']['packages'].append('{uefi}/Silicon/Samsung')
 ctx.board['firmware']['defines']['FUXI_USB_RAM_RECEIVER'] = '1'
 ctx.board['firmware']['defines']['FUXI_USB_TRY_SID_ROUTE'] = '1' if a.try_usb_route else '0'
+ctx.board['firmware']['defines']['FUXI_USB_KEEP_PHY'] = '1' if a.keep_phy else '0'
 ctx.board['firmware']['defines']['FUXI_PAYLOAD_DIAGNOSTIC'] = '0'
 ctx.uefi = uefi
 fd = firmware.build(ctx, {}, uefi, edk2, 'DEBUG')
@@ -66,6 +68,8 @@ report = dict(image=str(image), sha256=hashlib.sha256(image.read_bytes()).hexdig
               dma_audit_only=not a.try_usb_route, dma_transfer_enabled=a.try_usb_route,
               usb_sid_route_enabled=a.try_usb_route,
               usb_sid_route_strategy='existing-disabled-context' if a.try_usb_route else None,
+              usb_keep_phy=a.keep_phy,
+              usb_eusb2_phy_init=bool(a.try_usb_route),
               controller='DWC3 USB2, SM8550 inherited ABL PHY/clocks', hardware_result='pending',
               kernel_handoff=False, partition_io=False)
 (out / 'candidate.json').write_text(json.dumps(report, indent=2) + '\n')

@@ -234,6 +234,44 @@
         "failure_stage": "controller running but the USB2 link never leaves HS_DISCONNECTED; no SOF and no device events",
         "root_cause": "unresolved; PHY/termination layer, either the inherited PHY is not re-enabled or early init overwrote the bootloader state"
       }
+    },
+    {
+      "local_evidence": "out/usb-ram-v10",
+      "observation": {
+        "image_sha256": "3e0f1566d7e8605c0dfb9df7ffa70aba7364136d0938d114d94b15dc3e20f97a",
+        "fastboot_result": "Sending OKAY; Booting OKAY; total 3.137s",
+        "usb_receiver_enumerated": false,
+        "test_bytes_sent": 0,
+        "flash_performed": false,
+        "screen_evidence": "user photo; some digits at the screen font limit",
+        "abl_snapshot": "GCTL=00102001 PHYCFG=00102400 PIPECTL=0B014102 DCFG=00480E00 DCTL=10F00000 (RUN_STOP already 0, controller halted by the handoff)",
+        "post_snapshot": "GCTL=00102000 PHYCFG=00102400 PIPECTL=0B014102 DCFG=00480E00 DCTL=90F00000 after RUN_STOP",
+        "comparison": "DCFG, PHYCFG and PIPECTL identical; only GCTL bit0 (DSBLCLKGTNG) and the event buffer address differ; the ABL snapshot is not a connected reference because its controller was already stopped",
+        "link_state": 4,
+        "host_observation": "no 1209:0001 and no USB attach event",
+        "failure_stage": "USB2 link never leaves HS_DISCONNECTED with the controller running",
+        "root_cause": "unresolved; the PHY soft reset pulse during init is the leading suspect"
+      }
+    },
+    {
+      "local_evidence": "out/usb-ram-v11",
+      "observation": {
+        "image_sha256": "0b5c02a9f84ee241ba08c7614602e8c884d047c699f823d71a7ea1dc18cb6f35",
+        "fastboot_result": "Sending OKAY; Booting OKAY; total 1.382s",
+        "usb_receiver_enumerated": false,
+        "test_bytes_sent": 0,
+        "flash_performed": false,
+        "screen_evidence": "user photo",
+        "visible_lines": [
+          "FUXI SNAP ABL GCTL=00102001 ... DCFG=00480E00 DCTL=10F00000",
+          "FUXI SNAP POST GCTL=00102000 ... DCFG=00480E00 DCTL=(run after RunStop)",
+          "FUXI LINK t=0ms link=4 speed=1 sofn=0 DCTL=90F00000 PHYCFG=00102400 GEVNTCOUNT=0"
+        ],
+        "link_state": 4,
+        "host_observation": "no 1209:0001 and no USB attach event",
+        "conclusion": "skipping the USB2 PHY soft reset does not restore the link, so the pulse was not the cause",
+        "root_cause": "the DWC3 UTMI port is wired to an eUSB2 PHY (live DT) that this firmware never initialises"
+      }
     }
   ],
   "saved_live_dt_usb_iommu": {
@@ -258,17 +296,19 @@
     "current_android_dt_read": "permission denied; use saved capture"
   },
   "next_candidate": {
-    "local_evidence": "out/usb-ram-v9",
-    "image_sha256": "c2e2d6589c1a25fee2f243c41a82f34e3a2bb9395b488179b3b4e45f2a591ac7",
+    "local_evidence": "out/usb-ram-v12",
+    "image_sha256": "17abeb3c71d22bd989fae7b4a8ca50b72224c9447d5eee3ec88163a6afca4a4d",
     "strategy": "existing-disabled-context",
     "host_cases": 21,
     "audit_host_cases": 14,
     "route_host_cases": 20,
     "delivered_modules": {
-      "FuxiUsbRamDxe": "8788e8a6277b5aa39c811d240951ae9aedda4216428862a8a6e0fcaaf911319d",
-      "UsbfnDwc3Dxe": "b550f59e3f6d16910365aad1e8f61dcd46af0bf838693a9d714245a7688c1461"
+      "FuxiUsbRamDxe": "d9d942fbc8d85aec5871bc171dbe95b4a4eedf745241565b8ff5f3e8a03f7a5b",
+      "UsbfnDwc3Dxe": "1a3b47d2c8ba55211bf5b118c8ef62c5fc46a2ca545c64d66446192ce771c77d"
     },
-    "diagnostics": "read-only DWC3 register snapshot taken while the controller is still owned by ABL and reprinted next to the post-init snapshot",
+    "change": "initialise the Synopsys eUSB2 PHY at 0x88e3000 from the upstream 19.2 MHz sequence before DWC3 core init, with the PHY soft-reset pulse skipped",
+    "diagnostics": "read-only FUXI PHY PRE and FUXI PHY POST register snapshots plus the existing DWC3 and link snapshots",
+    "caveat": "PMIC eUSB2 repeater, vdd/vdda12 rails and the PHY reference clock still have to be inherited from ABL",
     "hardware_result": "not yet booted; awaiting fastboot readiness"
   }
 }
