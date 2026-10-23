@@ -254,3 +254,30 @@ v7 保持同一路由策略，只在失败路径增加只读快照：`GFSR` 与 
 
 判读方法：`GFSR=0` 且无 pending event 说明 DMA 路径已通，
 问题在 EP0 时序；`GFSR!=0` 且 `GFSYNR1=0x40` 说明该 stream 仍在 abort。
+
+## v7 实机结果：EP0 已 armed，链路仍未建立
+
+v7（`f178629e…c08ca`）启动后，路由读回与 v6 完全相同
+（bank 5、`S2CR=00000005`、`CBAR=000100FF`、`SCTLR=000000E0`），
+新增的 `USB ROUTE baseline GFSR=00000000` 表明安装本身没有触发故障。
+
+与 v6 不同，这次初始 EP0 OUT STARTTRANSFER（`cmd=6`）成功，
+日志继续到 `FUXI DWC3: S18 EP0 armed; enable connection`，
+随后 `Dwc3RunStop(TRUE)`、`USBRAM S13 StartController returned Success`，
+接收器进入 `USBRAM WAIT 1209:0001 ... idle timeout 180s`。
+v6 的 status 1 拒绝没有复现；v7 与 v6 的差别只有失败路径上新增的只读
+读数和日志（会放慢执行），因此那更像时序相关，而不是稳定故障。
+这条还不能算结论，需要单独复测才能确认。
+
+主机侧在整个窗口内仍没有 `1209:0001`：`ioreg`、`system_profiler`
+都没有新设备，内核日志也没有 USB attach 事件；fastboot 与 adb 均为空。
+所以下一个障碍不是路由，而是 USB 链路本身没有起来：
+控制器报告 RUN_STOP 成功，主机却看不到连接。
+
+## v8：链路采样
+
+v8 在 `Dwc3RunStop(TRUE)` 成功后用 2 秒采样 `DSTS`：链路状态、连接速率、
+SOF 号、`DCTL`（确认 bit31）、`GUSB2PHYCFG(0)` 和 `GEVNTCOUNT`，
+只在链路状态、速率或事件计数变化时打印。判断方式：
+链路始终停在 disconnected/ON 且无 SOF 前进，说明 PHY 没把设备拉到总线上；
+速率与 SOF 正常而主机仍无枚举，说明问题在端点/描述符阶段。

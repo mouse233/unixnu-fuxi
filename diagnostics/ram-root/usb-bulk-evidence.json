@@ -181,6 +181,34 @@
         "host_observation": "no 1209:0001 receiver in ioreg or system_profiler; fastboot and adb both empty after the receive window",
         "root_cause": "unresolved; an SMMU abort and a controller-side rejection have not been separated"
       }
+    },
+    {
+      "local_evidence": "out/usb-ram-v7",
+      "observation": {
+        "image_sha256": "f178629e8bdf2ebe63999da210aefc095ee62637cca39b7a73f18e76c9dc08ca",
+        "fastboot_result": "Sending OKAY; Booting OKAY; total 10.988s",
+        "usb_receiver_enumerated": false,
+        "test_bytes_sent": 0,
+        "flash_performed": false,
+        "screen_evidence": "user photo of the diagnostic console",
+        "visible_lines": [
+          "USB CONTEXT existing bank=5 checked=1 CBAR=000100FF SCTLR=000000E0 desiredS2CR=00000005",
+          "USB ROUTE result=0 slot=0 SMR=80000040 S2CR=00000005 active=1 restored=0",
+          "USB ROUTE baseline GFSR=00000000 (install raised no fault)",
+          "USB ROUTE VERIFIED; first DMA permitted (hardware transfer unproven)",
+          "FUXI EP: submit ep=0 cmd=6; command written; polling",
+          "FUXI DWC3: S18 EP0 armed; enable connection",
+          "USBRAM S13 StartController returned Success",
+          "USBRAM WAIT 1209:0001; Bulk OUT=01 IN=81; idle timeout 180s"
+        ],
+        "route_installed": true,
+        "ep0_armed": true,
+        "run_stop_enabled": true,
+        "host_observation": "no 1209:0001 and no USB attach event in ioreg, system_profiler or the kernel log; fastboot and adb empty",
+        "failure_stage": "USB link never came up: the device controller reports RUN_STOP success but the host never sees a connection",
+        "v6_comparison": "the status-1 EP0 rejection did not reproduce; only the read-only failure diagnostics differ, so it was likely timing related and needs a separate repeat",
+        "root_cause": "unresolved; PHY/link bring-up is now the blocking layer, not the SMMU route"
+      }
     }
   ],
   "saved_live_dt_usb_iommu": {
@@ -205,17 +233,17 @@
     "current_android_dt_read": "permission denied; use saved capture"
   },
   "next_candidate": {
-    "local_evidence": "out/usb-ram-v7",
-    "image_sha256": "f178629e8bdf2ebe63999da210aefc095ee62637cca39b7a73f18e76c9dc08ca",
+    "local_evidence": "out/usb-ram-v8",
+    "image_sha256": "600ab33fc125a129fdd38c87ed45e74d4b4cb2e1d70d75d755df18320742ea12",
     "strategy": "existing-disabled-context",
     "host_cases": 21,
     "audit_host_cases": 14,
     "route_host_cases": 20,
     "delivered_modules": {
-      "FuxiUsbRamDxe": "103cb02765a4a48968965d7bf184b0e409e5f647734ad99c0e85fdbdfbd2a18d",
-      "UsbfnDwc3Dxe": "76aebf9df9d5ef1c2e1a4a6883d4e11b4f5da53ceec772867987e095411d7d5b"
+      "FuxiUsbRamDxe": "6a4064f064ce64a6802d8ca701578ba6c75d1786e8edc945a9e69da855f0b7bd",
+      "UsbfnDwc3Dxe": "8486a6d5bf811e7e184608bfcda54cbe65a3efb8245e0364fcdd79d49f6ddf3d"
     },
-    "diagnostics": "read-only GFSR/GFSYNR0-2, route slot SMR/S2CR, context SCTLR/CBAR/FSR/FAR, DWC3 DSTS/GSTS/DCTL/GEVNTCOUNT and pending event dwords at every failure path",
+    "diagnostics": "two-second post-RUN_STOP DSTS sampling (link state, speed, SOF, DCTL, GUSB2PHYCFG, GEVNTCOUNT) on top of the v7 failure snapshot",
     "hardware_result": "not yet booted; awaiting fastboot readiness"
   }
 }

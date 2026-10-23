@@ -84,6 +84,7 @@ if candidate.get('usb_sid_route_enabled'):
         require(b'USB CONTEXT existing bank=' in inner, 'context-route strategy absent from delivered firmware')
         require(b'USB FAULT GFSR=' in inner, 'route fault snapshot absent from delivered firmware')
         require(b'FUXI FAIL ' in inner, 'controller failure snapshot absent from delivered firmware')
+        require(b'FUXI LINK t=' in inner, 'link sampler absent from delivered firmware')
     require(candidate.get('dma_transfer_enabled') is True and not candidate.get('dma_audit_only'),
             'route trial mode mismatch')
 report = dict(boot_sha256=sha(boot), boot_bytes=len(boot), fd_sha256=sha(fd),
