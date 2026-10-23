@@ -1005,3 +1005,18 @@ compressor claim 约 12.625 GiB（包括 freezer swap reserve），总和无法�
 已提示用户手动选择 `fuxi RAM diagnostic: system-mount`。
 当前尚不能确认 XNU 越过 kmem_range_init、两个 APFS 卷挂载成功或
 `RAM_SYSTEM PASS`。后续必须把最终照片结论追加回本日志与 REVIEW.md。
+
+## v25 实机结论：KMEM 已通过，挂载 glue 返回 EINVAL（2026-10-24）
+
+IMG_6951.heic 已归档于 out/usb-system-mount-v25/attempt-01，显示
+`RAM_SYSTEM APFS mount failed id=1 errno=22 @RamSystemProbe.c:65`。
+v25 的 compressor 修复在实机成立：XNU 已越过 KMEM 初始化并运行挂载探针。
+按探针源码调用顺序，进入该失败点意味着两个对象的 XNU RAM SHA256 和
+只读块设备注册已通过（源码推论；照片未直接拍到相应日志）。
+/mnt1 失败，/mnt2 未尝试，未达到 RAM_SYSTEM PASS。
+
+下一缺口已由源码锁定：mount_common 对 VFC_VFSLOCALARGS 的 kernel mount
+只例外允许 by-role/BaseSystemRoot，尚未例外允许新增 RAM_SYSTEM 标记，
+故在 VFS_MOUNT 之前就返回 EINVAL。设备路径 namei 也仍用 UIO_USERSPACE，
+需要专门为 RAM_SYSTEM 内核字符串改成 UIO_SYSSPACE。下一候选 v26
+将同时修正并严格限定 RAM 设备/路径配对与只读 apfs，实机验收继续停在用户态前。

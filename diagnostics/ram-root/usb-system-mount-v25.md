@@ -111,3 +111,25 @@ DYLD_LIBRARY_PATH=/opt/homebrew/lib python3 scripts/test-usb-ram-full.py \
 RAM_SYSTEM 双对象哈希通过 → /mnt1、/mnt2 只读 APFS 挂载 → panic `RAM_SYSTEM PASS`。
 正常停机的 HALTED/路由恢复/QUIESCE 三标记、APFS 成功或任何失败点仍需照片确认。
 当前不能宣称 v25 已启动成功或已修复实机 panic；主机验证通过是本轮已确认的边界。
+
+
+## attempt-01 照片结果：KMEM 通过，RAM 挂载 SPI 被拒
+
+IMG_6951.heic 与 PNG 副本归档在 attempt-01，照片明确显示：
+
+```
+RAM_SYSTEM APFS mount failed id=1 errno=22
+@RamSystemProbe.c:65
+```
+
+这确认 v25 已越过原来的 compressor/KMEM panic，运行到了挂载探针。
+根据探针调用顺序，两对象的 XNU 实际 RAM SHA256 与只读块设备注册均在
+第 65 行之前通过；这是源码路径推论，照片本身未包含对应日志。
+/mnt1 挂载失败，/mnt2 尚未尝试，未达到 RAM_SYSTEM PASS。
+
+已定位独立的挂载 glue 缺口：mount_common 对 VFC_VFSLOCALARGS 的 kernel
+mount 默认返回 EINVAL，只例外允许 by-role/BaseSystemRoot。新增 RAM_SYSTEM
+标记未加入该例外，因此在调用 APFS 的 VFS_MOUNT 之前就被拒绝。另一个同路径
+缺口是设备名来自内核字符串，但设备 namei 的 seg 仍为 UIO_USERSPACE；
+修正放行后也必须为这条专用 RAM 路径使用 UIO_SYSSPACE。下一候选 v26
+应同时补齐这两处，并限定只读 apfs 和 /dev/md1→/mnt1、/dev/md2→/mnt2。
