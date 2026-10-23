@@ -65,10 +65,20 @@ for name, digest in tests['source_sha256'].items():
             'host tests ran different receiver sources')
 require(tests['sender_sha256'] == sha(Path(__file__).with_name('usb-ram-send.py').read_bytes()),
         'sender changed since host tests')
+if candidate.get('dma_audit_only'):
+    audit = json.loads((out / 'smmu-tests.json').read_text())
+    for name, digest in audit['source_sha256'].items():
+        require(sources['Platforms/Xiaomi/fuxiPkg/Library/FuxiUsbfnLib/' + name] == digest,
+                'audit tests ran different sources')
+    require(b'USBRAM AUDIT STOP: no STARTTRANSFER issued' in inner, 'audit gate absent')
+    require(candidate.get('dma_transfer_enabled') is False, 'audit mode mismatch')
 report = dict(boot_sha256=sha(boot), boot_bytes=len(boot), fd_sha256=sha(fd),
               delivered_modules=modules, source_sha256=sources,
               compressed_firmware_roundtrip=True, os_version_raw='0x220001a7',
               host_cases=tests['cases'], hardware_result='pending', receiver_only=True,
-              kernel_handoff=False, partition_io=False)
+              kernel_handoff=False, partition_io=False,
+              dma_audit_only=bool(candidate.get('dma_audit_only')),
+              dma_transfer_enabled=candidate.get('dma_transfer_enabled', True),
+              smmu_audit_host_cases=audit['cases'] if candidate.get('dma_audit_only') else None)
 (out / 'verification.json').write_text(json.dumps(report, indent=2) + '\n')
 print(json.dumps(report, indent=2))

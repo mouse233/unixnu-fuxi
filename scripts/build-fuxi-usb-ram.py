@@ -47,7 +47,10 @@ artifacts = uefi / 'Build/fuxiPkg/DEBUG_CLANGPDB/AARCH64'
 for name in ['FuxiUsbRamDxe', 'UsbfnDwc3Dxe']:
     shutil.copyfile(artifacts / (name + '.efi'), out / (name + '.efi'))
 paths = [*sorted((uefi / 'Platforms/Xiaomi/fuxiPkg/Drivers/FuxiUsbRamDxe').glob('*.[ch]')),
-         uefi / 'Platforms/Xiaomi/fuxiPkg/Library/FuxiUsbfnLib/FuxiUsbfnLib.c',
+         *sorted((uefi / 'Platforms/Xiaomi/fuxiPkg/Library/FuxiUsbfnLib').glob('*.[ch]')),
+         uefi / 'Platforms/Xiaomi/fuxiPkg/Drivers/FuxiUsbRamDxe/FuxiUsbRamDxe.inf',
+         uefi / 'Platforms/Xiaomi/fuxiPkg/Library/FuxiUsbfnLib/FuxiUsbfnLib.inf',
+         uefi / 'Silicon/Samsung/SamsungPkg/Drivers/UsbfnDwc3Dxe/UsbfnDwc3Dxe.inf',
          *sorted((uefi / 'Silicon/Samsung/SamsungPkg/Drivers/UsbfnDwc3Dxe').glob('*.[ch]')),
          uefi / 'Platforms/Xiaomi/fuxiPkg/fuxi.dsc', uefi / 'Platforms/Xiaomi/fuxiPkg/Include/DXE.inc']
 (out / 'sources.json').write_text(json.dumps({str(x.relative_to(uefi)):
@@ -56,7 +59,8 @@ dummy = out / 'dummy-ramdisk.img'
 dummy.write_bytes(b'USBRAM diagnostic')
 image = bootimg.build(ctx, uefi, fd, uefi / 'Resources/DTBs/fuxi.dtb', dummy, out / 'Mu-fuxi-usb-ram.img')
 report = dict(image=str(image), sha256=hashlib.sha256(image.read_bytes()).hexdigest(),
-              bytes=image.stat().st_size, mode='UEFI USB RAM receiver only',
+              bytes=image.stat().st_size, mode='UEFI read-only USB SMMU audit before first DMA',
+              dma_audit_only=True, dma_transfer_enabled=False,
               controller='DWC3 USB2, SM8550 inherited ABL PHY/clocks', hardware_result='pending',
               kernel_handoff=False, partition_io=False)
 (out / 'candidate.json').write_text(json.dumps(report, indent=2) + '\n')

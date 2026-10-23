@@ -55,19 +55,84 @@
         "android_bootreason": "bootloader",
         "root_cause": "unresolved; later endpoint configuration/EP0 DMA/connection stages not traced"
       }
+    },
+    {
+      "local_evidence": "out/usb-ram-v3/attempt-01",
+      "observation": {
+        "image_sha256": "43a0dff0c7bc9d56cb197177edca60547481a95504d013ee21cc4556ed95476b",
+        "fastboot_result": "Sending OKAY; Booting OKAY; total 1.636s",
+        "usb_result": "USB RAM receiver 1209:0001 not found or inaccessible",
+        "test_bytes_sent": 0,
+        "flash_performed": false,
+        "screen_result": "user photo reaches S17 and first EP0 STARTTRANSFER submission; user then reports black screen",
+        "visible_excerpt": [
+          "USBRAM S13 StartController returned Success",
+          "FUXI DWC3: S14 ConfigureEnableEndpoints entry",
+          "FUXI DWC3: S15 configure EP0; physical endpoints=16",
+          "FUXI DWC3: S16 EP0 configured; configure Bulk endpoints",
+          "FUXI EP: complete ep=3 reg=00000001",
+          "FUXI DWC3: S17 arm EP0 DMA; event=C685A000 TRB=C67BF000 buffer=C6850000",
+          "FUXI EP: submit ep=0 cmd=6 params=00000000/C67BF000/00000000"
+        ],
+        "last_visible_log": "FUXI EP: submit ep=0 cmd=6 params=00000000/C67BF000/00000000",
+        "not_visible_after_last_line": "FUXI EP: command written; polling",
+        "photo_sha256": "89c1850308b66d0ce53b409fadbeb87081dc95101e6dea582302f46ca2b95081",
+        "converted_png_sha256": "c4c3c38cdceee55dd22d811d3ff80b731ca4f5914c28e488009602171cb7c0ca",
+        "subsequent_adb_state": "fcde91e connected in Android, transport_id 804",
+        "root_cause": "unresolved; stop observed at first DMA command, SMMU translation not yet observed"
+      }
+    },
+    {
+      "local_evidence": "out/usb-ram-v4/attempt-01",
+      "observation": {
+        "image_sha256": "9ff2d106a583cb8065243e8842debaf677c968c4ad8d650a932484d2089a5a34",
+        "fastboot_result": "Sending OKAY; Booting OKAY; total 2.083s",
+        "photo_sha256": "1254404470873eabedde243a87b1675b7227df44d4124541f09a29ee77aa7f25",
+        "screen_result": "expected pre-DMA audit stop; S19 and USBRAM STOP Not Ready visible",
+        "registers": {
+          "ID0": "0x4c017e69",
+          "ID1": "0x60000046",
+          "CR0": "0x00290406",
+          "GFSR": "0x0"
+        },
+        "groups": 105,
+        "scanned": 105,
+        "matches": 0,
+        "stored": 0,
+        "partial": 0,
+        "unsupported": 0,
+        "invalid_context": 0,
+        "page_shift": 12,
+        "context_base": "0x80000",
+        "context_count": 70,
+        "unmatched_stream_fault_enabled": true,
+        "first_starttransfer_issued": false,
+        "smmu_register_writes": false,
+        "flash_performed": false,
+        "hardware_transfer_verified": false,
+        "interpretation": "no nonsecure route matched SID 0x40; consistent with failure on DMA but no fault PC captured"
+      }
     }
   ],
-  "next_candidate": {
-    "local_evidence": "out/usb-ram-v3",
-    "image_sha256": "43a0dff0c7bc9d56cb197177edca60547481a95504d013ee21cc4556ed95476b",
-    "host_cases": 21,
-    "delivered_modules": {
-      "FuxiUsbRamDxe": "d2e7a4186d63c881f7637d88092a3a4b06cfec6ede5abfbb505c404da1322ab3",
-      "UsbfnDwc3Dxe": "cc10f964efa14fde10a05631cbfe8e9225e4de96ac62ff0354449aa705cb5185"
-    },
-    "compressed_firmware_roundtrip": true,
-    "hardware_result": "not yet booted",
-    "initial_ep0_error_propagation": true,
-    "diagnostic_markers": "S0-S19 plus bounded endpoint command submit/write/complete logs"
+  "saved_live_dt_usb_iommu": {
+    "path": "/Volumes/External/VSCode/UniXNU/boot-tests/2026-10-22-darwinboot-stage/device-adb/live-fdt.dtb",
+    "sha256": "3ac98f56fcf3e81b493fdaf4a83ced627adeb755d590a063679cd6f41ac7674e",
+    "captured_date": "2026-10-22",
+    "usb_node": "/soc/ssusb@a600000/dwc3@a600000",
+    "iommus_cells": [
+      "0x41",
+      "0x40",
+      "0x0"
+    ],
+    "smmu_node": "/soc/apps-smmu@15000000",
+    "smmu_phandle": "0x41",
+    "smmu_base": "0x15000000",
+    "smmu_aperture_bytes": "0x100000",
+    "android_iova_pool": [
+      "0x90000000",
+      "0x60000000"
+    ],
+    "runtime_abl_smmu_registers_observed": true,
+    "current_android_dt_read": "permission denied; use saved capture"
   }
 }

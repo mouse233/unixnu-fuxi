@@ -127,3 +127,32 @@ S18（启用连接）、S19（端点配置返回）和限额端点命令日志�
 
 S13–S19 候选已完成构建、21 项主机测试和交付模块核验，SHA256：
 `43a0dff0c7bc9d56cb197177edca60547481a95504d013ee21cc4556ed95476b`；尚未启动到手机。
+
+
+## 首次 DMA 定位与只读 SMMU 审计
+
+`IMG_6903.HEIC` 显示 S13 成功、端点资源及 EP0/Bulk 配置全部返回状态 0。
+最后可见行是 S17 后 `ep=0 cmd=6 params=00000000/C67BF000/00000000`；
+没有下一行 command written。事件缓冲为 `0xC685A000`、TRB 为 `0xC67BF000`、
+EP0 buffer 为 `0xC6850000`。因此最后确认的区域是首次 STARTTRANSFER 提交。
+仅凭照片不能区分具体 MMIO 写入、同步屏障或异步硬件故障。
+
+本机 2026-10-22 保存的 live DT（SHA 见 evidence JSON）独立确认：
+`/soc/ssusb@a600000/dwc3@a600000` 的 iommus 为 phandle 0x41 / SID 0x40 / mask 0；
+phandle 指向 `/soc/apps-smmu@15000000`，寄存器 aperture 1 MiB。
+当前 Android shell 读取 DT 被拒，使用的是先前保存的设备原始捕获。
+这与 [上游 SM8550 DTS](https://github.com/torvalds/linux/blob/master/arch/arm64/boot/dts/qcom/sm8550.dtsi) 一致。
+
+只读审计版 SHA256 `9ff2d106a583cb8065243e8842debaf677c968c4ad8d650a932484d2089a5a34`
+已临时启动；`IMG_6905.HEIC` 显示预期 AUDIT STOP，没有发出 STARTTRANSFER：
+ID0=4C017E69、ID1=60000046、CR0=00290406、GFSR=0；
+105 组扫描完成，无 SID 0x40 匹配；寄存器页 4 KiB，context base 0x80000，70 个 CB。
+CR0.CLIENTPD=0、USFCFG=1，即未匹配 stream 按架构配置进入故障处理。
+这支持 DMA 路由缺失的假设；尚无 DMA 故障寄存器或异常 PC 来确认本次重启的因果。
+`Not Ready` 是审计完成后主动停住的状态，不是枚举失败的重试结果。
+
+审计不修改 SMMU 寄存器，最多读前 128 组，只解引用匹配且位于 aperture 内的 CB。
+`check-usb-smmu-audit.py` 直接编译实际捕获引擎，14 项 ASan/UBSan 场景通过。
+控制器通常需要有效的 DMA 映射；把缓冲限制在 4 GiB 以下并不建立这种映射。
+后续路由修改还要考虑 [Qualcomm S2CR BYPASS 读回异常](https://github.com/torvalds/linux/blob/master/drivers/iommu/arm/arm-smmu/arm-smmu-qcom.c)。
+需要精确匹配、读回校验和失败回滚，不应直接关闭整个 apps SMMU。
