@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a mount-only or first-EL0-SVC diagnostic without changing normal board defaults."""
+"""Build isolated RAM diagnostics; never flash or start a phone."""
 import argparse
 import copy
 import hashlib
@@ -14,7 +14,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ['base', 'inputs', 'ipsw', 'uefi']:
         parser.add_argument('--' + name, type=Path, required=True)
-    parser.add_argument('--stage', choices=['mount', 'user-entry'], default='mount')
+    parser.add_argument('--stage', choices=['mount', 'user-entry', 'main-entry'], default='mount')
     parser.add_argument('--output', type=Path)
     parser.add_argument('--unique-chip-id', required=True)
     parser.add_argument('-j', '--jobs', type=int, default=10)
@@ -31,10 +31,14 @@ def main():
     packed = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(packed)
     pins = json.loads((device / 'diagnostics/ram-root/pins.json').read_text())
-    user_entry = args.stage == 'user-entry'
+    user_entry = args.stage != 'mount'
+    main_entry = args.stage == 'main-entry'
     pins.update(start_userland_allowed=user_entry)
     if user_entry:
-        pins['stop_before_first_user_svc'] = True
+        pins['stop_before_first_user_svc'] = not main_entry
+    if main_entry:
+        pins.update(stop_at_launchd_main=True, block_process_creation=True,
+            main_entry_offset=85896, main_entry_bytes='ff8305d1fc6f12a9f65713a9f44f14a9')
     pins_path = out / 'pins.json'
     pins_path.write_text(json.dumps(pins, indent=2) + '\n')
     encoded = out / 'restore.dbr'
@@ -46,7 +50,8 @@ def main():
         if metadata['sha256'] != pins['image_sha256']:
             raise ValueError('RAM-disk reconstruction differs from original')
         (out / 'ramdisk.json').write_text(json.dumps(metadata, indent=2) + '\n')
-    options = ['build', 'kernel', '-D', str(device), '--ipsw', str(args.ipsw.expanduser().resolve()),
+    options = ['build', 'kernel', '-D', str(device), '--out', str(out / 'cache'),
+        '--ipsw', str(args.ipsw.expanduser().resolve()),
         '--uefi', str(args.uefi.expanduser().resolve()), '--data-ramdisk', str(encoded),
         '--unique-chip-id', args.unique_chip_id, '-j', str(args.jobs)]
     if user_entry:
@@ -55,10 +60,11 @@ def main():
             raise ValueError('Require the two unchanged original trust modules')
         options += ['--trust-cache', str(trust)]
     ctx = Context(cli.parser().parse_args(options))
-    # Keep the existing ctx.tree cache; isolate profiles, logs and final products.
+    # Each stage owns its cache as well as its profile, logs and products.
     ctx.work, ctx.logs, ctx.config_path = out / 'work', out / 'logs', out / 'config'
     ctx.config_path.write_text((device / 'configs/fuxi_ramroot_defconfig').read_text() +
-        '\nCONFIG_XNU_RAM_USER_ENTRY=' + ('y' if user_entry else 'n') + '\n')
+        '\nCONFIG_XNU_BUILD_ARCHIVES=y\nCONFIG_XNU_RAM_USER_ENTRY=' + ('y' if user_entry else 'n') +
+        '\nCONFIG_XNU_RAM_MAIN_PROBE=' + ('y' if main_entry else 'n') + '\n')
     ctx.config = parse_config(ctx.config_path.read_text())
     ctx.board = copy.deepcopy(ctx.board)
     ctx.board['kernel']['archives'] = [
@@ -66,17 +72,21 @@ def main():
         'build-arm-driver.py ArmDTPlatform', 'build-arm-driver.py ArmCpu',
         'build-arm-driver.py NativeAES', 'build-native-aes-bindings.py',
         'build-sheng-platform-power.py', 'build-libpthread-kernel.py', 'build-legacy-stub.py',
-        'build-ram-root-probe.py ' + ('--user-entry ' if user_entry else '') + '--pins ' + shlex.quote(str(pins_path)),
+        'build-ram-root-probe.py ' + ('--user-entry ' if user_entry else '') +
+        ('--main-entry ' if main_entry else '') + '--pins ' + shlex.quote(str(pins_path)),
     ]
     ctx.board['payload']['title'] = 'fuxi RAM diagnostic: ' + args.stage
     ctx.board['payload']['kernel_args'] = [
         '-v', 'serial=3', 'debug=0x14e', 'kt_fixed_zones=120', 'rd=md0',
-        'ram-root-probe=' + ('2' if user_entry else '1'), 'offline-apfs-load=1', 'sheng-pmgr=2',
+        'ram-root-probe=' + ('3' if main_entry else '2' if user_entry else '1'), 'offline-apfs-load=1', 'sheng-pmgr=2',
         'native-ufs-root=0', 'native-ufs-probe=0', 'sheng-data-persist=0', 'sheng-log=0', 'boot-progress=0',
     ] + (['launchdsuffix=release'] if user_entry else [])
     ctx.board['payload']['adt'].update(packed_data_ramdisk=False, os_environment='ramdisk')
     ctx.board['payload']['adt'].pop('root_match_volume_uuid', None)
     (out / 'board-effective.json').write_text(json.dumps(ctx.board, indent=2) + '\n')
+    (out / 'build-layout.json').write_text(json.dumps(dict(stage=args.stage,
+        base=str(base), device=str(device), output=str(out), cache=str(ctx.out_root),
+        tree=str(ctx.tree), uefi=str(args.uefi.expanduser().resolve())), indent=2) + '\n')
     if args.plan_only:
         print('Plan written to', out)
         return

@@ -15,7 +15,7 @@ OUT = ROOT / 'out/ram-guard-tests'
 OUT.mkdir(parents=True, exist_ok=True)
 production = ROOT / 'package/RamRootProbe.c'
 pins_data = json.loads((ROOT / 'diagnostics/ram-root/pins.json').read_text())
-header = '#define RAM_ROOT_IMAGE_BYTES UINT64_C(184549376)\n#define RAM_ROOT_FILE_BYTES 561856\n#define RAM_ROOT_ALLOW_USER_ENTRY 1\n'
+header = '#define RAM_ROOT_IMAGE_BYTES UINT64_C(184549376)\n#define RAM_ROOT_FILE_BYTES 561856\n#define RAM_ROOT_ALLOW_USER_ENTRY 1\n#define RAM_ROOT_ALLOW_MAIN_ENTRY 0\n'
 for name, key in [('image', 'image_sha256'), ('file', 'file_sha256')]:
     header += 'static const uint8_t ram_root_' + name + '_sha256[32] = {' + ','.join(hex(x) for x in bytes.fromhex(pins_data[key])) + '};\n'
 body = '\n'.join(line for line in production.read_text().splitlines() if not line.startswith('#include'))

@@ -19,6 +19,9 @@ void fuxi_ram_root_probe_mount_failed(int) __attribute__((noreturn));
 void fuxi_ram_root_probe_after_mount(dev_t, vnode_t);
 void fuxi_ram_user_exec_result(int, const char *, int);
 void fuxi_ram_user_svc(uint64_t, uint32_t, uint32_t, uint64_t) __attribute__((noreturn));
+#if RAM_ROOT_ALLOW_MAIN_ENTRY
+extern void fuxi_ram_main_arm(void);
+#endif
 #else
 void fuxi_ram_root_probe_after_mount(dev_t, vnode_t) __attribute__((noreturn));
 #endif
@@ -33,7 +36,7 @@ void fuxi_ram_root_probe_before_mount(dev_t device)
     SHA256_CTX hash;
     fuxi_ram_root_stage = 1;
     if (!PE_parse_boot_argn("ram-root-probe", &enabled, sizeof(enabled)) ||
-        enabled != (RAM_ROOT_ALLOW_USER_ENTRY ? 2U : 1U))
+        enabled != (RAM_ROOT_ALLOW_MAIN_ENTRY ? 3U : RAM_ROOT_ALLOW_USER_ENTRY ? 2U : 1U))
         panic("RAM_ROOT refused: diagnostic argument missing");
     if (device == NODEV || device != mdevlookup(0) || mdevgetrange(0, &base, &bytes) ||
         base < VM_MIN_KERNEL_ADDRESS || bytes != RAM_ROOT_IMAGE_BYTES || base > UINT64_MAX - bytes)
@@ -106,6 +109,9 @@ void fuxi_ram_user_exec_result(int error, const char *path, int pid)
         panic("RAM_USER refused exec: stage=%u pid=%d path=%s", fuxi_ram_root_stage, pid, path);
     if (error) panic("RAM_USER original launchd exec failed: errno=%d; no user syscall dispatched", error);
     fuxi_ram_root_stage = 8;
+#if RAM_ROOT_ALLOW_MAIN_ENTRY
+    fuxi_ram_main_arm();
+#endif
 }
 
 void fuxi_ram_user_svc(uint64_t pc, uint32_t cpsr, uint32_t esr, uint64_t syscall)

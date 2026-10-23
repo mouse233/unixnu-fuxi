@@ -1,5 +1,53 @@
 # fuxi RAM-root bring-up
 
+## Isolated RAM experiment branch
+
+Use `codex/ramdisk-test` in all three repositories (`unixnu-source`,
+`UniXNU-fuxi`, `uefi-fuxi`) under the separate `ramdisk-test/` workspace.
+The original working directories remain on their existing branches, with their
+uncommitted work preserved. The experiment's module dependencies have independent
+local checkouts at the parent repositories' pinned revisions.
+
+The builder supports three stages:
+
+| Stage | Stop point | Hardware evidence |
+| --- | --- | --- |
+| `mount` | md0/APFS read-only mount and complete image/launchd hashes | Earlier source version passed |
+| `user-entry` | Original PID 1's first EL0 SVC, before dispatch | Earlier source version passed |
+| `main-entry` | Hardware breakpoint at original launchd LC_MAIN + 4 | Experimental; not phone-tested |
+
+`main-entry` uses a thread-local EL0 hardware breakpoint, without modifying user
+program bytes. Process creation, exec, mount/unmount, reboot and ptrace are blocked
+at the decoded Unix syscall boundary, including indirect calls. A 30-second
+diagnostic deadline and a 2,048-SVC limit bound the observation. The new mode does
+not claim that launchd main or full iPadOS already works.
+
+Use this branch's base checkout and device checkout together. Example from the
+device repository:
+
+```sh
+python3 scripts/build-fuxi-ram-diagnostic.py \
+  --base ../unixnu-source --inputs ../inputs \
+  --ipsw /path/to/iPad_Pro_HFR_17.7.11_21H461_Restore.ipsw \
+  --uefi ../uefi-fuxi --unique-chip-id YOUR_HEX_SEED \
+  --stage main-entry --plan-only
+```
+
+Each stage owns its cache under `out/ram-<stage>/cache/`, plus its own config,
+logs and products. `build-layout.json` records these paths. The builder never
+flashes a partition or boots a phone. Remove `--plan-only` only when resuming
+the full build; the previous full build was stopped at the user's request.
+
+The branch preparation checks passed: 20 user-entry C guard cases, 35 main-entry
+C guard cases, and all three profile plans. Original Apple image and trust inputs
+were re-extracted and hash-verified locally. No full kernel rebuild or phone
+test was performed while creating this branch.
+
+The UEFI branch captures the 192 MiB payload bounds and boot-image packager.
+Its firmware dependency submodules and the original Mu_Basecore working edits
+were not copied or rebuilt. Existing tested firmware artifacts remain local
+inputs; rebuilding firmware requires preparing those dependencies separately.
+
 Two bounded diagnostics passed on a Xiaomi 13 (fuxi) on 2026-10-23. They use the
 unchanged 176 MiB RestoreRamDisk from the iPad7,1 iPadOS 17.7.11 (21H461) IPSW.
 Android userdata is not the root device. No partition was flashed or erased and
@@ -103,10 +151,10 @@ python3 scripts/build-fuxi-ram-diagnostic.py \
   --uefi ../uefi-fuxi --unique-chip-id YOUR_HEX_SEED --stage mount
 ```
 
-Use `--stage user-entry` for the second diagnostic. `--plan-only` writes the
-effective board, pins and config without compiling. The builder reuses the
-base checkout's build tree but isolates final products and logs in
-`out/ram-mount/` or `out/ram-user-entry/`.
+Use `--stage user-entry` for the second diagnostic or experimental `--stage
+main-entry` for the hardware main checkpoint. `--plan-only` writes the effective
+board, pins, config and build layout without compiling. Each profile has its own
+build tree, final products and logs under `out/ram-<stage>/`.
 
 The payload is a 192 MiB FAT volume. DarwinBoot expands DBRDISK1 into the original
 176 MiB bytes and populates `/chosen/memory-map/RAMDisk`, rather than handing off
