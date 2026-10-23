@@ -379,3 +379,29 @@ v12 必须同时使用 `--keep-phy`。初始化前后各打印一条只读快照
 判读方式：`PHY POST` 与上游写入值一致且主机出现 `1209:0001`，
 说明这条路径成立；若 PHY 寄存器写不进去或链路仍为 4，
 则问题在 PMIC repeater/供电/参考时钟，而不是 SoC 侧 PHY 序列。
+
+## v12 实机结果：PHY 写入生效，但暴露两处缺失
+
+v12 的 PHY 快照（照片可辨认部分）显示写入确实落到寄存器上：
+
+- `FUXI PHY PRE … COMMON0=4B4B4B4B CTRL2=17171717 CFG0=00000000 …`
+- `FUXI PHY POST … COMMON0=0B0B0B0B CTRL2=17171717 CFG0=02020202 …`
+
+读回值按字节重复（该寄存器窗口按 8 位宽度呈现），因此
+`COMMON0` 由 `0x4B` 变为 `0x0B`、`CFG0` 由 `0x00` 变为 `0x02`，
+与序列的预期终值一致。但这也暴露了两个问题：
+
+1. `PRE COMMON0=0x4B` 的 `FSEL` 字段是 4，即 ABL 用的是 **38.4 MHz**
+   参考时钟，而 v12 却按 19.2 MHz 写了分频，PLL 会落在错误频率上。
+2. 链路依旧 `link=4`。上游 `dwc3-qcom.c` 在设备模式启动前必须做
+   VBUS/会话的软件覆盖：`QSCRATCH_HS_PHY_CTRL(0x10) |=
+   UTMI_OTG_VBUS_VALID|SW_SESSVLD_SEL`、`QSCRATCH_SS_PHY_CTRL(0x30) |=
+   LANE0_PWR_PRESENT`。缺少这一步时 DWC3 认为 VBUS/会话无效，
+   永远不会向主机呈现连接——与"控制器在跑、链路却始终断开"完全吻合。
+
+## v13：38.4 MHz 分支 + QSCRATCH 覆盖
+
+v13 做两处修正：按继承的 `FSEL` 选择分频（4 → 38.4 MHz 用
+`0xC8/0x0`，否则 19.2 MHz 用 `0x90/0x1`），并在 PHY 初始化后设置
+`0xa600010`/`0xa600030` 的 VBUS/会话覆盖位，打印读回值。
+其余（路由、跳过 PHY 软复位、只读快照）不变。

@@ -272,6 +272,26 @@
         "conclusion": "skipping the USB2 PHY soft reset does not restore the link, so the pulse was not the cause",
         "root_cause": "the DWC3 UTMI port is wired to an eUSB2 PHY (live DT) that this firmware never initialises"
       }
+    },
+    {
+      "local_evidence": "out/usb-ram-v12",
+      "observation": {
+        "image_sha256": "17abeb3c71d22bd989fae7b4a8ca50b72224c9447d5eee3ec88163a6afca4a4d",
+        "fastboot_result": "Sending OKAY; Booting OKAY; total 1.634s",
+        "usb_receiver_enumerated": false,
+        "test_bytes_sent": 0,
+        "flash_performed": false,
+        "screen_evidence": "user photo; PHY registers read back as byte-replicated values",
+        "phy_pre": "COMMON0=0x4B (PHY_ENABLE|SIDDQ_SEL|RETENABLEN, FSEL=4 -> 38.4 MHz), CTRL2=0x17, CFG0=0x00",
+        "phy_post": "COMMON0=0x0B, CFG0=0x02 (the init writes landed)",
+        "link_state": 4,
+        "findings": [
+          "the inherited reference clock is 38.4 MHz, so the 19.2 MHz divider written in v12 was wrong",
+          "dwc3-qcom overrides VBUS and session in the Qualcomm wrapper for device mode; this firmware never did"
+        ],
+        "host_observation": "no 1209:0001 and no USB attach event",
+        "root_cause": "missing QSCRATCH VBUS/session override, plus a wrong ref-clock branch in the PHY init"
+      }
     }
   ],
   "saved_live_dt_usb_iommu": {
@@ -296,19 +316,17 @@
     "current_android_dt_read": "permission denied; use saved capture"
   },
   "next_candidate": {
-    "local_evidence": "out/usb-ram-v12",
-    "image_sha256": "17abeb3c71d22bd989fae7b4a8ca50b72224c9447d5eee3ec88163a6afca4a4d",
+    "local_evidence": "out/usb-ram-v13",
+    "image_sha256": "1c3cbe58941a0b2e2e5a4d9b27a0652c6c218a92bbd5538c5909067545150fa2",
     "strategy": "existing-disabled-context",
     "host_cases": 21,
     "audit_host_cases": 14,
     "route_host_cases": 20,
     "delivered_modules": {
-      "FuxiUsbRamDxe": "d9d942fbc8d85aec5871bc171dbe95b4a4eedf745241565b8ff5f3e8a03f7a5b",
-      "UsbfnDwc3Dxe": "1a3b47d2c8ba55211bf5b118c8ef62c5fc46a2ca545c64d66446192ce771c77d"
+      "FuxiUsbRamDxe": "f135767c219fb24d75bf731a82b0345cd98b725db910663bc0292c03e61f05f4",
+      "UsbfnDwc3Dxe": "7c19816bba7b857724c53b39369724f024b9b3a3aa01953431343f5003ddb1b9"
     },
-    "change": "initialise the Synopsys eUSB2 PHY at 0x88e3000 from the upstream 19.2 MHz sequence before DWC3 core init, with the PHY soft-reset pulse skipped",
-    "diagnostics": "read-only FUXI PHY PRE and FUXI PHY POST register snapshots plus the existing DWC3 and link snapshots",
-    "caveat": "PMIC eUSB2 repeater, vdd/vdda12 rails and the PHY reference clock still have to be inherited from ABL",
+    "change": "select the eUSB2 PLL divider from the inherited FSEL (38.4 MHz on this unit) and set the QSCRATCH VBUS/session override for device mode",
     "hardware_result": "not yet booted; awaiting fastboot readiness"
   }
 }

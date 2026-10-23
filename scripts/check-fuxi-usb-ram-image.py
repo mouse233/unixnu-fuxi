@@ -86,6 +86,7 @@ if candidate.get('usb_sid_route_enabled'):
         require(b'FUXI FAIL ' in inner, 'controller failure snapshot absent from delivered firmware')
         require(b'FUXI LINK t=' in inner, 'link sampler absent from delivered firmware')
         require(b'FUXI SNAP %a' in inner, 'bootloader snapshot absent from delivered firmware')
+        require(b'qscratch vbus/session override' in inner, 'vbus override absent from delivered firmware')
     require(candidate.get('dma_transfer_enabled') is True and not candidate.get('dma_audit_only'),
             'route trial mode mismatch')
 if candidate.get('usb_eusb2_phy_init'):
