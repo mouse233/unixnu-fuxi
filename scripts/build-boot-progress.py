@@ -62,8 +62,10 @@ while j < len(policy_args):
 policy_command += ['-mgeneral-regs-only', '-Wall', '-Wextra', '-Werror']
 subprocess.run(policy_command, cwd=policy_record['directory'], check=True, timeout=90)
 
-# Stage 2a: satisfy the legacy display hooks the kernel references. The real
-# archive needs a prelink candidate, which does not exist before this link.
+# Stage 2a: the legacy display hooks come from build-legacy-stub.py (linked via
+# CONFIG_XNU_EXTRA_LD_ARCHIVES) and from the ArmDTPlatform archive, which carries
+# the same stub; this archive must not define them a third time, because it is
+# force loaded and would collide with whichever one the link pulls in.
 stub_source = ROOT / 'kits/sheng/LegacyDisplayStub.c'
 stub_obj = OUT / 'LegacyDisplayStub.o'
 stub_command = [str(stub_source) if arg == str(policy_source)
@@ -115,7 +117,7 @@ for kit_source in (verified_root_dir / 'src/verified_root.c', verified_root_dir 
 
 archive = OUT / 'libBootProgress.a'
 archive.unlink(missing_ok=True)
-objects = [obj, fault_obj, policy_obj, stub_obj, storage_obj, probe_obj, *verified_root_objects]
+objects = [obj, fault_obj, policy_obj, storage_obj, probe_obj, *verified_root_objects]
 subprocess.run(['xcrun', 'ar', 'rcs', str(archive)] + [str(o) for o in objects], check=True, timeout=30)
 (OUT / 'build-report.json').write_text(json.dumps({
     'storage_stub_sha256': hashlib.sha256(storage_source.read_bytes()).hexdigest(),

@@ -105,32 +105,8 @@ const char *volatile native_ufs_root_failure;
 volatile uint32_t native_ufs_root_step;
 volatile uint64_t native_ufs_verified_blocks;
 volatile uint64_t native_ufs_verify_ticks;
-volatile unsigned native_wi_count;
-char native_wi_log[4][100];
 
 /* Probe entry points: nothing to capture and nothing to draw. */
-void
-boot_progress_exit_fault (
-  int reason,
-  unsigned value,
-  char *text,
-  unsigned long argument
-  )
-{
-  (void)reason; (void)value; (void)text; (void)argument;
-}
-
-void
-boot_progress_exit_reason (
-  int reason,
-  unsigned value,
-  char *text,
-  unsigned long argument
-  )
-{
-  (void)reason; (void)value; (void)text; (void)argument;
-}
-
 void
 boot_ui_trace_snapshot (
   unsigned phase

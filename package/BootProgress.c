@@ -5,17 +5,6 @@
 #include <stdint.h>
 #include <stddef.h>
 
-/*
- * Bring-up stubs for the legacy display hooks. bsd_init references these
- * unconditionally; the real implementations come from
- * build-native-legacy-display.py, which needs a prelink candidate that cannot
- * exist before the kernel links. Defined here, right after the includes, so
- * they are never inside a conditional block.
- */
-void native_legacy_display_probe(void);
-void native_legacy_display_late_probe(void);
-void native_legacy_display_probe(void) {}
-void native_legacy_display_late_probe(void) {}
 #include <pexpert/pexpert.h>
 #include <kern/thread.h>
 #include <kern/clock.h>
