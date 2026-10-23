@@ -127,6 +127,9 @@ DEVICE_MODEL = "fuxi"
 MEMORY_PROTECTION = "TRUE"
 SHIP_MODE = "FALSE"
 BUILDID_STRING = "fuxi-research"
+# Publishes the boot-image initrd FAT (FUXI_PAYLOAD_SIZE, 192 MiB) as a read-only
+# BlockIo. Without it the boot manager has no volume to read unixnu.toml from.
+FUXI_PAYLOAD_DIAGNOSTIC = "1"
 
 # The ramdisk of the boot image: a FAT volume with the UniXNU config, the kernel, its device tree and
 # the optional trust cache and Data seed. The loader (DarwinBoot) is part of the firmware volume.

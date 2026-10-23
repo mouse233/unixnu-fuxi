@@ -132,6 +132,40 @@ XNU. The next changes are:
 3. Keep the ~194 MiB gap after `0x9F46E2000` and the firmware tail out of the
    window; DarwinBoot needs one contiguous run.
 
+### Device result (attempt-07): the high bank works
+
+The firmware now publishes `{"XNU High", 0xA00000000, 0x3DB900000, Conv}` after
+the existing 5 GiB entry, and the same 6 GiB ADT window boots:
+
+```text
+pages=0x16b07b   (1,486,971 pages = 6,090,633,216 bytes = 5.672 GiB)
+free =0x1635ab   (1,455,531 pages = 5.552 GiB)
+```
+
+- The window is 6.000 GiB and the kernel image, kexts, RAM disk and launchd all
+  ran from it, so the 15.43 GiB high bank is real, writable memory, not just an
+  FDT description.
+- Overhead is 335.5 MiB, the same ~330 MiB the 4.75 GiB profile shows; the page
+  count grew by 1.232 GiB.
+- The restore environment behaves exactly as before (`main=PASS`, then
+  `restored_external` waits for `AppleNANDStatus`), so this change is isolated
+  to the memory map.
+
+Two incidental fixes were needed to get here:
+
+- `bootimg.verify()` parsed every image with the v0 header layout; fuxi uses v3
+  (1580-byte header, no load addresses, 4 KiB pages). It now branches on the
+  header version. The boot image is also built with the stock `os_version`
+  (`0x220001a7`) and a `dummy` ramdisk so the existing packager accepts it.
+- `unixnu build firmware` did not define `FUXI_PAYLOAD_DIAGNOSTIC`, so
+  `FuxiPayloadDxe` was excluded and the boot manager found no `unixnu.toml`
+  volume (`no boot entry found`). `board.toml` now sets it to 1.
+
+Still open: a single window is capped at 8 GiB by `DarwinWindowSizeValid`, while
+the full-OS budget is 10.27 GiB, and the 8.74 GiB image transport is unresolved.
+Splitting the OS (5.66) and SystemOS (3.08) into two windows would fit the
+current cap but needs a second-window handoff in DarwinBoot.
+
 This step writes only RAM. No partition, userdata or boot slot is modified.
 
 ## Rerun
