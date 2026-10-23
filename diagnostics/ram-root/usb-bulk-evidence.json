@@ -361,6 +361,22 @@
         "diagnosis": "after a USB reset EP0 OUT is never re-armed: Dwc3Ep0ResetState() only ends EP0 IN, so TransferStarted stays set and CONNECT_DONE skips Dwc3Ep0OutStart()",
         "reference": "upstream dwc3_gadget_reset_interrupt() calls dwc3_ep0_out_start() on every reset"
       }
+    },
+    {
+      "local_evidence": "out/usb-ram-v17",
+      "observation": {
+        "image_sha256": "1c3e5d485d6c1bc559b73451504128dc1db7de582b2aafd0405825a006624bef",
+        "fastboot_result": "Sending OKAY; Booting OKAY; total 1.084s",
+        "usb_receiver_enumerated": true,
+        "enumeration_level": "device descriptor read; host shows 0x1209:1 at high speed (480 Mb/s, bMaxPacketSize0=64, 1 configuration)",
+        "test_bytes_sent": 0,
+        "flash_performed": false,
+        "screen_evidence": "user photo",
+        "setup_seen": "rt=80 req=06 val=0100 len=18 (GET_DESCRIPTOR DEVICE); data stage completed",
+        "failure_stage": "control status stage: STARTTRANSFER on physical EP 0 returns status 1 (DEPEVT_TRANSFER_NO_RESOURCE)",
+        "root_cause": "the reset path armed EP0 without re-running Dwc3StartConfig, so the endpoint transfer resource was not reallocated after the bus reset",
+        "receiver_window": "180 s idle timeout expired before a bulk transfer could be attempted"
+      }
     }
   ],
   "saved_live_dt_usb_iommu": {
@@ -385,17 +401,17 @@
     "current_android_dt_read": "permission denied; use saved capture"
   },
   "next_candidate": {
-    "local_evidence": "out/usb-ram-v17",
-    "image_sha256": "1c3e5d485d6c1bc559b73451504128dc1db7de582b2aafd0405825a006624bef",
+    "local_evidence": "out/usb-ram-v18",
+    "image_sha256": "c2e8f86c65c72ff27f556d8afa92049002b5ca64ddbd908e17f6fb5d1b666954",
     "strategy": "existing-disabled-context",
     "host_cases": 21,
     "audit_host_cases": 14,
     "route_host_cases": 20,
     "delivered_modules": {
-      "FuxiUsbRamDxe": "0c849c3a6b873ed9e412433d8492577ca2cdb23b187a1b8a66388a5d4fa9311a",
-      "UsbfnDwc3Dxe": "f40e9cdf21acceae6fa3b5479641e089d37dc60df6f674729d7fafa881508c8c"
+      "FuxiUsbRamDxe": "a788f188ec52172dcf4c8b9f7325bcad950913e8f977ec3dbea75d024127f371",
+      "UsbfnDwc3Dxe": "31e3bc0e0c57fd95a98b6a7d21530ce25ec386b171f89a4ef570d2cad6e34bb2"
     },
-    "change": "re-arm EP0 OUT in the USB reset branch and trace EP0 arm plus EP0 events",
+    "change": "rebuild the control endpoints (DEPSTARTCFG plus SETTRANSFRESOURCE) on every USB reset before arming EP0 OUT",
     "hardware_result": "not yet booted; awaiting fastboot readiness"
   }
 }

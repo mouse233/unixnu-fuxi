@@ -27,6 +27,17 @@ class UsbTransport:
     def __init__(self, vid=0x1209, pid=1, timeout=120000):
         path = ctypes.util.find_library('usb-1.0')
         if not path:
+            for candidate in ('/opt/homebrew/lib/libusb-1.0.dylib',
+                              '/usr/local/lib/libusb-1.0.dylib',
+                              '/usr/lib/libusb-1.0.so.0',
+                              'libusb-1.0.so.0'):
+                try:
+                    C.CDLL(candidate)
+                except OSError:
+                    continue
+                path = candidate
+                break
+        if not path:
             raise RuntimeError('libusb not found; install it with brew install libusb')
         self.lib = C.CDLL(path)
         self.ctx, self.handle = C.c_void_p(), None

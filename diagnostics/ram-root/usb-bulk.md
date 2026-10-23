@@ -515,3 +515,40 @@ v17 在 USB reset 分支里、`Dwc3Ep0ResetState()` 之后调用
 判读方式：出现 `FUXI EP0: arm` 且随后出现 `FUXI EP0: evt=4 …`（XFERCOMPLETE
 在 Setup 状态）说明 SETUP 已被接收；再配合 `USBRAM: setup rt=…` 即可看出
 枚举推进到哪个请求。若仍无 SETUP，则问题回到链路速率/描述符协商。
+
+## v17 实机结果：控制传输首次跑通到数据阶段
+
+v17 修复了 reset 后不 arm EP0 的问题，屏幕第一次出现 SETUP：
+
+```
+USBRAM: speed=3
+FUXI EP0: evt=1 status=12 ep=0 state=0
+USBRAM: setup rt=80 req=06 val=0100 idx=0000 len=18
+FUXI EP: submit ep=1 cmd=5 ...
+```
+
+`rt=80 req=06 val=0100 len=18` 就是主机的 GET_DESCRIPTOR(DEVICE)，
+随后 EP0 IN 的数据阶段也完成了（`evt=3 ... state=1`）。
+这是枚举第一次真正进入控制传输阶段。
+
+但每次都在**状态阶段**失败：
+
+```
+DWC3: STARTTRANSFER failed on Physical EP 0, TrbType 0x40 Len 0 RscIdx 0 Ep0State 2
+```
+
+`status 1` 对应 `DEPEVT_TRANSFER_NO_RESOURCE`。原因在 v17 的改动里：
+reset 分支只调用 `Dwc3Ep0OutStart()`，没有重新执行 `Dwc3StartConfig()`
+（`DEPSTARTCFG` + `SETTRANSFRESOURCE`）——这两步只在
+`Dwc3EnableEndpoint(..., Modify=FALSE)` 时发生，而 bus reset 会丢弃
+端点的 transfer resource，所以状态阶段拿不到资源。
+
+## v18：reset 后完整重建 EP0
+
+v18 在 reset 分支里先 `Dwc3EnableEndpoint(EP0_OUT/EP0_IN, CONTROL, 64, FALSE)`，
+让驱动重跑 `Dwc3StartConfig()` 重新分配各端点资源，再 `Dwc3Ep0OutStart()`。
+CONNECT_DONE 之后仍会用实际速率对应的 max packet 做 MODIFY。
+
+判读方式：状态阶段不再报 `Status 1`，`USBRAM: setup` 序列继续推进到
+`req=05`（SET_ADDRESS）、`req=09`（SET_CONFIGURATION）与
+`USBRAM: configuration 1`，主机侧出现 `1209:0001` 并可用 libusb 打开。
