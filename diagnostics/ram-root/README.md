@@ -317,3 +317,5 @@ valid and covered by the original restore module. These checks do not establish
 that the original ARM64 AMFI loader accepts the module on the phone; v3 still
 requires a temporary boot. The pending image is
 `out/ram-progress/Mu-fuxi-xnu-ram-progress-v3.img`.
+
+USB Bulk 接收器、构建/发送命令及当前硬件限制见 [usb-bulk.md](usb-bulk.md)。

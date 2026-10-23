@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One hash-pinned temporary fastboot boot of a verified RAM-window candidate."""
+"""One hash-pinned temporary fastboot boot of a verified diagnostic candidate."""
 import argparse
 import datetime
 import hashlib
@@ -14,21 +14,27 @@ def main():
     p.add_argument('--image', type=Path, required=True)
     p.add_argument('--expected-sha256', required=True)
     p.add_argument('--serial', default='fcde91e')
+    p.add_argument('--profile', choices=['ram-window', 'usb-ram'], default='ram-window')
     a = p.parse_args()
     image = a.image.resolve()
     if hashlib.sha256(image.read_bytes()).hexdigest() != a.expected_sha256:
         raise SystemExit('candidate image digest mismatch')
     report = json.loads((image.parent / 'verification.json').read_text())
-    if (report.get('boot_sha256') != a.expected_sha256 or
-            not report.get('fat_roundtrip') or not report.get('delivered_loader_matches_build') or
-            not report.get('baseline_kernel_ramdisk_trust_identical')):
+    if a.profile == 'ram-window':
+        verified = (report.get('fat_roundtrip') and report.get('delivered_loader_matches_build') and
+                    report.get('baseline_kernel_ramdisk_trust_identical'))
+    else:
+        verified = (report.get('receiver_only') and report.get('compressed_firmware_roundtrip') and
+                    set(report.get('delivered_modules', {})) == {'FuxiUsbRamDxe', 'UsbfnDwc3Dxe'} and
+                    report.get('kernel_handoff') is False)
+    if report.get('boot_sha256') != a.expected_sha256 or not verified:
         raise SystemExit('candidate verification is absent or belongs to a different image')
     fastboot = shutil.which('fastboot')
     if not fastboot:
         raise SystemExit('fastboot not found')
     record = dict(checked_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),
                   boot_sha256=a.expected_sha256, flash_performed=False, queries=[],
-                  owned_memory_bytes=report['owned_memory_bytes'], hardware_result='pending')
+                  owned_memory_bytes=report.get('owned_memory_bytes'), profile=a.profile, hardware_result='pending')
     output = image.parent / 'device-test.json'
 
     def save():

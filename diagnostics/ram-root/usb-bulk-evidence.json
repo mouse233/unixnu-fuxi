@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-23",
+  "device": "fcde91e",
+  "hardware_transfer_verified": false,
+  "attempts": [
+    {
+      "local_evidence": "out/usb-ram/attempt-01",
+      "observation": {
+        "image_sha256": "aa373feddccfa4ba1b7640ad19973dda7757b64b9ed33bc96f756c519779d3d7",
+        "result": "user observed two log lines then reboot to Android",
+        "usb_receiver_enumerated": false,
+        "test_bytes_sent": 0,
+        "android_bootreason": "bootloader",
+        "pstore": "not available to adb shell",
+        "exact_screen_lines": "not recorded",
+        "root_cause": "unresolved"
+      }
+    },
+    {
+      "local_evidence": "out/usb-ram/attempt-02",
+      "observation": {
+        "image_sha256": "aa373feddccfa4ba1b7640ad19973dda7757b64b9ed33bc96f756c519779d3d7",
+        "photo_sha256": "bc6f7faaed6deda19d0d4ed289b0fdc235e546d5d8a2583a592859f514b8b495",
+        "visible_lines": [
+          "USBRAM: entering USB2 Bulk receiver diagnostic",
+          "FUXI USB: inherited SNPS=33313130 USB2PHY=(not reliably legible)"
+        ],
+        "last_known_stage": "UsbfnPlatformPhyInit log, before controller stop/core initialization",
+        "usb_transfer_verified": false,
+        "next_device_state": "fastboot"
+      }
+    },
+    {
+      "local_evidence": "out/usb-ram-v2",
+      "observation": {
+        "image_sha256": "6ed2d53f4595cadef06575d4b2340e97c2d3650519a487997feefdaabb2af4f9",
+        "fastboot_result": "download OKAY; Booting usb_read failed with status e00002ed",
+        "screen_result": "pending user observation",
+        "usb_result": "USB RAM receiver 1209:0001 not found or inaccessible",
+        "test_bytes_sent": 0,
+        "flash_performed": false
+      }
+    }
+  ]
+}

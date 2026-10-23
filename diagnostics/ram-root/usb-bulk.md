@@ -1,0 +1,112 @@
+# fuxi UEFI USB Bulk RAM receiver
+
+2026-10-23：接收器原型已实现；主机测试通过，手机 USB 初始化仍在排查。
+**尚未完成手机枚举或 1 MiB 传输。当前镜像只停留在 UEFI，不启动 XNU。**
+
+## 实现范围
+
+`uefi-fuxi/Platforms/Xiaomi/fuxiPkg/Drivers/FuxiUsbRamDxe` 实现接收器；
+`Library/FuxiUsbfnLib` 连接现有 Samsung 通用 DWC3 控制器驱动与 fuxi。
+通过 `FUXI_USB_RAM_RECEIVER=1` 显式启用，默认固件不包含它。
+当前使用 ABL 留下的 PHY/时钟状态，控制器基址 `0x0a600000`。
+这不是完整的 SM8550 PHY、时钟、Type-C 冷启动驱动。
+
+USB2 High Speed，实验 VID:PID `1209:0001`，产品名 `fuxi RAM Bulk`，
+接口 `ff/58/01`，Bulk OUT `01`、IN `81`。VID/PID 仅用于本机诊断。
+主机同时核对产品名。DMA 暂存缓冲区分配在 4 GiB 以下并设为 UC；
+验证每块数据后复制到接收对象。USB DMA 不直接指向高位 OS 对象。
+
+协议没有 flash、erase、分区、任意物理地址写入或执行入口。
+对象内存由 EFI 分配器管理；180 秒无通信后停止，出错也停留在 UEFI。
+这不能阻止底层硬件异常导致重启。镜像不含可启动 XNU 的 payload。
+
+## 构建及核验
+
+在设备仓库目录，使用已有的 arm64 Linux 构建环境：
+
+```sh
+python3 scripts/build-fuxi-usb-ram.py \
+  --base ../unixnu-source --uefi ../uefi-fuxi \
+  --edk2 /work/uefi-fuxi/Mu_Basecore --output out/usb-ram
+```
+
+主机检查使用 macOS CommonCrypto，编译并执行实际 `RamBulk.c`，
+通过实际 Python `Client` 测试，不需要 USB 设备：
+
+```sh
+python3 scripts/check-usb-ram.py --uefi ../uefi-fuxi \
+  --report out/usb-ram/host-tests.json
+python3 scripts/check-fuxi-usb-ram-image.py --uefi ../uefi-fuxi
+```
+
+后者解压实际交付 boot image/FV，核对控制器及接收器 EFI 二进制、
+源码哈希、stock OS metadata 与主机测试输入。`verification.json`
+不代表硬件验收。临时启动工具支持 `--profile usb-ram`，要求精确镜像哈希
+及上述核验记录，并检查 serial/product/unlocked；仅执行 `fastboot boot`。
+
+## 主机发送
+
+需要 libusb（macOS 默认加载 `/opt/homebrew/lib/libusb-1.0.dylib`）。
+先完成枚举和自测，再考虑发送大对象：
+
+```sh
+python3 scripts/usb-ram-send.py --self-test --report out/usb-ram/device-transfer.json
+python3 scripts/usb-ram-send.py --research-image ../unixnu-source/out/fuxi/userdata/userdata-root.img \
+  --kind both --report out/usb-ram/full-transfer.json
+```
+
+自测发送 1 MiB 确定性数据，END 要求设备对实际 RAM 内容计算 SHA256 并回传。
+发送工具先核对 SHNGROOT 源镜像清单和对象 SHA，再从原文件按偏移流式发送。
+`--kind both` 保持一个连接，依次保留 OS 和 SystemOS；两次单独执行工具会
+重新设置 USB configuration，清空上一轮对象。也可 `--file PATH --kind test|os|systemos`。
+接收成功只证明 RAM 中对象完整，尚无 DarwinBoot/XNU 交接功能。
+
+## 协议 v1
+
+所有整数 little endian。请求与 ACK 都有 64 字节头：
+
+| 偏移 | 长度 | 字段 |
+| --- | --- | --- |
+| 0 | 8 | `UNXRAM01` |
+| 8 | 2 | version=1 |
+| 10 | 2 | opcode；ACK 为 opcode OR 0x8000 |
+| 12 | 4 | object ID |
+| 16 | 8 | 请求对象内偏移；ACK 已接收长度，HELLO 则为块上限 |
+| 24 | 4 | 请求 payload 长度；ACK=0 |
+| 28 | 4 | 请求必须为 0；ACK 为状态码 |
+| 32 | 32 | 请求 payload SHA256；END ACK 为实际 RAM SHA256 |
+
+每次请求先写头、再单独写 payload，然后读取 ACK。payload 上限 65536 字节。
+HELLO=1；BEGIN=2（payload 为 u64 总长度 + 32 字节最终 SHA256）；
+DATA=3（必须连续偏移）；END=4（精确完成并核对实际 RAM）；ABORT=5（释放对象）。
+空 payload 的请求头 digest 不使用。状态码定义见 `RamBulk.h`。
+ID 0 测试对象最多 1 MiB，ID 1 OS 最多 8 GiB，ID 2 SystemOS 最多 4 GiB；
+对象合计最多 10 GiB。分配失败返回错误。END 失败后对象必须 ABORT 才能重试。
+短传输、畸形帧导致会话停止；主机不自动重传不确定的 DATA。
+USB reset/detach、SET_CONFIGURATION 或 SET_INTERFACE 会清空对象。
+
+## 已有证据及下一验收点
+
+21 个主机用例通过，包括 1 MiB 内容核验、损坏检测、重复/乱序、边界、
+分配失败、64 位长度、跨 4 GiB 偏移、两对象共存和合计容量。
+大偏移用例使用稀疏映射与测试夹具预置进度，并非真实传输了 4 GiB。
+
+第一版镜像 SHA256：
+`aa373feddccfa4ba1b7640ad19973dda7757b64b9ed33bc96f756c519779d3d7`。
+两次临时启动均进入接收器；第一次用户观察到两行后重启 Android，
+主机未发现接收器，未发送数据。第二次照片确认最后可见日志为
+`FUXI USB: inherited SNPS=33313130 USB2PHY=...`。
+这证明可以读取 DWC3 标识，不能证明 PHY/时钟可用于复位或数据传输。
+日志在 `UsbfnPlatformPhyInit` 中，尚无控制器停止或核心初始化完成证据。
+记录和原图留在本地 `out/usb-ram/attempt-01`、`attempt-02`。
+
+分步日志版给 DCTL stop、PHY reset、core reset、事件环设置增加 S0–S12 标记。
+先定位最后一个标记及寄存器，再处理实际故障；不能把未枚举直接归因为 PHY。
+后续硬件门槛为枚举 → 1 MiB END 校验 → 传输整对象，随后才实现预留布局与
+DarwinBoot/XNU 交接。内核 36 页启动表修复也必须重建后才能继续 12 GiB 测试。
+
+分步日志版镜像 SHA256：
+`6ed2d53f4595cadef06575d4b2340e97c2d3650519a487997feefdaabb2af4f9`。
+首次启动尝试发送成功，但 Booting 报 `usb_read failed with status e00002ed`；
+尚不能证明镜像执行到接收器。主机未发现接收器，ADB 也未连接。
+屏幕结果待补充；摘要见 [usb-bulk-evidence.json](usb-bulk-evidence.json)。
