@@ -2,7 +2,7 @@
 
 ## Isolated RAM experiment branch
 
-Use `codex/ramdisk-test` in all three repositories (`unixnu-source`,
+Use `feat/ramdisk-test` in all three repositories (`unixnu-source`,
 `UniXNU-fuxi`, `uefi-fuxi`) under the separate `ramdisk-test/` workspace.
 The original working directories remain on their existing branches, with their
 uncommitted work preserved. The experiment's module dependencies have independent
