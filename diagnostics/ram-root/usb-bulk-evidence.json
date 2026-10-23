@@ -209,6 +209,31 @@
         "v6_comparison": "the status-1 EP0 rejection did not reproduce; only the read-only failure diagnostics differ, so it was likely timing related and needs a separate repeat",
         "root_cause": "unresolved; PHY/link bring-up is now the blocking layer, not the SMMU route"
       }
+    },
+    {
+      "local_evidence": "out/usb-ram-v8",
+      "observation": {
+        "image_sha256": "600ab33fc125a129fdd38c87ed45e74d4b4cb2e1d70d75d755df18320742ea12",
+        "fastboot_result": "Sending OKAY; Booting OKAY; total 1.337s",
+        "usb_receiver_enumerated": false,
+        "test_bytes_sent": 0,
+        "flash_performed": false,
+        "screen_evidence": "user photo of the diagnostic console",
+        "visible_lines": [
+          "FUXI LINK t=0ms DSTS=(link=4 speed=1 sofn=0) DCTL=(run) PHYCFG=00102400 GEVNTCOUNT=0",
+          "no further FUXI LINK line within the two second window",
+          "USBRAM S13 StartController returned Success / USBRAM WAIT 1209:0001"
+        ],
+        "link_state": 4,
+        "link_state_name": "HS_DISCONNECTED",
+        "sofn": 0,
+        "event_count": 0,
+        "phycfg": 4126720,
+        "phycfg_decode": "PHYSOFTRST=0 SUSPHY=0 ENBLSLPM=0 ULPI_UTMI=0(UTMI) PHYIF=0(8-bit) USBTRDTIM=9",
+        "host_observation": "no 1209:0001 and no USB attach event; fastboot and adb empty",
+        "failure_stage": "controller running but the USB2 link never leaves HS_DISCONNECTED; no SOF and no device events",
+        "root_cause": "unresolved; PHY/termination layer, either the inherited PHY is not re-enabled or early init overwrote the bootloader state"
+      }
     }
   ],
   "saved_live_dt_usb_iommu": {
@@ -233,17 +258,17 @@
     "current_android_dt_read": "permission denied; use saved capture"
   },
   "next_candidate": {
-    "local_evidence": "out/usb-ram-v8",
-    "image_sha256": "600ab33fc125a129fdd38c87ed45e74d4b4cb2e1d70d75d755df18320742ea12",
+    "local_evidence": "out/usb-ram-v9",
+    "image_sha256": "c2e2d6589c1a25fee2f243c41a82f34e3a2bb9395b488179b3b4e45f2a591ac7",
     "strategy": "existing-disabled-context",
     "host_cases": 21,
     "audit_host_cases": 14,
     "route_host_cases": 20,
     "delivered_modules": {
-      "FuxiUsbRamDxe": "6a4064f064ce64a6802d8ca701578ba6c75d1786e8edc945a9e69da855f0b7bd",
-      "UsbfnDwc3Dxe": "8486a6d5bf811e7e184608bfcda54cbe65a3efb8245e0364fcdd79d49f6ddf3d"
+      "FuxiUsbRamDxe": "8788e8a6277b5aa39c811d240951ae9aedda4216428862a8a6e0fcaaf911319d",
+      "UsbfnDwc3Dxe": "b550f59e3f6d16910365aad1e8f61dcd46af0bf838693a9d714245a7688c1461"
     },
-    "diagnostics": "two-second post-RUN_STOP DSTS sampling (link state, speed, SOF, DCTL, GUSB2PHYCFG, GEVNTCOUNT) on top of the v7 failure snapshot",
+    "diagnostics": "read-only DWC3 register snapshot taken while the controller is still owned by ABL and reprinted next to the post-init snapshot",
     "hardware_result": "not yet booted; awaiting fastboot readiness"
   }
 }

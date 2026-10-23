@@ -281,3 +281,30 @@ SOF 号、`DCTL`（确认 bit31）、`GUSB2PHYCFG(0)` 和 `GEVNTCOUNT`，
 只在链路状态、速率或事件计数变化时打印。判断方式：
 链路始终停在 disconnected/ON 且无 SOF 前进，说明 PHY 没把设备拉到总线上；
 速率与 SOF 正常而主机仍无枚举，说明问题在端点/描述符阶段。
+
+## v8 实机结果：控制器在跑，链路始终 disconnected
+
+v8（`600ab33f…ea12`）启动后唯一一行链路采样是：
+
+`FUXI LINK t=0ms DSTS=… link=4 speed=1 sofn=0 DCTL=… PHYCFG=00102400 GEVNTCOUNT=0`
+
+2 秒内没有第二行，说明链路状态、速率和事件计数都没有变化：
+`link=4` 是 HS_DISCONNECTED，`sofn=0` 表示没有 SOF，`GEVNTCOUNT=0`
+表示没有 connect/reset 事件。控制器侧没有报告停止，主机侧也没有枚举。
+
+按本树 `Dwc3.h` 解码 `PHYCFG=00102400`：PHYSOFTRST=0（已释放）、
+SUSPHY=0（未挂起）、ENBLSLPM=0、ULPI_UTMI=0（UTMI 模式）、
+PHYIF=0（8 位）、USBTRDTIM=9（8 位 UTMI 的取值）。
+也就是说软件看到的 PHY 配置是自洽的，但设备就是没有把 D+ 拉起来。
+因此下一步不再是 SMMU 或端点，而是 PHY/术语层：
+要么继承的 PHY 未被正确重新使能，要么我们在初始化时把 ABL 的状态改坏了。
+
+## v9：与 ABL 状态做只读对比
+
+v9 在 `UsbfnPlatformPhyInit`（控制器仍处于 ABL 状态时）抓一份
+`GSNPSID/GCTL/PHYCFG/PIPECTL/DCFG/DCTL/DSTS/DEVTEN/EVTADR/EVTSIZ`
+快照，并在 S17 审计清屏后与初始化完成后的同名快照一起打印，
+标签为 `FUXI SNAP ABL` 和 `FUXI SNAP POST`。
+ABL 那份是唯一被证明能连上主机的状态（fastboot 就工作在这个状态），
+两份的差异直接指出我们改坏或漏配了哪个寄存器。
+快照全部只读，不改变启动行为。
