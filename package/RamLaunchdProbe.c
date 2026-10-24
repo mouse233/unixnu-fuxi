@@ -286,8 +286,8 @@ void fuxi_ram_progress_unix_result(unsigned code, int error, int result)
             }
         }
         int pid = proc_getpid(current_proc());
-        for (unsigned n = 0; n < 4 && n < spawn_total; n++) {
-            struct ram_spawn *spawn = &spawns[(spawn_total - 1 - n) & 3];
+        for (unsigned n = 0; n < 8 && n < spawn_total; n++) {
+            struct ram_spawn *spawn = &spawns[(spawn_total - 1 - n) & 7];
             if (spawn->pid == pid && spawn->code == code && spawn->error == -9999) {
                 spawn->error = error;
                 spawn->result = result;

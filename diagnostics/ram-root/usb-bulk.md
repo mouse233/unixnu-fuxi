@@ -1949,3 +1949,24 @@ prelink 01a3a3bd2bd76cb3…。
 上机待fastboot。验收：RAM_PROGRESS快照与收场panic中main=PASS、
 spawn成功（e=0 r=pid）即用户态拉起的直接证据；只读卷EROFS/ENOENT
 类失败照实归档。不把部分spawn写成完整系统启动。
+
+### v39 上机前静态预检（2026-10-25）
+
+按"事后取证前移"审查v39实机路径，发现并修复一处既有缺陷：
+RamLaunchdProbe的spawn结果回填环用&3掩码（只扫槽0–3）而插入用&7
+（数组8），第5个spawn起最新条目落在槽4–7不可见，e=/r=会错标或
+滞留-9999——恰是v39要采集的spawn成功证据字段。修正为&7掩码、
+回看8条，与unix事件环一致。源码已改，镜像重建中，重建后重过
+全套检查并更新哈希。
+
+其余审计无新缺陷：main_arm的argv0期望在native模式为/sbin/launchd
+（fuxi_ram_system_user_entry仅enabled==2置位，v39为enabled=1）；
+事件/ recent环掩码一致；deadline与mount封锁panic均带路径；SVC
+钩子阶段矩阵（stage7 exec期无EL0 SVC、stage8放行PID1、stage10
+跟随）闭合。
+
+OS卷静态读取：无/etc/fstab（launchd启动不做fstab数据卷挂载，
+mount触发线早期命中风险低）；/private/var存在但只读（写EROFS，
+同二进制在恢复盘有先例）；System/Library/LaunchDaemons共523项
+（子进程spawn将大量发生，spawn环修复正及时）；dyld缓存位于
+cryptex卷，v38已证launchd dyld装载成功，子进程同路径。
