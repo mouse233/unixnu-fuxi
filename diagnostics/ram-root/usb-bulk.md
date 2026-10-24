@@ -1192,3 +1192,23 @@ reflock wait 边界明确停止；报告 completed=false、return_value=null，�
 
 报告归档 out/analysis/codex-takeover，复现与边界详见 apfs-ram-model.md。
 下一证据仍为原 v29 实机的 open/count/path 和 LOG tail；未宣称挂载通过。
+
+## v29 attempt-01：双对象 END RAM 校验通过，待 witness 照片（2026-10-24）
+
+用户确认进入 fastboot 后，检查无活动传输、序列号 fcde91e，并重新执行
+镜像/固件源码绑定及系统 payload 检查，均退出 0；七份交付报告的镜像、
+内核、XNU 源码、补丁和 compressor 编译记录绑定核验通过。
+沿用的 SMMU audit/route/receiver 主机报告经当前源码身份核验，未修改交付镜像。
+
+镜像 SHA256 f9068392e3a1539f1506a6b777dd64c3e9bef6f8f60ee81abd403060445257ef。
+运行器 product=fuxi、unlocked=yes 门通过，一次 fastboot boot 成功。
+OS 6,077,580,800 字节与 SystemOS 3,303,014,400 字节的 END 实际 RAM SHA256
+均匹配，551.628 秒，运行器退出 0。未写分区。
+preflight.json、boot-record.json、boot.log、full-transfer.json、host-observation.json
+保存在 out/usb-system-mount-v29/attempt-01。
+
+已提示等待接收器正常退出，手动选择 fuxi RAM diagnostic: system-mount，
+拍摄完整最终屏幕，重点保留新增 open/count/path 与 LOG tail。
+normal_controller_stop_verified 保持 false；尚无停机三标记或 XNU 屏幕证据。
+kernel_handoff=true 仅是配置位；当前不能宣称解决 ENOENT、挂载通过或
+RAM_SYSTEM PASS。照片到位后须同时回填本日志与候选 REVIEW.md。
