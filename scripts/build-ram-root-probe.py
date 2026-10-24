@@ -18,8 +18,8 @@ parser.add_argument('--restore-trust-cache', type=Path, help='Exact original v1 
 parser.add_argument('--system-objects', action='store_true', help='Stop after read-only OS/SystemOS mounts, before userland')
 parser.add_argument('--system-user-entry', action='store_true', help='After the system mounts, exec /mnt1/sbin/launchd and stop at its first EL0 SVC')
 args = parser.parse_args()
-if args.system_objects and (not args.user_entry or args.main_entry or args.progress):
-    parser.error('--system-objects requires --user-entry and excludes main/progress modes')
+if args.system_objects and (not args.user_entry or args.progress):
+    parser.error('--system-objects requires --user-entry and excludes progress mode')
 if args.system_user_entry and not args.system_objects:
     parser.error('--system-user-entry requires --system-objects')
 if args.restore_trust_cache and not args.progress:
@@ -46,6 +46,10 @@ if args.system_user_entry and (
         not pins.get('system_file_bytes') or
         len(bytes.fromhex(pins.get('system_file_sha256', ''))) != 32):
     raise SystemExit('Require exact system launchd pins for --system-user-entry')
+if args.system_user_entry and args.main_entry and pins['system_file_sha256'] != pins['file_sha256']:
+    # The hardware checkpoint offset is pinned from the restore ramdisk binary;
+    # the system entry is only covered by it while the two files are identical.
+    raise SystemExit('--main-entry system checkpoint requires byte-identical system launchd')
 for key, enabled in [('XNU_RAM_USER_ENTRY', args.user_entry), ('XNU_RAM_MAIN_PROBE', args.main_entry), ('XNU_RAM_PROGRESS', args.progress), ('XNU_RAM_RESTORE_TRUST', bool(args.restore_trust_cache))]:
     if key in os.environ and os.environ[key] != str(int(enabled)):
         raise SystemExit(key + ' disagrees with requested diagnostic archive mode')

@@ -16,8 +16,11 @@
 #include "RamRootProbePins.h"
 
 extern volatile unsigned fuxi_ram_root_stage;
+extern volatile unsigned fuxi_ram_system_user_entry;
 /* This Mach-private declaration is hidden from the BSD compile-record headers. */
 extern kern_return_t machine_thread_set_state(thread_t, thread_flavor_t, thread_state_t, mach_msg_type_number_t);
+static const char ram_main_argv0[] = "/sbin/launchd";
+static const char ram_main_system_argv0[] = "/mnt1/sbin/launchd";
 void fuxi_ram_main_arm(thread_t target);
 void fuxi_ram_main_svc(uint64_t, uint32_t, uint32_t, uint64_t);
 void fuxi_ram_main_unix(unsigned);
@@ -127,7 +130,10 @@ static void require_observed_thread(void)
 void fuxi_ram_main_arm(thread_t target)
 {
     uint64_t startup[5] = {0};
-    char argv0[sizeof("/sbin/launchd")], argv1[sizeof("-s")];
+    const char *expected_argv0 = fuxi_ram_system_user_entry ? ram_main_system_argv0 : ram_main_argv0;
+    unsigned argv0_bytes = fuxi_ram_system_user_entry ? (unsigned)sizeof(ram_main_system_argv0)
+                                                      : (unsigned)sizeof(ram_main_argv0);
+    char argv0[sizeof(ram_main_system_argv0)], argv1[sizeof("-s")];
     uint32_t header[8], entry[4];
     arm_debug_state64_t debug = {0};
     uint64_t deadline;
@@ -149,8 +155,8 @@ void fuxi_ram_main_arm(thread_t target)
         vm_map_switch(old_map);
         panic("RAM_MAIN invalid original dyld startup stack\nsp=%llx errno=%d header=%llx argc=%llu", sp, error, startup[0], startup[1]);
     }
-    error = copyin(startup[2], argv0, sizeof(argv0));
-    if (error || memcmp(argv0, "/sbin/launchd", sizeof(argv0)) ||
+    error = copyin(startup[2], argv0, argv0_bytes);
+    if (error || memcmp(argv0, expected_argv0, argv0_bytes) ||
         (startup[1] == 2 && (copyin(startup[3], argv1, sizeof(argv1)) || memcmp(argv1, "-s", sizeof(argv1))))) {
         vm_map_switch(old_map);
         panic("RAM_MAIN unexpected original launchd argv: argc=%llu errno=%d", startup[1], error);
@@ -328,6 +334,9 @@ void fuxi_ram_main_break(uint64_t pc, uint32_t cpsr, uint32_t esr)
     if (progress_lock()) progress_unlock();
     return;
 #else
+    if (fuxi_ram_system_user_entry)
+        panic("RAM_SYSTEM_MAIN PASS\nroot=/mnt1 apfs readonly=1\nsystem launchd LC_MAIN+4 reached\nfirst instruction and entry bytes intact\nheader=%llx main=%llx\npc=%llx cpsr=%x esr=%x\nsvc=%u; process creation blocked\nrecovery programs not started",
+            launchd_header, launchd_main, pc, cpsr, esr, svc_count);
     panic("RAM_LAUNCHD_MAIN PASS\nroot=md0 apfs readonly=1\noriginal launchd LC_MAIN+4 reached\nfirst instruction and entry bytes intact\nheader=%llx main=%llx\npc=%llx cpsr=%x esr=%x\nsvc=%u; process creation blocked\nrecovery programs not started",
         launchd_header, launchd_main, pc, cpsr, esr, svc_count);
 #endif
