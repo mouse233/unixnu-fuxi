@@ -1139,3 +1139,15 @@ boot-record.json、host-observation.json。normal_controller_stop_verified 保�
 尚未取得 v28 XNU 照片，不能确认已越过 APFS EBUSY、两个卷挂载通过或
 RAM_SYSTEM PASS。若仍失败，读取 at/dev/opens/spec/apfs/covered 后继续定位。
 照片结论须追加回填本日志与候选 REVIEW.md。
+
+## v28 实机照片：APFS 返回 ENOENT（2026-10-24）
+
+IMG_6959.HEIC 已归档于 v28/attempt-01，明确显示 errno=2、at=apfs-mount、
+path=/mnt1、dev=3000001、opens=0、spec=4、apfs=2、covered=84800，
+位置 @vfs_syscalls.c:424。v28 已改变 APFS 回调结果（v27 为 EBUSY 16），
+但 /mnt1 仍失败，/mnt2 未尝试，未达到 RAM_SYSTEM PASS。当前为 panic，不会继续推进。
+
+仅凭 ENOENT 尚不能确认缺少哪个对象；不能把它直接等同于 /mnt1 或 /dev/md1
+不存在，因为前置 VFS namei/占用检查已经通过。下一步检查 APFS 的设备名处理、
+容器/卷查找与 IOMedia 发布，并补充回调内部日志和文件打开路径证据，避免猜测。
+控制器停机三标记未出现在照片中，normal_controller_stop_verified 保持 false。
