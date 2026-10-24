@@ -33,6 +33,11 @@ def snippets(source):
     return wrapper, guard, gate, source[start:end]
 
 
+def ram_types(source):
+    marker = '/* iPad7,1 21H461 apfs_vfsop_mount copies'
+    return source[source.index(marker):source.index('int fuxi_ram_mount_ro(const char *, const char *);')] if marker in source else ''
+
+
 def exercise(source, constants, fixed):
     wrapper, guard, gate, segment = snippets(source)
     harness = r'''
@@ -46,6 +51,8 @@ def exercise(source, constants, fixed):
 #define fuxi_ram_mount_reset() ((void)0)
 #define fuxi_ram_mount_mark(flags, stage) ((void)0)
 #define panic(...) abort()
+#define current_task() ((void *)1)
+#define kernel_task ((void *)1)
 static struct {
     const char *stage;
     uint32_t dev, spec, covered;
@@ -77,12 +84,12 @@ static int segment_for(uint32_t internal_flags) {
 static int kernel_mount(const char *type, vnode_t pvp, vnode_t vp, const char *path,
     void *data, size_t datalen, int flags, uint32_t internal_flags, vfs_context_t ctx) {
     calls++; seen_device = *(const char **)data; seen_path = path;
-    assert(!pvp && !vp && datalen == sizeof(char *) && ctx == vfs_context_kernel());
+    assert(!pvp && !vp && datalen >= sizeof(char *) && ctx == vfs_context_kernel());
     assert(!strcmp(type,"apfs") && flags == (MNT_RDONLY | MNT_DONTBROWSE));
     assert(internal_flags == KERNEL_MOUNT_RAM_SYSTEM);
     return admit(type, flags, internal_flags | KERNEL_MOUNT_KMOUNT, VFC_VFSLOCALARGS);
 }
-''' + wrapper + '\n'
+''' + ram_types(source) + wrapper + '\n'
     harness += '#define FIXED ' + str(int(fixed)) + '\n' + r'''
 int main(void) {
     unsigned ram = KERNEL_MOUNT_RAM_SYSTEM | KERNEL_MOUNT_KMOUNT;
@@ -149,6 +156,9 @@ def main():
         target = scratch / 'bsd/vfs/vfs_syscalls.c'
         target.parent.mkdir(parents=True)
         target.write_text(source)
+        volume = base / 'patches/xnu/zz-ram-system-mount-volume-args.patch'
+        if 'struct fuxi_ram_mount_request' in source:
+            subprocess.run(['git', '-C', str(scratch), 'apply', '--reverse', str(volume)], check=True)
         trace = base / 'patches/xnu/zz-ram-system-mount-trace.patch'
         if 'fuxi_ram_mount_reset' in source:
             subprocess.run(['git', '-C', str(scratch), 'apply', '--reverse', str(trace)], check=True)

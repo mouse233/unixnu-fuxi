@@ -13,7 +13,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-braced = runpy.run_path(str(Path(__file__).with_name('check-usb-system-mount-spi.py')), run_name='mount_spi')['braced']
+spi = runpy.run_path(str(Path(__file__).with_name('check-usb-system-mount-spi.py')), run_name='mount_spi')
+braced = spi['braced']
 
 
 def exercise(source, constants):
@@ -40,6 +41,8 @@ def exercise(source, constants):
 #define CONFIG_MACF 1
 #define NULLVP NULL
 #define NODEV (-1)
+#define current_task() ((void *)1)
+#define kernel_task ((void *)1)
 #define MNT_WAIT 1
 #define BUF_WRITE_DATA 1
 #define VDIR 1
@@ -118,7 +121,7 @@ static int kernel_mount(const char *type,vnode_t pvp,vnode_t vp,const char *path
     assert(!strcmp(type,"apfs") && flags==(MNT_RDONLY|MNT_DONTBROWSE));
     return run_blocks(k|KERNEL_MOUNT_KMOUNT);
 }
-''' + wrapper + r'''
+''' + spi['ram_types'](source) + wrapper + r'''
 int main(void) {
     const char *failures[]={"covered-fsync","covered-invalidate","covered-busy","covered-mac","device-ref","device-setmounting","device-vcount","device-fsync","device-invalidate","device-mac-open","device-open","apfs-mount","mount-list-add"};
     for(unsigned i=0;i<sizeof(failures)/sizeof(*failures);i++) {
@@ -171,7 +174,15 @@ def main():
         new = source[source.index(begin):source.index(end)]
         assert old == new, 'mount cleanup changed'
     patch = base / 'patches/xnu/zz-ram-system-mount-trace.patch'
-    subprocess.run(['git', '-C', str(root), 'apply', '--reverse', '--check', str(patch)], check=True)
+    with tempfile.TemporaryDirectory(prefix='ram-trace-patch-') as directory:
+        scratch = Path(directory)
+        target = scratch / 'bsd/vfs/vfs_syscalls.c'
+        target.parent.mkdir(parents=True)
+        target.write_text(source)
+        if 'struct fuxi_ram_mount_request' in source:
+            volume = base / 'patches/xnu/zz-ram-system-mount-volume-args.patch'
+            subprocess.run(['git', '-C', str(scratch), 'apply', '--reverse', str(volume)], check=True)
+        subprocess.run(['git', '-C', str(scratch), 'apply', '--reverse', '--check', str(patch)], check=True)
     constants = []
     for header, pattern in [('bsd/sys/mount_internal.h', r'KERNEL_MOUNT_\w+'),
                             ('bsd/sys/mount.h', r'MNT_(?:RDONLY|DONTBROWSE|UPDATE|ROOTFS)'),

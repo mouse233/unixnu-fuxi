@@ -1104,3 +1104,24 @@ opens=0 是打开设备前原 vcount 的值，spec=4 是 SI_MOUNTING，不是 SI
 
 下一步核对 RAM 专用挂载给 APFS 的参数与设备接口，定位 APFS 回调内部的拒绝。
 当前尚未确定内部根因。控制器停机三标记不在照片中，原 false 结论保持。
+
+## v28：补齐 APFS 附加卷参数候选（2026-10-24）
+
+v27 照片已确认 APFS 回调 EBUSY。源码发现 RAM glue 将 fsmountargs 置空；
+原始 21H461 APFS 的默认 mode 0 选择启动根卷路径，而非 /mnt1、/mnt2 所需的
+附加卷挂载。对固定哈希 APFS 的 copyin 长度、mode 读取和真实跳转表审计确认
+上述参数错误；尚未取得实机 APFS 内部拒绝断点，不能宣称所有 EBUSY 已被解释。
+
+新增 zz-ram-system-mount-volume-args.patch（XNU）：构造 fspec 后 324 字节参数，
+只读、mode=1、uid/gid=99，其余清零；解析 fspec 后保留参数；入口限定 kernel_task。
+保留原 copyin 的 map 验证、APFS/VFS 检查、只读盘和 v27 阶段诊断。
+APFS 原始可执行区、UEFI、DarwinBoot、USB 和对象布局未改。
+
+候选 out/usb-system-mount-v28/Mu-fuxi-usb-ram.img，203,190,272 字节，SHA256
+`836bd4bb609dafdda7a0347ea46078459143de6c5b0c1fe7506393c5354b16b3`，
+prelink `9c1a1f44…957ac`。四项必需检查、payload、KMEM、SPI、trace、启动门全部通过。
+新增参数检查执行真实抽取 C 与 ARM64 copyin 路径（ASan/UBSan），父 v27 解析块
+作为置空参数负对照，同时核验原始 APFS 模式分支和未修改的可执行区。
+
+详见 usb-system-mount-v28.md 及候选 REVIEW.md。当前未实机；fastboot 列表为空，
+没有进行中传输，等待用户重启进入 fastboot 后运行 attempt-01。不得宣称挂载已通过。
