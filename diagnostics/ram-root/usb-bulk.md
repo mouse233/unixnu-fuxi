@@ -1170,3 +1170,25 @@ prelink `ca42c99f…fa7b2`。四项必需检查、payload、KMEM、SPI、trace�
 
 当前 fastboot 列表为空，无运行中传输；等待用户重启进入 fastboot 后执行 attempt-01。
 v29 尚未实机，未宣称解决 ENOENT、两卷挂载通过或 RAM_SYSTEM PASS。
+
+## v29 后续：校准 APFS 离线模型，撤销伪偏移/块号结论（2026-10-24）
+
+本轮只改主机分析工具，未操作手机，未构建 v30。镜像 SHA256 重算仍为
+f9068392e3a1539f1506a6b777dd64c3e9bef6f8f60ee81abd403060445257ef。
+将 analyze-apfs-ram-mount.py 默认额外偏移恢复为 0；NXSB 前的 32 字节
+是标准 obj_phys_t，并非镜像私有头。加 0x20 的负对照明确返回 EFTYPE(79)。
+
+修正 ioctl 命令误认：GETBLOCKSIZE 曾被当作 ISVIRTUAL 返回 1，
+GETBLOCKCOUNT 曾返回字节容量，真实 ISVIRTUAL 的 4 字节输出又被写入
+12 字节。现与 v29 实际 mdevioctl 对齐，buf_getblk 也改按当前设备扇区大小
+寻址。真实 C（ASan/UBSan）与实际 Python hook 的 68 组接口/输出 canary
+对照全部通过；另检查寻址、两盘对象头和 Darwin va_list 日志解码。
+
+校准后 md1 第二次读取正确位于 0x3dd0000，原来的超大地址是模型错误。
+md1/md1s1 假设别名/md2 分别读取 58/58/38 次元数据后，均在未建模的
+reflock wait 边界明确停止；报告 completed=false、return_value=null，退出 2。
+这些结果不能证明实机锁等待或 ENOENT 根因，也不能证明增加别名就能修复。
+不再继续用无状态锁桩猜测整个挂载结果。
+
+报告归档 out/analysis/codex-takeover，复现与边界详见 apfs-ram-model.md。
+下一证据仍为原 v29 实机的 open/count/path 和 LOG tail；未宣称挂载通过。
