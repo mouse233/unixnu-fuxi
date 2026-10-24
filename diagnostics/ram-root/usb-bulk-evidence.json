@@ -1,7 +1,7 @@
 {
   "date": "2026-10-23",
   "device": "fcde91e",
-  "hardware_transfer_verified": false,
+  "hardware_transfer_verified": true,
   "attempts": [
     {
       "local_evidence": "out/usb-ram/attempt-01",
@@ -344,7 +344,7 @@
         "wrapper_base_confirmed": "0xa6f8800 (core + 0xF8800)",
         "host_observation": "macOS still does not enumerate the device; USB logs are debug-level and not persisted, so absence there is not evidence",
         "failure_stage": "enumeration: the link is up but no configuration is completed",
-        "next_suspect": "speed reporting flips between 2 and 3 (3 means DSTS.CONNECTSPD=4, an SS encoding that makes no sense on this USB2 link)"
+        "next_suspect": "enumeration/control endpoint lifecycle; speed=3 is EFI UsbBusSpeedHigh, not raw DSTS SuperSpeed"
       }
     },
     {
@@ -372,10 +372,321 @@
         "test_bytes_sent": 0,
         "flash_performed": false,
         "screen_evidence": "user photo",
-        "setup_seen": "rt=80 req=06 val=0100 len=18 (GET_DESCRIPTOR DEVICE); data stage completed",
-        "failure_stage": "control status stage: STARTTRANSFER on physical EP 0 returns status 1 (DEPEVT_TRANSFER_NO_RESOURCE)",
-        "root_cause": "the reset path armed EP0 without re-running Dwc3StartConfig, so the endpoint transfer resource was not reallocated after the bus reset",
-        "receiver_window": "180 s idle timeout expired before a bulk transfer could be attempted"
+        "setup_seen": "rt=80 req=06 val=0100 len=18 (GET_DESCRIPTOR DEVICE); evt=3 is NOTREADY and does not prove data completion",
+        "failure_stage": "control status STARTTRANSFER on physical EP0 returns command status 1 (no transfer resource; upstream Linux interpretation confirmed)",
+        "receiver_window": "180 s idle timeout expired before a bulk transfer could be attempted",
+        "previous_root_cause_hypothesis": "the reset path armed EP0 without re-running Dwc3StartConfig, so the endpoint transfer resource was not reallocated after the bus reset",
+        "root_cause": "unresolved: reset resource reallocation in v18 regressed; stale EP0 resource index is the v19 test hypothesis",
+        "full_configuration_verified": false
+      }
+    },
+    {
+      "local_evidence": "out/usb-ram-v18",
+      "observation": {
+        "image_sha256": "c2e8f86c65c72ff27f556d8afa92049002b5ca64ddbd908e17f6fb5d1b666954",
+        "usb_receiver_enumerated": false,
+        "test_bytes_sent": 0,
+        "flash_performed": false,
+        "screen_evidence": "out/usb-ram-v18/screen-evidence.jpeg",
+        "photo_sha256": "14795443fa04f554bf0f132df2fc546bc0a96cdd9529e5fcd4a71e30945bca7f",
+        "screen_observation": "repeated reset; occasional GET_DESCRIPTOR; CONTROL_SETUP STARTTRANSFER status 1; unexpected control data direction",
+        "host_observation": "old session: self-test could not open 1209:0001 within 25s; ioreg reported NOT PRESENT",
+        "conclusion": "regression compared to v17; does not independently prove reset resource allocation lifetime",
+        "supersedes": "old device-test.json awaiting-screen placeholder; original logs retained"
+      }
+    },
+    {
+      "local_evidence": "out/usb-ram-v19/attempt-01",
+      "observation": {
+        "checked_utc": "2026-10-23T14:13:21.735012+00:00",
+        "image_sha256": "0f76bd4b8c0316422ab5815d08b4d39f368a4104b541a3a98d04617dfa35cf1c",
+        "boot_command_returncode": 0,
+        "fastboot_boot_succeeded": true,
+        "self_test_returncode": 1,
+        "self_test_error": "USB RAM receiver 1209:0001 not found or inaccessible",
+        "wait_seconds": 20,
+        "ram_readback_verified": false,
+        "test_bytes_sent": 0,
+        "host_observation": {
+          "devices_1209": [
+            {
+              "idVendor": 4617,
+              "idProduct": 1,
+              "bNumConfigurations": 1,
+              "bMaxPacketSize0": 64,
+              "UsbLinkSpeed": 480000000,
+              "Device Speed": 2,
+              "kUSBAddress": 17
+            }
+          ],
+          "receiver_present": true
+        },
+        "screen_result": "IMG_6930.JPG reviewed; valid EP0 OUT index zero and premature STATUS handling exposed",
+        "flash_performed": false,
+        "enumeration_level": "device descriptor visible at 480 Mb/s; libusb reports active configuration 0",
+        "libusb_open_error": {
+          "darwin": "0xe00002d8",
+          "libusb": -99
+        },
+        "discovery_recheck": {
+          "wait_seconds": 0,
+          "returncode": 1,
+          "log": "libusb-diagnostic.log",
+          "protocol_bytes_sent": 0
+        },
+        "screen_analysis": "out/usb-ram-v19/photo-analysis.json"
+      }
+    },
+    {
+      "local_evidence": "out/usb-ram-v20/attempt-01",
+      "observation": {
+        "checked_utc": "2026-10-23T14:26:38.996663+00:00",
+        "image_sha256": "b9ecd4b042fbecbd2174ae888f0f16fff024393e5717e98f8f6a44e25e2384c7",
+        "boot_command_returncode": 0,
+        "fastboot_boot_succeeded": true,
+        "self_test_returncode": 1,
+        "self_test_error": "USB RAM receiver 1209:0001 not found or inaccessible",
+        "wait_seconds": 20,
+        "ram_readback_verified": false,
+        "test_bytes_sent": 0,
+        "host_observation": {
+          "devices_1209": [
+            {
+              "idVendor": 4617,
+              "idProduct": 1,
+              "bNumConfigurations": 1,
+              "bMaxPacketSize0": 64,
+              "UsbLinkSpeed": 480000000,
+              "kUSBAddress": 19
+            }
+          ],
+          "receiver_present": true
+        },
+        "enumeration_level": "device descriptor 1209:0001 at 480 Mb/s; libusb active configuration 0",
+        "libusb_open_error": {
+          "darwin": "0xe00002d8",
+          "libusb": -99
+        },
+        "screen_result": "IMG_6931/6932 reviewed; inactive completion phase confusion; controller stop timeout",
+        "screen_analysis": "out/usb-ram-v20/photo-analysis.json",
+        "flash_performed": false
+      }
+    },
+    {
+      "local_evidence": "out/usb-ram-v21/attempt-01",
+      "observation": {
+        "checked_utc": "2026-10-23T14:29:43.616406+00:00",
+        "image_sha256": "abcea15a6e9805c5caeb688f9927d5dc582f480f5d81b3beed8296ccc80508fe",
+        "boot_command_returncode": 0,
+        "fastboot_boot_succeeded": true,
+        "fastboot_output": "Sending 'boot.img' (1816 KB)                       OKAY [  0.039s]\nBooting                                            OKAY [  1.793s]\nFinished. Total time: 1.833s\n",
+        "self_test_returncode": 1,
+        "self_test_error": "USB RAM receiver 1209:0001 not found or inaccessible",
+        "wait_seconds": 20,
+        "ram_readback_verified": false,
+        "test_bytes_sent": 0,
+        "host_observation": {
+          "checked_utc": "2026-10-23T14:29:09.329240+00:00",
+          "devices_1209": [],
+          "receiver_present": false
+        },
+        "libusb_receiver_descriptor_seen": false,
+        "screen_result": "IMG_6934/6935 reviewed: HWO-filtered OUT COMPLETE; cascading END/START/config timeouts; controller stop timeout",
+        "flash_performed": false,
+        "screen_analysis": "out/usb-ram-v21/photo-analysis.json"
+      }
+    },
+    {
+      "local_evidence": "out/usb-ram-v22/attempt-01",
+      "observation": {
+        "checked_utc": "2026-10-23T14:44:46.310551+00:00",
+        "image_sha256": "1ea39613b1ac09ba8350124c4b943e841cc852e0a2c160bb9c2435de0c957141",
+        "boot_command_returncode": 0,
+        "fastboot_boot_succeeded": true,
+        "fastboot_output": "Sending 'boot.img' (1820 KB)                       OKAY [  0.040s]\nBooting                                            OKAY [  1.994s]\nFinished. Total time: 2.035s\n",
+        "initial_discovery": {
+          "wait_seconds": 20,
+          "returncode": 1,
+          "error": "USB RAM receiver 1209:0001 not found or inaccessible",
+          "protocol_bytes_sent": 0,
+          "log": "self-test.log"
+        },
+        "subsequent_discovery": {
+          "wait_seconds": 0,
+          "returncode": 0,
+          "no_protocol_retransmission": true,
+          "log": "self-test-recheck.log"
+        },
+        "self_test_returncode": 0,
+        "test_bytes_sent": 1048576,
+        "ram_readback_verified": true,
+        "sha256": "fbbab289f7f94b25736c58be46a994c441fd02552cc6022352e3d86d2fab7c83",
+        "host_observation": {
+          "checked_utc": "2026-10-23T14:43:25.523414+00:00",
+          "receiver_nodes": [
+            {
+              "USB Product Name": "fuxi RAM Bulk",
+              "idVendor": 4617,
+              "idProduct": 1,
+              "bNumConfigurations": 1,
+              "bMaxPacketSize0": 64,
+              "UsbLinkSpeed": 480000000,
+              "kUSBAddress": 7
+            },
+            {
+              "USB Product Name": "fuxi RAM Bulk",
+              "idVendor": 4617,
+              "idProduct": 1,
+              "bConfigurationValue": 1,
+              "bInterfaceNumber": 0,
+              "bInterfaceClass": 255,
+              "bInterfaceSubClass": 88,
+              "bInterfaceProtocol": 1,
+              "bNumEndpoints": 2
+            }
+          ]
+        },
+        "screen_result": "configuration 1; USBRAM VERIFIED id=0 PA=C6428000 bytes=1048576 (RAM only)",
+        "screen_analysis": "out/usb-ram-v22/photo-analysis.json",
+        "transfer_report": "out/usb-ram-v22/self-test-recheck.json",
+        "flash_performed": false,
+        "partition_writes": false,
+        "kernel_handoff": false,
+        "full_os_object_transfer_verified": false,
+        "normal_controller_stop_verified": false
+      }
+    },
+    {
+      "local_evidence": "out/usb-ram-full-v22/attempt-02-reopen",
+      "observation": {
+        "image": "/Volumes/External/VSCode/UniXNU/ramdisk-test/UniXNU-fuxi/out/usb-ram-full-v22/attempt-02/Mu-fuxi-usb-ram.img",
+        "image_sha256": "1ea39613b1ac09ba8350124c4b943e841cc852e0a2c160bb9c2435de0c957141",
+        "source": "/Volumes/External/VSCode/UniXNU/unixnu-source/out/fuxi/userdata/userdata-root.img",
+        "partition_writes": false,
+        "kernel_handoff": false,
+        "objects": [
+          {
+            "object_id": 1,
+            "kind": "os",
+            "bytes": 6077580800,
+            "sha256": "e5634d04a8ac35f024845f583394e0a35deb26a04cb0c00286a8674e25a9a4f2",
+            "acknowledged_bytes": 6077580800,
+            "ram_readback_verified": true,
+            "verified_utc": "2026-10-23T15:05:19.563879+00:00"
+          },
+          {
+            "object_id": 2,
+            "kind": "systemos",
+            "bytes": 3303014400,
+            "sha256": "b4908cde41d23e6bc05e6af51a2c9eeb00cf0f863a6a18b1600c96a3fd70414f",
+            "acknowledged_bytes": 3303014400,
+            "ram_readback_verified": true,
+            "verified_utc": "2026-10-23T15:08:17.932905+00:00"
+          }
+        ],
+        "stage": "passed",
+        "updated_utc": "2026-10-23T15:08:17.936441+00:00",
+        "elapsed_seconds": 531.853,
+        "attached_boot_record": "/Volumes/External/VSCode/UniXNU/ramdisk-test/UniXNU-fuxi/out/usb-ram-full-v22/attempt-02/device-test.json",
+        "boot_returncode": 0,
+        "active_object_id": 2,
+        "full_os_object_transfer_verified": true,
+        "normal_controller_stop_verified": false
+      }
+    },
+    {
+      "local_evidence": "out/usb-ram-v23",
+      "observation": {
+        "image_sha256": "5fc9f064551b737edf0dc1154aaca85a2f0430f28ac99e7a8b672731fb3a5670",
+        "temporary_boot_returncode": 0,
+        "boot_output": "Sending 'boot.img' (1820 KB)                       OKAY [  0.039s]\nBooting                                            OKAY [  1.597s]\nFinished. Total time: 1.637s\n",
+        "self_test": {
+          "discovery_errors": [
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible",
+            "USB RAM receiver 1209:0001 not found or inaccessible"
+          ],
+          "partition_writes": false,
+          "kernel_handoff": false,
+          "objects": [
+            {
+              "object_id": 0,
+              "bytes": 1048576,
+              "sha256": "fbbab289f7f94b25736c58be46a994c441fd02552cc6022352e3d86d2fab7c83",
+              "ram_readback_verified": true
+            }
+          ],
+          "result": "passed",
+          "checked_utc": "2026-10-23T15:09:50.807529+00:00"
+        },
+        "normal_controller_stop_verified": true,
+        "stop_status": "PASS: HALTED, zero pending events, route restored, QUIESCE Success confirmed by IMG_6937",
+        "flash_performed": false,
+        "partition_writes": false,
+        "kernel_handoff": false,
+        "host_after_idle": {
+          "checked_utc": "2026-10-23T15:13:15.007590+00:00",
+          "receiver_nodes": [],
+          "normal_controller_stop_verified": false,
+          "reason": "USB host presence alone does not establish DEVCTRLHLT or SMMU rollback"
+        },
+        "photo_analysis": "out/usb-ram-v23/photo-analysis.json",
+        "screen_lines": [
+          "USBRAM VERIFIED id=0 PA=C6428000 bytes=1048576 (RAM only)",
+          "DWC3 STOP: ending active transfers; retaining DMA memory",
+          "DWC3 STOP: HALTED DSTS=00C25CB0 events=0",
+          "FUXI USB ROUTE: write offset=800 value=00000060",
+          "FUXI USB ROUTE: write offset=C00 value=00020000",
+          "FUXI USB: route release result=0 restored=1",
+          "DWC3 STOP: route release status=Success",
+          "USBRAM QUIESCE: Success; receive status=Time out; buffers retained",
+          "USBRAM STOP status=Time out; buffers retained; hardware result needs review"
+        ],
+        "stop_scope": "v23: temporary boot, 1 MiB actual RAM SHA256, idle-timeout stop, DEVCTRLHLT, checked route restoration; no kernel handoff"
       }
     }
   ],
@@ -401,17 +712,81 @@
     "current_android_dt_read": "permission denied; use saved capture"
   },
   "next_candidate": {
-    "local_evidence": "out/usb-ram-v18",
-    "image_sha256": "c2e8f86c65c72ff27f556d8afa92049002b5ca64ddbd908e17f6fb5d1b666954",
-    "strategy": "existing-disabled-context",
-    "host_cases": 21,
-    "audit_host_cases": 14,
-    "route_host_cases": 20,
-    "delivered_modules": {
-      "FuxiUsbRamDxe": "a788f188ec52172dcf4c8b9f7325bcad950913e8f977ec3dbea75d024127f371",
-      "UsbfnDwc3Dxe": "31e3bc0e0c57fd95a98b6a7d21530ce25ec386b171f89a4ef570d2cad6e34bb2"
+    "local_evidence": "out/usb-ram-v23",
+    "image_sha256": "5fc9f064551b737edf0dc1154aaca85a2f0430f28ac99e7a8b672731fb3a5670",
+    "image_bytes": 1863680,
+    "change": "END active resources before clearing RUN_STOP; drain shutdown events without resubmission until DEVCTRLHLT; restore SMMU route only after halt; propagate stop errors",
+    "hardware_result": "PASS: 1 MiB actual RAM SHA256 and normal idle-timeout shutdown; route restored",
+    "verification": "out/usb-ram-v23/verification.json",
+    "host_cases": {
+      "protocol": 21,
+      "smmu_audit": 14,
+      "smmu_route": 20,
+      "endpoint": 19,
+      "stop": 9,
+      "runner": 6
     },
-    "change": "rebuild the control endpoints (DEPSTARTCFG plus SETTRANSFRESOURCE) on every USB reset before arming EP0 OUT",
-    "hardware_result": "not yet booted; awaiting fastboot readiness"
-  }
+    "delivered_modules": {
+      "FuxiUsbRamDxe": "076a1dd4f8f5110da7f86644ed19f3e3f4ee2e4460ce8eede1a08e3aa9774e00",
+      "UsbfnDwc3Dxe": "503438a6a46f75fb9621424edd20a1cab1f209254e3d91257f03065eb3e59793"
+    },
+    "source_patch": "out/usb-ram-v23/v23-from-v22.patch",
+    "stop_test_report": "out/usb-ram-v23/stop-host.json",
+    "stop_negative_controls": "out/usb-ram-v23/stop-negative-controls.json",
+    "partition_writes": false,
+    "kernel_handoff": false,
+    "device_observation": "out/usb-ram-v23/device-observation.json",
+    "normal_controller_stop_verified": true,
+    "photo_analysis": "out/usb-ram-v23/photo-analysis.json"
+  },
+  "review": {
+    "session_id": "b8eb4f27-4573-453e-8e79-f6fa1ba407c7",
+    "session_lines_read": 494,
+    "overall_direction": "USB-to-RAM bring-up remains appropriate; premature causal claims corrected",
+    "status_1": "Linux gadget command completion switch interprets 1 as no transfer resource; this does not identify its cause",
+    "speed_encoding": "EFI_USB_BUS_SPEED: 2 Full, 3 High, 4 Super; not raw DSTS encoding",
+    "endpoint_events": "1 COMPLETE, 2 INPROGRESS, 3 NOTREADY, 7 command completion",
+    "enumeration_gate": "device descriptor presence is partial enumeration; require configured interface and openable Bulk endpoints",
+    "set_address": "handled internally by DWC3; receiver setup log need not show req=05",
+    "references": [
+      "https://github.com/torvalds/linux/blob/master/drivers/usb/dwc3/ep0.c",
+      "https://github.com/torvalds/linux/blob/master/drivers/usb/dwc3/gadget.c"
+    ],
+    "host_test_scope": "55 audit/route/protocol cases plus 5 production-driver simulated-MMIO cases; no live USB transfer"
+  },
+  "hardware_verification_scope": "v22: full OS and SystemOS transfer with each END actual RAM SHA256; v23: 1 MiB actual RAM SHA256 plus normal idle-timeout stop and checked SMMU restoration. Full objects and shutdown were separate runs; no kernel handoff.",
+  "full_transfer_experiment": {
+    "baseline_image_sha256": "1ea39613b1ac09ba8350124c4b943e841cc852e0a2c160bb9c2435de0c957141",
+    "report": "out/usb-ram-full-v22/attempt-02-reopen/full-transfer.json",
+    "status": "PASS: both objects verified by device END RAM SHA256",
+    "failure_records": [
+      "out/usb-ram-full-v22/attempt-01/full-transfer.json",
+      "out/usb-ram-full-v22/attempt-02/full-transfer.json"
+    ],
+    "total_bytes": 9380595200,
+    "elapsed_seconds": 531.853,
+    "objects": [
+      {
+        "object_id": 1,
+        "kind": "os",
+        "bytes": 6077580800,
+        "sha256": "e5634d04a8ac35f024845f583394e0a35deb26a04cb0c00286a8674e25a9a4f2",
+        "acknowledged_bytes": 6077580800,
+        "ram_readback_verified": true,
+        "verified_utc": "2026-10-23T15:05:19.563879+00:00"
+      },
+      {
+        "object_id": 2,
+        "kind": "systemos",
+        "bytes": 3303014400,
+        "sha256": "b4908cde41d23e6bc05e6af51a2c9eeb00cf0f863a6a18b1600c96a3fd70414f",
+        "acknowledged_bytes": 3303014400,
+        "ram_readback_verified": true,
+        "verified_utc": "2026-10-23T15:08:17.932905+00:00"
+      }
+    ]
+  },
+  "full_os_object_transfer_verified": true,
+  "normal_controller_stop_verified": true,
+  "shutdown_verification_scope": "v23: temporary boot, 1 MiB actual RAM SHA256, idle-timeout stop, DEVCTRLHLT, checked route restoration; no kernel handoff"
 }

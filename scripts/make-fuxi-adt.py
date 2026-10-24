@@ -93,6 +93,7 @@ def main():
     parser.add_argument('--data-ramdisk', action='store_true',
                         help='/chosen/memory-map RAMDisk placeholder; the loader fills in the real range for a scratch Data seed')
     parser.add_argument('--trust-cache', action='store_true', help='Zeroed TrustCache sidecar handoff placeholder')
+    parser.add_argument('--ram-system-objects', action='store_true', help='Require verified USB objects in a unified 12 GiB window')
     parser.add_argument('--os-environment', choices=['main', 'ramdisk', 'recoveryos'], default='main')
     args = parser.parse_args()
     if (args.unique_chip_id is None) != (args.chip_id is None):
@@ -158,7 +159,8 @@ def main():
                         ('amfi-only-platform-code', struct.pack('<I', 1)),
                         *empty_nvram_proxy()],
              [node('memory-map', ([("PackedRAMDisk" if args.packed_data_ramdisk else "RAMDisk", bytes(16))] if (args.data_ramdisk or args.packed_data_ramdisk) else []) +
-                                 ([('TrustCache', bytes(16))] if args.trust_cache else [])),
+                                 ([('TrustCache', bytes(16))] if args.trust_cache else []) +
+                                 ([('RamSystemObjects', bytes(136))] if args.ram_system_objects else [])),
               # Read by the original AppleImage4 at start-up; present and empty here.
               node('manifest-properties')]),
         node('cpus', children=cpus),

@@ -1721,3 +1721,47 @@ auth=80084118 errno=80 calls=3 change=0
 /dev/旧根引用和只读边界后再做独立候选；不把给次级挂载补root位、改信任
 类别或改安全判定当修复。照片未提供停机三标记，normal_controller_stop_verified
 仍false；不能把观察成功写成完整系统启动。
+
+
+### v36：原生根认证预检与系统根时序审计（2026-10-24）
+
+新增system-root-audit.md：当前RAM媒体发布在md0根与devfs之后，/mnt1、
+/mnt2仅次级挂载。bsd_rooted_ramdisk由rd参数判定，不能提前换rootdev却
+继续用rd=md0跳过原生认证。原生iOS根认证请求FSIOC_KERNEL_ROOTAUTH为
+0x80046833，与v35的AMFI授权查询0x80084118不同。原生vfs_switch_root有
+目录/引用/挂载搬移前置要求，不能简化成补root标志。
+
+独立v36从v35创建。XNU探针档案新增可选RamSystemRootPreflight.c，根仍md0，
+system-user/main/progress/observer关闭；在system stage6的noreturn预检中，
+先检查kernel task/PID0/阶段、md0根及两个不同只读APFS卷根，再每卷发一次
+与原生bsd_init同参数的根认证请求并如实报告返回，最终停在PID1之前。
+这是主动请求原生认证，不是被动读取。另记录前后flags和同卷dev、private/var、
+System/Volumes/Restore/BaseSystem目录errno，不切根、不改信任类别/判定。
+mount-only init接口补为意外到达即停止，防止回退md0 init；原生kern_exec
+ROOT_PROBE/USER_ENTRY宏保持1并验证编译对象，没有以关闭宏掩盖缺符号。
+
+主机build-kernel→Docker固件→FUXIPAYL打包完成；13项检查真实退出0并绑定
+交付镜像。新C31用例和两项突变拒绝通过ASan/UBSan；原始AMFI/APFS/存储
+代码哈希保持父候选一致。首次unused buffer及mount-only缺init符号均已
+修复重建。镜像203190272字节，SHA256
+3f9d16c07e10c77f90ebfe0a6bf37736c1d8b0f0db6f30e8b98598ce99e403fd；
+prelink c9ca22b31247ad1942f931bb1871134a4138344c1dbb2d6e706aa7193d81acb1。
+base0xfffffff00427c000，重算skew0x7c000，KMEM剩余VA下界662548480。
+
+用户确认“已进入”，核对互斥无传输且fastboot显示fcde91e，发起attempt-01。
+命令、报告见候选REVIEW；启动/传输及实机结果待追加。原生rootauth在次级卷
+的成功/失败仍受挂载和启动上下文影响，不等于真正系统根建立或完整启动。
+normal_controller_stop_verified=false。
+
+### v36 attempt-01 启动失败与 attempt-02 重试（2026-10-24）
+
+attempt-01于23:26发起：fastboot Sending OKAY（198428KB/4.199s）后
+Booting FAILED（usb_read failed with status e00002ed），fastboot退出1，
+test-usb-ram-full以temporary boot failed退出。两对象acknowledged_bytes
+均0，未发任何协议DATA，无分区写入；属主机侧boot应答读取失败，不是
+接收器或XNU结果。事后设备回fastboot可见。失败证据保留在attempt-01/，
+REVIEW.md已回填。
+
+23:35重核对互斥与fcde91e、镜像SHA256后发起attempt-02（新目录，脚本
+拒绝复用失败报告）。本轮Sending与Booting均OKAY，boot_returncode=0，
+已进入discovery并开始双对象传输；RAM SHA256校验与实机结果待回填。

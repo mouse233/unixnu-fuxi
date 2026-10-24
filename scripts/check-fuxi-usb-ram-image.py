@@ -94,16 +94,37 @@ if candidate.get('usb_eusb2_phy_init'):
 if candidate.get('usb_keep_phy'):
     require(candidate.get('usb_sid_route_enabled'), 'keep-phy without a route trial')
     require(b'FUXI USB: skip USB2 PHY soft reset' in inner, 'keep-phy marker absent from delivered firmware')
+endpoint_cases = stop_cases = None
+if 'Silicon/Samsung/SamsungPkg/Drivers/UsbfnDwc3Dxe/Dwc3Stop.c' in sources:
+    for filename, minimum in [('ep0-host.json', 19), ('stop-host.json', 9)]:
+        result = json.loads((out / filename).read_text())
+        require(result['cases'] >= minimum, 'insufficient host coverage: ' + filename)
+        for path, digest in result['sources'].items():
+            path = Path(path)
+            require(sha(path.read_bytes()) == digest, 'test source changed: ' + str(path))
+            if path.is_relative_to(uefi):
+                require(sources[str(path.relative_to(uefi))] == digest,
+                        'tested driver differs from delivered build: ' + str(path))
+        if filename == 'ep0-host.json':
+            endpoint_cases = result['cases']
+        else:
+            stop_cases = result['cases']
+    require(b'DWC3 STOP: HALTED' in inner and b'USBRAM QUIESCE:' in inner,
+            'stop instrumentation absent from delivered firmware')
 report = dict(boot_sha256=sha(boot), boot_bytes=len(boot), fd_sha256=sha(fd),
               delivered_modules=modules, source_sha256=sources,
               compressed_firmware_roundtrip=True, os_version_raw='0x220001a7',
-              host_cases=tests['cases'], hardware_result='pending', receiver_only=True,
-              kernel_handoff=False, partition_io=False,
+              host_cases=tests['cases'], hardware_result='pending',
+              receiver_only=bool(candidate.get('receiver_only', True)),
+              kernel_handoff=bool(candidate.get('kernel_handoff', False)),
+              system_handoff=bool(candidate.get('system_handoff', False)),
+              partition_io=False,
               dma_audit_only=bool(candidate.get('dma_audit_only')),
               dma_transfer_enabled=candidate.get('dma_transfer_enabled', True),
               smmu_audit_host_cases=audit['cases'] if (candidate.get('dma_audit_only') or candidate.get('usb_sid_route_enabled')) else None,
               usb_sid_route_enabled=bool(candidate.get('usb_sid_route_enabled')),
               usb_sid_route_strategy=candidate.get('usb_sid_route_strategy'),
-              smmu_route_host_cases=route['cases'] if candidate.get('usb_sid_route_enabled') else None)
+              smmu_route_host_cases=route['cases'] if candidate.get('usb_sid_route_enabled') else None,
+              endpoint_host_cases=endpoint_cases, stop_host_cases=stop_cases)
 (out / 'verification.json').write_text(json.dumps(report, indent=2) + '\n')
 print(json.dumps(report, indent=2))

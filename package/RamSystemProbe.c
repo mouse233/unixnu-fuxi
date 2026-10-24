@@ -13,6 +13,9 @@
 #include <libkern/crypto/sha2.h>
 #include <Protocol/UniXNURamObjects.h>
 #include "RamSystemProbePins.h"
+#if RAM_SYSTEM_ROOT_PREFLIGHT
+extern void fuxi_ram_system_root_preflight(unsigned) __attribute__((noreturn));
+#endif
 
 extern unsigned long gPhysBase, gPhysSize;
 extern dev_t fuxi_mdev_add_ro(int, uint64_t, uint64_t);
@@ -28,16 +31,21 @@ extern volatile unsigned fuxi_ram_system_user_entry;
 void fuxi_ram_system_probe(void) __attribute__((noreturn));
 #endif
 volatile unsigned fuxi_ram_system_stage;
-static uint8_t file_buffer[4096];
-
 #if RAM_SYSTEM_ALLOW_USER_ENTRY
+static uint8_t file_buffer[4096];
+#endif
+
 int fuxi_ram_system_user_init_path(const char **path)
 {
+#if RAM_SYSTEM_ALLOW_USER_ENTRY
     if (!fuxi_ram_system_user_entry) return 1;
     *path = "/mnt1/sbin/launchd";
     return 0;
-}
+#else
+    (void)path;
+    panic("RAM_SYSTEM refused: mount-only init reached");
 #endif
+}
 
 void fuxi_ram_system_probe(void)
 {
@@ -103,6 +111,9 @@ void fuxi_ram_system_probe(void)
         printf("RAM_SYSTEM %s mounted APFS readonly=1\n",path);
     }
     fuxi_ram_system_stage=6;
+#if RAM_SYSTEM_ROOT_PREFLIGHT
+    fuxi_ram_system_root_preflight(enabled);
+#endif
 #if RAM_SYSTEM_ALLOW_USER_ENTRY
     if (enabled==2) {
         vfs_context_t context=vfs_context_kernel();

@@ -341,3 +341,31 @@ requires a temporary boot. The pending image is
 `out/ram-progress/Mu-fuxi-xnu-ram-progress-v3.img`.
 
 USB Bulk 接收器、构建/发送命令及当前硬件限制见 [usb-bulk.md](usb-bulk.md)。
+
+### Native system-root authentication preflight
+
+`--system-root-preflight` is an independent mount-only archive profile. It
+requires `--user-entry --system-objects`, excludes system user entry, main,
+progress and launch observation, and requires pins `system_root_preflight=true`
+and `system_userland_allowed=false`. The existing md0 probe needs its user-entry
+compile mode to reach the system mount checkpoint; the new system preflight is
+`noreturn` and stops before init can be armed. Boot arguments are
+`ram-root-probe=2 ram-system-probe=1 ram-system-root-preflight=1`.
+
+The probe verifies the md0 root and both distinct read-only APFS volume roots,
+then issues exactly one native `FSIOC_KERNEL_ROOTAUTH` per target, with the same
+NULL data, zero fflag and kernel context as iOS `bsd_init`. This actively requests
+authentication; it is different from the passive v35 AMFI query observation.
+Actual authentication errors, before/after flags, root identity and candidate
+pivot-directory lookup errors are printed without turning failures into success.
+No root switch, mount-flag write, trust-cache change or userland entry is performed.
+An authentication result on a secondary mount alone does not establish that a
+later native root mount or full system boot will succeed.
+
+`check-ram-system-root-preflight.py` executes the real C with ASan/UBSan, exercises
+mode/identity rejection before any ioctl, verifies one original request per
+target and actual error preservation, and checks guard/result mutations fail.
+It also binds pins/config/boot args, the compiled call and three-member archive,
+init object, source hashes and delivered image. It runs in the candidate check
+suite whenever the explicit preflight argument is present. Hardware output still
+requires a photo in the candidate's independent attempt directory.

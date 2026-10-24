@@ -15,7 +15,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ['base', 'inputs', 'ipsw', 'uefi']:
         parser.add_argument('--' + name, type=Path, required=True)
-    parser.add_argument('--stage', choices=['mount', 'user-entry', 'main-entry', 'progress'], default='mount')
+    parser.add_argument('--stage', choices=['mount', 'user-entry', 'main-entry', 'progress', 'system-mount'], default='mount')
     parser.add_argument('--output', type=Path)
     parser.add_argument('--restore-trust-cache', type=Path, help='Exact original v1 module (progress defaults to INPUTS/original-restore.trustcache)')
     parser.add_argument('--unique-chip-id', required=True)
@@ -43,6 +43,7 @@ def main():
     restore = (args.restore_trust_cache.expanduser().resolve() if args.restore_trust_cache else
                inputs / 'original-restore.trustcache' if args.stage == 'progress' else None)
     user_entry = args.stage != 'mount'
+    system_mount = args.stage == 'system-mount'
     progress = args.stage == 'progress'
     main_entry = args.stage in ('main-entry', 'progress')
     pins.update(start_userland_allowed=user_entry)
@@ -90,7 +91,8 @@ def main():
         'build-sheng-platform-power.py', 'build-libpthread-kernel.py', 'build-legacy-stub.py',
         'build-ram-root-probe.py ' + ('--user-entry ' if user_entry else '') +
         ('--main-entry ' if main_entry else '') + ('--progress ' if progress else '') +
-        ('--restore-trust-cache ' + shlex.quote(str(restore)) + ' ' if restore else '') + '--pins ' + shlex.quote(str(pins_path)),
+        ('--restore-trust-cache ' + shlex.quote(str(restore)) + ' ' if restore else '') +
+        ('--system-objects ' if system_mount else '') + '--pins ' + shlex.quote(str(pins_path)),
     ]
     ctx.board['payload']['title'] = 'fuxi RAM diagnostic: ' + args.stage
     ctx.board['payload']['kernel_args'] = [
@@ -100,6 +102,9 @@ def main():
     ] + (['launchdsuffix=release'] if user_entry else [])
     ctx.board['payload']['adt'].update(packed_data_ramdisk=False, os_environment='ramdisk')
     ctx.board['payload']['adt'].pop('root_match_volume_uuid', None)
+    if system_mount:
+        ctx.board['payload']['kernel_args'].append('ram-system-probe=1')
+        ctx.board['payload']['adt'].update(owned_memory_size='0x300000000',ram_system_objects=True)
     if args.owned_memory_size is not None:
         ctx.board['payload']['adt']['owned_memory_size'] = hex(args.owned_memory_size)
     (out / 'board-effective.json').write_text(json.dumps(ctx.board, indent=2) + '\n')

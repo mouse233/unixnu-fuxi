@@ -57,6 +57,8 @@ def main():
     if observer:
         checks.append(('launch-observer', 'check-ram-launch-observer.py',
                        shared + ['--parent', str(args.observer_parent.resolve())]))
+    if 'ram-system-root-preflight=1' in board['payload']['kernel_args']:
+        checks.append(('root-preflight', 'check-ram-system-root-preflight.py', shared))
     logs = out / 'logs'
     logs.mkdir(exist_ok=True)
     report = dict(boot_sha256=digest, complete=False, checks=[])
