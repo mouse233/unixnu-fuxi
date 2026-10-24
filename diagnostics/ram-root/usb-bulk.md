@@ -1376,3 +1376,32 @@ APFS 只读挂载均通过，RAM_SYSTEM PASS 首次在实机达成；用户态�
 未验证：接收器停机三标记照片仍未提供，normal_controller_stop_verified
 保持 false；屏幕未展示卷 BSD 名/UUID。下一验收点是用户态
 （launchd/RestoreRamDisk），需单独候选决定从只读挂载推进用户态的路径。
+
+
+### v32：只读系统卷 user-entry 候选（2026-10-24，实机待回填）
+
+v31 IMG_6969 首次 RAM_SYSTEM PASS 后，下一验收点是用户态。v32 新增
+`ram-system-probe=2`：双只读挂载与哈希校验不变，成功后内核校验
+/mnt1/sbin/launchd（主机从未密封 OS 卷挂载实测，561856 字节 SHA256
+8cec9a3c…b6a25，与恢复盘 launchd 字节一致），随后不再 panic，而是让
+load_init_program 经新补丁 exec /mnt1/sbin/launchd，既有 exec 钩子改为
+接受系统卷路径，PID1 在 EL0 首条 SVC 处被陷阱截停，预期屏幕
+RAM_SYSTEM_USER PASS。根文件系统仍为 md0 RestoreRamDisk，系统卷是 exec
+来源而非根；物理 UFS、可写 NativeRamBlock、持久化、recovery、SVC 派发
+均保持关闭。
+
+独立 out/usb-system-mount-v32 APFS clone 自 v31；探针档案以
+--system-user-entry 生成 RamSystemProbePins.h，新补丁
+zzzzzzz-ram-system-user-init.patch 注入 init 路径覆盖，
+zzzzzz-ram-system-probe.patch 的 noreturn 改为按 XNU_RAM_USER_ENTRY 条件化。
+源码 unixnu-source 62a9efd、UniXNU-fuxi 8060edb 已推 mouse233 fork。
+检查脚本 check-usb-system-mount.py 支持双 profile 并强制系统 launchd 钉子。
+
+镜像 203190272 字节，SHA256
+68f9abe80249a3da8458dc53f92a211dde5aab43d10d976a4209fe16c12afeec；
+prelink 6daf564156246b2fe7883d6e91d74a7b0e1afd77a902182ae6370c5327a0bd83。
+v31 同集 12 项主机检查全部退出 0（smmu/route/receiver/image/mount/kmem/
+spi/trace/volume-args/witness/iokit/gate，gate 为 17 个 mock 门禁）；
+volume-nodes 未运行，其断言描述 v30 时代 md1s1 直连路径，v31 引入 IOKit
+后不再成立且 v31 亦未运行。KMEM 剩余 VA 下界 662548480 与 v31 相同。
+主机检查不证明实机 exec；user-entry 实机证据待 attempt-01 与照片回填。
