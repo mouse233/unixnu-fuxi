@@ -1674,3 +1674,19 @@ FUXIPAYL、kernel base 0xfffffff00427c000、重新推导 skew=0x7c000 通过。
 用户确认“已进 fastboot”，核对无传输任务与 fcde91e 后发起 attempt-01。
 命令/报告见候选 REVIEW.md。RAM_LC_OBS 实机字段尚未取得；传输结果待追加，
 normal_controller_stop_verified=false，不能据主机通过宣称约束已修复。
+
+
+### v35 attempt-01：双对象 RAM 回读校验通过，等待观察照片（2026-10-24）
+
+一次 fastboot boot 成功：Sending OKAY 4.231秒、Booting OKAY 1.397秒。
+OS 6077580800字节与SystemOS 3303014400字节均完整确认且接收端实际 RAM
+SHA256 verified，总用时580.219秒，运行器退出0，无分区写入。
+full_os_object_transfer_verified=true；报告归档于
+out/usb-system-mount-v35/attempt-01/full-transfer.json。
+15项主机检查均已退出0，绑定镜像54bd42bb…4c4f6a。源码62739cd/467af51
+已推送mouse233 fork。
+
+等待接收器停止标记、用户手选system-mount及包含原始错误与RAM_LC_OBS的
+完整照片；实机flags/ioctl字段尚未知。normal_controller_stop_verified仍
+false；kernel_handoff配置位、传输成功均不是进入XNU或exec/EL0/main通过
+的证据。本候选仅观察原始拒绝过程，尚不能宣称启动约束已修复。
