@@ -8,6 +8,7 @@ import argparse
 import hashlib
 import json
 import runpy
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -34,7 +35,22 @@ def main():
                    '-I',str(scratch),'-I',str(driver/'Test'),str(driver/'Test/transport.cpp'),'-o',str(scratch/'test')]
         subprocess.run(command,check=True)
         result = subprocess.check_output([str(scratch/'test')],text=True).strip()
+        # Prove that the refusal case detects a broken profile gate. A reused
+        # configured instance used to make this mutation incorrectly pass.
+        mutated = scratch / 'mutated-driver'
+        shutil.copytree(driver, mutated)
+        source_path = mutated / 'NativeRamSystemBlock.cpp'
+        source = source_path.read_text()
+        gate = '(enabled!=1 && enabled!=2)'
+        assert source.count(gate) == 1
+        source_path.write_text(source.replace(gate, '(enabled!=1 && enabled!=2 && enabled!=3)'))
+        command = ['clang++','-std=c++17','-Wall','-Wextra','-Werror','-fsanitize=address,undefined',
+                   '-I',str(scratch),'-I',str(mutated/'Test'),str(mutated/'Test/transport.cpp'),'-o',str(scratch/'mutated-test')]
+        subprocess.run(command,check=True)
+        mutation = subprocess.run([str(scratch/'mutated-test')],capture_output=True,text=True)
+        assert mutation.returncode != 0 and 'profile3.configure' in mutation.stderr, mutation.stderr
     print(result)
+    print('PASS: accepting profile 3 is caught by a fresh-instance refusal test')
     tree = out / 'work/tree'
     directory = tree / 'build/native-ram-system-block'
     bindings = json.loads((directory/'bindings.json').read_text())
@@ -80,6 +96,7 @@ def main():
                driver/'Test/IOKitShim.h',tree/'kits/sheng/RamSystemProbe.c',
                base/'patches/xnu/zzz-ram-system-iokit.patch']
     report = dict(passed=[result],read_only_transport_verified=True,ownership_selection_verified=True,
+                  invalid_profile_mutation_rejected=True,
                   sanitizers=['address','undefined'],source_sha256={str(x):sha(x) for x in sources},
                   archive_sha256=sha(directory/'libNativeRamSystemBlock.a'),bindings_sha256=sha(directory/'bindings.json'),
                   virtual_methods_checked=190,original_apfs_storage_code_unchanged=True,

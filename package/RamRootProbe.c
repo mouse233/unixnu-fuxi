@@ -28,6 +28,7 @@ void fuxi_ram_root_probe_mount_failed(int) __attribute__((noreturn));
 #if RAM_ROOT_ALLOW_USER_ENTRY
 void fuxi_ram_root_probe_after_mount(dev_t, vnode_t);
 void fuxi_ram_user_exec_result(int, const char *, int);
+void fuxi_ram_user_exec_begin(const char *, int);
 void fuxi_ram_user_exec_ready(thread_t, int);
 void fuxi_ram_user_svc(uint64_t, uint32_t, uint32_t, uint64_t) __attribute__((noreturn));
 #if RAM_ROOT_ALLOW_MAIN_ENTRY
@@ -40,6 +41,9 @@ volatile unsigned fuxi_ram_root_stage;
 /* Set by RamSystemProbe's user-entry profile; RamSystemProbe.o is only linked
  * in system-object builds, so this owns the definition. */
 volatile unsigned fuxi_ram_system_user_entry;
+#if RAM_ROOT_ALLOW_USER_ENTRY
+static unsigned exec_path_verified;
+#endif
 static uint8_t file_buffer[4096];
 
 void fuxi_ram_root_probe_before_mount(dev_t device)
@@ -120,12 +124,24 @@ void fuxi_ram_root_probe_after_mount(dev_t device, vnode_t root)
 }
 
 #if RAM_ROOT_ALLOW_USER_ENTRY
+/* Check the kernel-selected executable before exec releases its new thread.
+ * The retiring exec caller may never reach exec_result before the EL0 trap. */
+void fuxi_ram_user_exec_begin(const char *path, int pid)
+{
+    const char *expected = fuxi_ram_system_user_entry ? "/mnt1/sbin/launchd" : "/sbin/launchd";
+    if (fuxi_ram_root_stage != 7 || pid != 1 || !path || strcmp(path, expected))
+        panic("RAM_USER refused init source: stage=%u pid=%d path=%s", fuxi_ram_root_stage, pid, path ? path : "<null>");
+    exec_path_verified = 1;
+}
+
 /* XNU exec creates a replacement thread. Arm it while FINAL_WAIT still
  * holds it, before it can execute dyld or race the retiring exec caller. */
 void fuxi_ram_user_exec_ready(thread_t target, int pid)
 {
     if (fuxi_ram_root_stage != 7 || !target || pid != 1)
         panic("RAM_USER refused ready: stage=%u pid=%d", fuxi_ram_root_stage, pid);
+    if (!exec_path_verified)
+        panic("RAM_USER init source was not verified before exec");
     fuxi_ram_root_stage = 8;
 #if RAM_ROOT_ALLOW_MAIN_ENTRY
     fuxi_ram_main_arm(target);
@@ -134,8 +150,9 @@ void fuxi_ram_user_exec_ready(thread_t target, int pid)
 
 void fuxi_ram_user_exec_result(int error, const char *path, int pid)
 {
-    int system_entry = fuxi_ram_system_user_entry && !strcmp(path, "/mnt1/sbin/launchd");
-    if (pid != 1 || (!system_entry && strcmp(path, "/sbin/launchd")))
+    int system_entry = fuxi_ram_system_user_entry != 0;
+    const char *expected = system_entry ? "/mnt1/sbin/launchd" : "/sbin/launchd";
+    if (pid != 1 || !path || strcmp(path, expected))
         panic("RAM_USER refused exec: stage=%u pid=%d path=%s", fuxi_ram_root_stage, pid, path);
     if (error) panic("%s launchd exec failed: errno=%d; no user syscall dispatched",
         system_entry ? "RAM_SYSTEM_USER" : "RAM_USER original", error);
@@ -156,7 +173,7 @@ void fuxi_ram_user_svc(uint64_t pc, uint32_t cpsr, uint32_t esr, uint64_t syscal
         panic("RAM_USER invalid SVC instruction: pc=%llx instruction=%x", pc, instruction);
     fuxi_ram_root_stage = 9;
     if (fuxi_ram_system_user_entry)
-        panic("RAM_SYSTEM_USER PASS\nroot=/mnt1 apfs readonly=1\nsystem launchd exec=OK\nPID1 executed at EL0; SVC trapped\npc=%llx cpsr=%x esr=%x\nx16=%lld instruction=%x\nstopped BEFORE first syscall dispatch\nrecovery programs not started",
+        panic("RAM_SYSTEM_USER PASS\nroot=md0 apfs readonly=1\nexec=/mnt1/sbin/launchd\nPID1 executed at EL0; SVC trapped\npc=%llx cpsr=%x esr=%x\nx16=%lld instruction=%x\nstopped BEFORE first syscall dispatch\nrecovery programs not started",
             pc, cpsr, esr, (int64_t)syscall, instruction);
     panic("RAM_USER_ENTRY PASS\nroot=md0 apfs readonly=1\noriginal launchd exec=OK\nPID1 executed at EL0; SVC trapped\npc=%llx cpsr=%x esr=%x\nx16=%lld instruction=%x\nstopped BEFORE first syscall dispatch\nrecovery programs not started",
         pc, cpsr, esr, (int64_t)syscall, instruction);

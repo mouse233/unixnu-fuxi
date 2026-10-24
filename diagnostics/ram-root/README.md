@@ -104,6 +104,19 @@ original dyld contains a unique `mov x16,74; svc #0x80` sequence at offset
 that dyld initialization finished, launchd main executed, services started, or
 the iPadOS UI works.
 
+System-object probes still use md0 as the root; `/mnt1/sbin/launchd` is an
+independent executable source. A system mount flag alone does not establish
+that exec selected that file. The v32/v33 `kern_exec.o` omitted
+`XNU_RAM_ROOT_PROBE`, compiling out the intended init-path override. Therefore
+v32's system-source claim is withdrawn (its PID1/EL0/SVC observation remains
+valid), and v33's final photo shows an argv rejection before EL0/main. See the
+append-only correction in `usb-bulk.md` and v33 attempt-02's object audit.
+The v34 fix defines both RAM macros for `kern_exec`, verifies the selected init
+path before releasing its replacement thread, and checks the compiled object,
+archive, stage policy and delivered image. Its PASS screens report `root=md0`
+and `exec=/mnt1/sbin/launchd` separately. It is still a bounded main checkpoint,
+not a system-root switch or full iPadOS startup.
+
 Earlier, a separate UFS probe read the GPT and the first userdata block. Its
 purpose was to establish real storage reads, not to authorize replacing userdata.
 The normal board defaults remain a read-only UFS diagnostic; RAM diagnostics

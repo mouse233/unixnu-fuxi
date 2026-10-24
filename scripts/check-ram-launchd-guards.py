@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Exercise production RAM/root/main C, real hashes, and hardware-debug API boundaries."""
 import ast
+import hashlib
 from pathlib import Path
 import subprocess
 import tempfile
@@ -13,10 +14,13 @@ parser.add_argument('--launchd', type=Path, required=True)
 parser.add_argument('--syscall-header', type=Path, required=True, help='Generated sys/syscall.h of the pinned XNU source')
 parser.add_argument('--progress', action='store_true', help='Exercise combined run, including continuation and RAM trace')
 parser.add_argument('--restore-trust', action='store_true', help='Require successful original restore module load before md0')
+parser.add_argument('--system-entry', action='store_true', help='Exercise the /mnt1 init source and argv, with md0 still the root')
+parser.add_argument('--output', type=Path, help='Write this run into its candidate directory')
 args = parser.parse_args()
+if args.system_entry and args.progress: parser.error('system entry excludes progress')
 if args.restore_trust and not args.progress: parser.error('--restore-trust requires --progress')
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / ('out/ram-progress-guard-tests' if args.progress else 'out/ram-main-guard-tests')
+OUT = args.output or ROOT / ('out/ram-progress-guard-tests' if args.progress else 'out/ram-main-guard-tests')
 OUT.mkdir(parents=True, exist_ok=True)
 old_test = ast.parse((ROOT / 'scripts/check-ram-root-guards.py').read_text())
 api = next(ast.literal_eval(node.value) for node in old_test.body if isinstance(node, ast.Assign)
@@ -130,16 +134,18 @@ int main(int argc,char **argv) {
     REFUSE("refused exec",fuxi_ram_user_exec_result(0,"/usr/local/bin/restored_external",1));
     REFUSE("exec failed",fuxi_ram_user_exec_result(13,"/sbin/launchd",1));
         REFUSE("without replacement-thread checkpoint",fuxi_ram_user_exec_result(0,"/sbin/launchd",1));
+    REFUSE("init source was not verified",fuxi_ram_user_exec_ready((void *)3,1));
+    fuxi_ram_user_exec_begin("/sbin/launchd",1);
     target_pid=2;REFUSE("invalid replacement thread",fuxi_ram_user_exec_ready((void *)3,1));target_pid=1;
     fuxi_ram_root_stage=7;
     startup[1]=3;REFUSE("invalid original dyld startup stack",fuxi_ram_user_exec_ready((void *)3,1));startup[1]=1;
     fuxi_ram_root_stage=8;image[0]^=1;REFUSE("header/entry mismatch",fuxi_ram_main_arm((void *)3));image[0]^=1;
     image[85896]^=1;REFUSE("header/entry mismatch",fuxi_ram_main_arm((void *)3));image[85896]^=1;
-    startup[2]=(uintptr_t)"/wrong/program";REFUSE("unexpected original launchd argv",fuxi_ram_main_arm((void *)3));startup[2]=(uintptr_t)"/sbin/launchd";
+    startup[2]=(uintptr_t)"/wrong/program";REFUSE("unexpected launchd argv",fuxi_ram_main_arm((void *)3));startup[2]=(uintptr_t)"/sbin/launchd";
     startup[3]=1;REFUSE("invalid original dyld startup stack",fuxi_ram_main_arm((void *)3));startup[3]=0;
     REQUIRE(active_map==(void *)1);cases++;
     startup[1]=2;startup[3]=(uintptr_t)"-x";
-    REFUSE("unexpected original launchd argv",fuxi_ram_main_arm((void *)3));
+    REFUSE("unexpected launchd argv",fuxi_ram_main_arm((void *)3));
     startup[3]=(uintptr_t)"-s";fuxi_ram_main_arm((void *)3);REQUIRE(active_map==(void *)1);cases++;
     startup[1]=1;startup[3]=0;
     copy_error=14;REFUSE("invalid original dyld startup stack",fuxi_ram_main_arm((void *)3));copy_error=0;
@@ -176,6 +182,21 @@ int main(int argc,char **argv) {
 }
 '''
 
+if args.system_entry:
+    tests = tests.replace('REQUIRE(fuxi_ram_root_stage==7);',
+                          'REQUIRE(fuxi_ram_root_stage==7);fuxi_ram_system_user_entry=1;')
+    tests = tests.replace('"/sbin/launchd"', '"/mnt1/sbin/launchd"')
+    tests = tests.replace('    fuxi_ram_user_exec_begin("/mnt1/sbin/launchd",1);',
+        '    REFUSE("refused init source",fuxi_ram_user_exec_begin("/sbin/launchd",1));\n'
+        '    fuxi_ram_user_exec_begin("/mnt1/sbin/launchd",1);')
+    tests = tests.replace('    fuxi_ram_root_stage=8;image[0]^=1;',
+        '    fuxi_ram_root_stage=8;startup[2]=(uintptr_t)"/sbin/launchd";\n'
+        '    REFUSE("unexpected launchd argv",fuxi_ram_main_arm((void *)3));\n'
+        '    startup[2]=(uintptr_t)"/mnt1/sbin/launchd";image[0]^=1;')
+    tests = tests.replace('"RAM_LAUNCHD_MAIN PASS"', '"RAM_SYSTEM_MAIN PASS"')
+    tests = tests.replace('    REQUIRE(fuxi_ram_root_stage==10 && !memcmp(image,launchd,561856));',
+        '    REQUIRE(fuxi_ram_root_stage==10 && !memcmp(image,launchd,561856));\n'
+        '    REQUIRE(strstr(message,"root=md0") && strstr(message,"exec=/mnt1/sbin/launchd"));')
 if args.restore_trust:
     tests = tests.replace('    fuxi_ram_root_probe_before_mount(mdevlookup(0));REQUIRE(fuxi_ram_root_stage==3);', '    fuxi_ram_restore_trust_loaded=0;REFUSE("restore trust module was not loaded",fuxi_ram_root_probe_before_mount(mdevlookup(0)));fuxi_ram_restore_trust_loaded=267;\n    fuxi_ram_root_probe_before_mount(mdevlookup(0));REQUIRE(fuxi_ram_root_stage==3);')
 if args.progress:
@@ -251,6 +272,13 @@ with tempfile.TemporaryDirectory(prefix='fuxi-main-guards-') as temporary:
     (OUT / 'guard-tests.log').write_text(result.stdout + result.stderr)
     if result.returncode:
         raise SystemExit(result.stdout + result.stderr)
+    report = dict(system_entry=args.system_entry, progress=args.progress,
+                  source_sha256={str(ROOT / 'package' / name): hashlib.sha256((ROOT / 'package' / name).read_bytes()).hexdigest()
+                                 for name in ['RamRootProbe.c', 'RamLaunchdProbe.c']},
+                  passed=result.stdout.strip(), hardware_result='pending')
+    if (OUT / 'Mu-fuxi-usb-ram.img').is_file():
+        report['boot_sha256'] = hashlib.sha256((OUT / 'Mu-fuxi-usb-ram.img').read_bytes()).hexdigest()
+    (OUT / 'probe-guard-tests.json').write_text(json.dumps(report, indent=2) + '\n')
     if args.progress:
         trace = result.stdout.split('TRACE_BEGIN\n',1)[1].split('TRACE_END',1)[0].rstrip('\n') + '\n'
         (OUT / 'trace-fixture.txt').write_text(trace)

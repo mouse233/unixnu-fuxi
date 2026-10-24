@@ -38,12 +38,19 @@ def configure(parent, out):
         else:
             path.unlink()
     # Hardware conclusions and delivered-image checks must be produced again.
+    # Keep the build cache, never old success logs or another image's identity.
+    for path in [*out.glob('*.log'), *out.glob('*tests.json')]:
+        path.unlink()
+    shutil.rmtree(out / 'logs', ignore_errors=True)
+    (out / 'logs').mkdir()
     for name in ('device-test.json', 'verification.json', 'payload-verification.json',
                  'kmem-tests.json', 'mount-spi-tests.json', 'mount-trace-tests.json',
                  'mount-volume-args-tests.json',
                  'mount-witness-tests.json',
                  'volume-nodes-tests.json', 'volume-parser.json', 'iokit-storage-tests.json',
-                 'state.json', 'restore-mountpoints.json'):
+                 'state.json', 'restore-mountpoints.json', 'source-state.json',
+                 'Mu-fuxi-usb-ram.img', 'Mu-fuxi-usb-ram.json', 'candidate.json', 'boot.json',
+                 'sources.json', 'loader-sources.json', 'guard-tests.log', 'check-suite.json'):
         (out / name).unlink(missing_ok=True)
     for name in ('board-effective.json', 'pins.json'):
         path = out / name

@@ -122,6 +122,9 @@ int main(int argc,char **argv) {
     REFUSE("without replacement-thread checkpoint",fuxi_ram_user_exec_result(0,"/sbin/launchd",1));
     REFUSE("refused ready",fuxi_ram_user_exec_ready(NULL,1));
     REFUSE("refused ready",fuxi_ram_user_exec_ready((void *)3,2));
+    REFUSE("init source was not verified",fuxi_ram_user_exec_ready((void *)3,1));
+    REFUSE("refused init source",fuxi_ram_user_exec_begin("/wrong/init",1));
+    fuxi_ram_user_exec_begin("/sbin/launchd",1);
     fuxi_ram_user_exec_ready((void *)3,1);
     fuxi_ram_user_exec_result(0,"/sbin/launchd",1);REQUIRE(fuxi_ram_root_stage==8);
     REFUSE("refused ready",fuxi_ram_user_exec_ready((void *)3,1));
@@ -135,6 +138,14 @@ int main(int argc,char **argv) {
     instruction=0xd503201f;REFUSE("invalid SVC instruction",fuxi_ram_user_svc(pc,0,0x56000080,20));instruction=0xd4001001;
     REFUSE("RAM_USER_ENTRY PASS",fuxi_ram_user_svc(pc,0,0x56000080,(uint64_t)-31));
     REQUIRE(fuxi_ram_root_stage==9 && strstr(message,"stopped BEFORE first syscall dispatch"));
+    fuxi_ram_system_user_entry=1;fuxi_ram_root_stage=7;exec_path_verified=0;
+    REFUSE("refused init source",fuxi_ram_user_exec_begin("/sbin/launchd",1));
+    REFUSE("init source was not verified",fuxi_ram_user_exec_ready((void *)3,1));
+    fuxi_ram_user_exec_begin("/mnt1/sbin/launchd",1);fuxi_ram_user_exec_ready((void *)3,1);
+    REFUSE("refused exec",fuxi_ram_user_exec_result(0,"/sbin/launchd",1));
+    fuxi_ram_user_exec_result(0,"/mnt1/sbin/launchd",1);
+    REFUSE("RAM_SYSTEM_USER PASS",fuxi_ram_user_svc(pc,0,0x56000080,74));
+    REQUIRE(strstr(message,"root=md0") && strstr(message,"exec=/mnt1/sbin/launchd"));
     printf("PASS: actual diagnostic C, real image/file SHA256, %d stop/refusal cases; first SVC never dispatched\n",cases);
     free(media);free(launchd);return 0;
 }

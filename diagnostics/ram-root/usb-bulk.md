@@ -1525,3 +1525,55 @@ mount/unmount/reboot/ptrace 派发前 panic；30 秒/2048 条 SVC 兜底。
 f5e13fcf31c7664a92dc3397c3002cebed20357bb0bed18468af64f20fde26b5，
 11 项检查全部退出 0 并绑定该镜像（spi baseline v25 文件、witness parent
 v28、volume-nodes 不适用同 v32）。attempt-01 传输与实机结论待回填。
+
+
+### v33 attempt-02 照片与 v32 来源结论更正（2026-10-24）
+
+用户提供 IMG_6978 2.HEIC，原件/PNG/转写已归档 v33 attempt-02。屏幕为
+RAM_MAIN unexpected original launchd argv: argc=1 errno=0 @RamLaunchdProbe.c:162，
+不是 RAM_SYSTEM_MAIN PASS；照片没有打印实际 argv。源码顺序表明这发生在
+替换线程 FINAL_WAIT 放行前，未到 EL0/main；等待不会推进。
+
+实际产物审计发现 v32/v33 kern_exec.o 均仅定义 XNU_RAM_USER_ENTRY=1，
+没有 XNU_RAM_ROOT_PROBE=1，且未引用 fuxi_ram_system_user_init_path。
+init 路径覆盖虽在补丁/生成源码中，却被预处理编译掉。结合 release init
+路径可推论当时选择的是 md0 /sbin/launchd；不是照片直接观测到的字符串。
+证据归档 v33 attempt-02/init-source-audit.json 与两版 load-init 反汇编。
+因此撤回 v32“系统卷 launchd 已 exec”的来源结论；照片的 PID1/EL0/首条
+SVC 截停证据保留。此前首次用户态表述也过大，md0 线 10-23 已达 user-entry。
+根始终为 md0，旧屏幕 root=/mnt1 是诊断文字错误，不是换根的证据。
+
+v33 attempt-01 的 USB 读失败及 fastboot 消失也不能证明“OKAY 应答丢失、
+已进入接收器或正常停机”；此前确定性归因撤回。只确认 Sending OKAY、
+Booting USB 读失败、运行器未发送对象；attempt-02 是用户再次启动授权后的
+独立重试。所有 normal_controller_stop_verified 仍保持 false。
+
+### v34：实际 system-init 编译修复与阶段契约（2026-10-24）
+
+独立 APFS clone 自 v33，保留旧镜像/attempt。XNU 构建为 kern_exec.o 补
+ROOT_PROBE=1，版本化 stamp 强制旧对象失效；新增 exec 前路径核对，系统模式
+只接受 /mnt1/sbin/launchd，缺少来源校验不放行替换线程，不放宽 argv 保护。
+成功屏幕分别报告 root=md0、exec=/mnt1/sbin/launchd，argv 错误显示 expected/actual。
+ram-root-probe=3、ram-system-probe=2，pins 首条 SVC 截停=false，main 截停=true；
+仍为 SVC 有界派发至 LC_MAIN+4、30 秒/2048 条上限及进程创建拦截。
+未启用换根、物理 UFS、可写 NativeRamBlock、持久化或 recovery 程序。
+
+修正 profile 3 拒绝测试，使用全新实例；故意让驱动接受 profile 3 的变异
+现会被测试抓住。新增阶段策略/真实编译对象/探针档案/链接检查，原始 launchd
+重新解析得 LC_MAIN=0x80000028、entryoff=85896；GLM 的“没有 LC_MAIN”是常量
+漏掉 LC_REQ_DYLD 的误判。新检查入口逐项记录真实退出码及镜像身份，clone
+不继承成功日志、检查报告或旧镜像身份，避免旧报告/管道掩盖失败。
+
+v34 镜像 203190272 字节，SHA256
+67f10f04db9393f6b63b47a47502ce1f8e51575ca148660c3676176027f55d12；
+prelink c3837ccead2425ec09587a3158cf4c931ffef969525da3cd10b4a692891caf36。
+14 项检查全部退出 0 并绑定该镜像：smmu/route/receiver/image/mount/KMEM/
+SPI/trace/volume-args/witness/IOKit/gate/probe-policy/system probe-guards。
+阶段策略含 34 项有效/变异/入口/旧缺陷验证，系统入口 C guard 48 项；另跑
+普通 md0 main 46 项、首条 SVC 30 项通过。新对象实含 ROOT_PROBE/USER_ENTRY
+及覆盖/来源/替换线程钩子，旧 v33 缺陷会被新检查拒绝。kernel base
+0xfffffff00427c000、重新计算 skew=0x7c000，FUXIPAYL 与只读存储绑定通过。
+
+用户已确认“已进 fastboot”，无活动传输、fcde91e 已核对，attempt-01 执行一次
+fastboot boot 与 RAM 传输。命令/报告见候选 REVIEW.md。传输及新实机 main
+结果待回填；主机检查不等于实机修复通过。

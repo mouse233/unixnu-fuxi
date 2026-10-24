@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import struct
 import subprocess
+from ram_probe_policy import validate_stage_policy
 
 ROOT = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
@@ -29,6 +30,7 @@ if args.progress and not args.main_entry:
 if args.main_entry and not args.user_entry:
     parser.error('--main-entry requires --user-entry')
 pins = json.loads(args.pins.read_text())
+validate_stage_policy(pins, args.user_entry, args.main_entry, args.progress)
 if (pins['image_bytes'] != 184549376 or pins['file_bytes'] != 561856 or
         pins['image_sha256'] != 'aadb59ed21a8f0218a348f070913ab5a7679805c58408534d811170871f1fc05' or
         pins['file_sha256'] != '8cec9a3c44a443b08e977ccc5d577850316ad428c575dc01f09b018dbd5b6a25' or

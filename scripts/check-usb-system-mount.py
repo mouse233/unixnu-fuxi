@@ -9,6 +9,7 @@ import struct
 import subprocess
 import tempfile
 from pathlib import Path
+from ram_probe_policy import inspect_system_probe, validate_stage_policy
 
 p = argparse.ArgumentParser(description=__doc__)
 p.add_argument('--output', type=Path, default=Path('out/usb-system-mount-v24'))
@@ -81,6 +82,9 @@ if probe_args[0] == 'ram-system-probe=2':
     require(any('build-ram-root-probe.py' in entry and '--system-user-entry' in entry
                 for entry in board['kernel'].get('archives', [])),
             'probe archive lacks --system-user-entry')
+    probe_evidence = inspect_system_probe(out)
+else:
+    probe_evidence = None
 require('native-ufs-root=0' in config and 'native-ufs-probe=0' in config, 'storage root not disabled')
 require('sheng-data-persist=0' in config and 'sheng-log=0' in config, 'sheng persistence not disabled')
 require('initrd = "Payloads/scratch-data.img"' in config, 'wrong md0 input')
@@ -131,8 +135,8 @@ require(kernel_base & 0x1fffff == skew,
 require(payload_report['trust_cache_sha256'] ==
         '7416ca4f8377146626bb284e2133c76bee6cb4e3ee0af5d648b186235a7323a7', 'original trust bundle changed')
 pins = json.loads((out / 'pins.json').read_text())
-require(pins['stop_before_first_user_svc'] is True and pins['physical_storage_allowed'] is False,
-        'mount-only pins missing')
+if probe_evidence is None:
+    validate_stage_policy(pins, True, False, False)
 
 adt = fat('Payloads/kernel.macho.adt')
 nodes = {}
@@ -199,5 +203,6 @@ report = dict(boot_sha256=candidate['sha256'], boot_bytes=candidate['bytes'],
               kernel_args=payload_report['kernel_args'], loader_sources=len(loader_sources),
               window_bytes='0x300000000', window_skew=hex(skew), kernel_base=hex(kernel_base),
               ram_volume_nodes=volume_nodes, ram_iokit_storage=iokit_storage, hardware_result='pending')
+report.update(ram_system_profile=int(probe_args[0].split('=')[1]), ram_probe=probe_evidence)
 (out / 'payload-verification.json').write_text(json.dumps(report, indent=2) + '\n')
 print(json.dumps(report, indent=2))

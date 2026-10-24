@@ -133,7 +133,7 @@ void fuxi_ram_main_arm(thread_t target)
     const char *expected_argv0 = fuxi_ram_system_user_entry ? ram_main_system_argv0 : ram_main_argv0;
     unsigned argv0_bytes = fuxi_ram_system_user_entry ? (unsigned)sizeof(ram_main_system_argv0)
                                                       : (unsigned)sizeof(ram_main_argv0);
-    char argv0[sizeof(ram_main_system_argv0)], argv1[sizeof("-s")];
+    char argv0[sizeof(ram_main_system_argv0)] = {0}, argv1[sizeof("-s")];
     uint32_t header[8], entry[4];
     arm_debug_state64_t debug = {0};
     uint64_t deadline;
@@ -159,7 +159,7 @@ void fuxi_ram_main_arm(thread_t target)
     if (error || memcmp(argv0, expected_argv0, argv0_bytes) ||
         (startup[1] == 2 && (copyin(startup[3], argv1, sizeof(argv1)) || memcmp(argv1, "-s", sizeof(argv1))))) {
         vm_map_switch(old_map);
-        panic("RAM_MAIN unexpected original launchd argv: argc=%llu errno=%d", startup[1], error);
+        panic("RAM_MAIN unexpected launchd argv\nargc=%llu errno=%d\nexpected=%s actual=%.17s", startup[1], error, expected_argv0, argv0);
     }
     launchd_header = startup[0];
     launchd_main = launchd_header + RAM_ROOT_MAIN_OFFSET;
@@ -335,7 +335,7 @@ void fuxi_ram_main_break(uint64_t pc, uint32_t cpsr, uint32_t esr)
     return;
 #else
     if (fuxi_ram_system_user_entry)
-        panic("RAM_SYSTEM_MAIN PASS\nroot=/mnt1 apfs readonly=1\nsystem launchd LC_MAIN+4 reached\nfirst instruction and entry bytes intact\nheader=%llx main=%llx\npc=%llx cpsr=%x esr=%x\nsvc=%u; process creation blocked\nrecovery programs not started",
+        panic("RAM_SYSTEM_MAIN PASS\nroot=md0 apfs readonly=1\nexec=/mnt1/sbin/launchd\nlaunchd LC_MAIN+4 reached; bytes intact\nheader=%llx main=%llx\npc=%llx cpsr=%x esr=%x\nsvc=%u; process creation blocked\nrecovery programs not started",
             launchd_header, launchd_main, pc, cpsr, esr, svc_count);
     panic("RAM_LAUNCHD_MAIN PASS\nroot=md0 apfs readonly=1\noriginal launchd LC_MAIN+4 reached\nfirst instruction and entry bytes intact\nheader=%llx main=%llx\npc=%llx cpsr=%x esr=%x\nsvc=%u; process creation blocked\nrecovery programs not started",
         launchd_header, launchd_main, pc, cpsr, esr, svc_count);
