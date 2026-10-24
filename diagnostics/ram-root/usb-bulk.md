@@ -1279,3 +1279,27 @@ fuxi RAM diagnostic: system-mount 并拍完整最终屏幕。
 尚待 XNU/witness 照片，不能确认已越过 invalid fsindex、挂载通过或
 RAM_SYSTEM PASS。normal_controller_stop_verified 保持 false；
 配置 kernel_handoff=true 不替代 XNU 屏幕证据。后续照片须回填 REVIEW.md。
+
+## v30 实机照片：越过卷索引拒绝，缺少 IOKit media（2026-10-24）
+
+IMG_6968.HEIC 已归档到 attempt-02，显示 errno=1、at=apfs-mount、
+/mnt1、dev=3000001、opens=0、spec=4、apfs=1、covered=84800，
+open=0 count=1 /dev/md1，位置 @vfs_syscalls.c:430。
+
+APFS 仍选中 xid=418 的稳定 checkpoint（desc 2/data 4），随后明确识别
+md1s1 上的 DawnUpdate21H461.J120J121J207J208OS 卷，调用者 kernel_task。
+这次已越过 v29 invalid fsindex: -1 拒绝点。新的原始日志为
+apfs_vfsop_mount:2833: md1s1 fs iokit node was not found，随后
+apfs_iokit_mount_eligibility not eligible, err: 1，最终回调返回 EPERM。
+不是设备打开失败，也不是专用 wrapper 的 kernel_task 入参检查失败。
+
+固定哈希原始 APFS 的只读反汇编确认：0x5671c78 按 IOMedia + BSD Major /
+BSD Minor 匹配；0x56808c4 的 media 缺失分支返回 1。devfs 硬链接没有
+发布 IOKit 存储对象。审计与原图/转写分别保存为 attempt-02 的
+iokit-eligibility-audit.{json,txt} 和 photo-observation.json/photo-transcript.txt。
+
+/mnt1 仍失败，/mnt2 未尝试，未达到 RAM_SYSTEM PASS，panic 后等待不会推进。
+照片不含控制器停机三标记，normal_controller_stop_verified 保持 false。
+下一步需要真正的只读 RAM IOKit 存储发布与受验证的卷身份；不跳过 APFS
+资格检查。现有 NativeRamBlock 是可写 Data/持久化路径，且 RAM_ROOT_PROBE
+明确禁止同时启用，不能直接套用其开关；本轮未构建或启动 v31。

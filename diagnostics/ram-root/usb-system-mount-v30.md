@@ -38,3 +38,19 @@ FUXIPAYL、实际最低段 0xfffffff00427c000 与 skew 0x7c000 重新核验通�
 用户已明确授权 fastboot 临时启动。attempt-01 已开始；最终传输和屏幕结果
 须追加回填本日志入口 usb-bulk.md 与候选 REVIEW.md。完整命令和报告见 REVIEW。
 本节仅说明主机验证，不宣称 APFS 挂载、RAM_SYSTEM PASS 或用户态启动成功。
+
+## 最终实机结果
+
+attempt-01 在 fastboot Booting 阶段 USB 读取失败，未传输对象。用户明确授权
+并重新确认 fastboot 后，attempt-02 的两份 END RAM SHA256 全部通过，561.043 秒。
+
+IMG_6968.HEIC 确认已越过 invalid fsindex: -1；APFS 识别 md1s1 上的
+DawnUpdate21H461.J120J121J207J208OS 卷。新失败为 fs iokit node was not
+found，apfs_iokit_mount_eligibility not eligible, err: 1（EPERM），@vfs_syscalls.c:430。
+open=0 count=1 /dev/md1，checkpoint xid=418、desc 2/data 4，证明设备打开和
+checkpoint 读取已推进。/mnt1 仍失败，/mnt2 未尝试，未达到 RAM_SYSTEM PASS。
+
+原始 APFS 匹配 IOMedia 的 BSD Major/Minor，缺失 media 时资格检查返回 1。
+下一层缺口为真正的只读 RAM IOKit 存储发布；不能以 devfs 名称或绕过检查替代。
+现有可写 Data/persistence NativeRamBlock 受当前 root probe 构建保护禁止直接启用。
+本轮未构建 v31。照片和反汇编审计在 attempt-02；停机三标记仍缺屏幕证据。
