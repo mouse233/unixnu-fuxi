@@ -1,7 +1,12 @@
 # fuxi UEFI USB Bulk RAM receiver
 
-2026-10-23：接收器原型已实现；主机测试通过，手机 USB 初始化仍在排查。
-**尚未完成手机枚举或 1 MiB 传输。当前镜像只停留在 UEFI，不启动 XNU。**
+2026-10-23：**v22 首次通过完整配置枚举和实机 1 MiB Bulk→RAM SHA256 校验。**
+已确认 1209:0001、480 Mb/s、配置 1、ff/58/01 接口；主机报告与用户照片相符。
+随后完整 OS 6,077,580,800 字节与 SystemOS 3,303,014,400 字节在同一会话
+分别通过设备 END 实际 RAM SHA256 校验，合计 8.736 GiB。
+独立 v23 已通过 1 MiB 回归和正常控制器停机；IMG_6937 确认 HALTED、
+events=0、route release result=0 restored=1、USBRAM QUIESCE: Success。
+**当前镜像只停留在 UEFI，不启动 XNU。**
 
 ## 实现范围
 
@@ -61,7 +66,26 @@ python3 scripts/usb-ram-send.py --research-image ../unixnu-source/out/fuxi/userd
 发送工具先核对 SHNGROOT 源镜像清单和对象 SHA，再从原文件按偏移流式发送。
 `--kind both` 保持一个连接，依次保留 OS 和 SystemOS；两次单独执行工具会
 重新设置 USB configuration，清空上一轮对象。也可 `--file PATH --kind test|os|systemos`。
-接收成功只证明 RAM 中对象完整，尚无 DarwinBoot/XNU 交接功能。
+接收成功只证明 END 时 RAM 中对象完整，尚无 DarwinBoot/XNU 交接功能。
+
+完整双对象实机入口先核验两个源窗口，再临时启动精确哈希的接收器：
+
+```sh
+python3 scripts/test-usb-ram-full.py \
+  --image out/usb-ram-v22/Mu-fuxi-usb-ram.img \
+  --expected-sha256 1ea39613b1ac09ba8350124c4b943e841cc852e0a2c160bb9c2435de0c957141 \
+  --research-image ../../unixnu-source/out/fuxi/userdata/userdata-root.img \
+  --output out/usb-ram-full-v22/new-attempt
+```
+
+实际源镜像位于原始工作区 unixnu-source/out/fuxi/userdata/，不在实验
+ramdisk-test/unixnu-source/out/。每次使用新的输出目录保存失败与成功记录。
+仅发现/打开设备阶段可重试；开始协议传输后不自动重传不确定的 DATA/END。
+通过 --attach-boot-record 可关联一次已成功启动、尚未开始 DATA 的打开重试。
+
+主机测试、双对象实机报告和停机候选是不同证据层次。完整结果见
+out/usb-ram-full-v22/REVIEW.md；下一步内存交接的代码缺口见
+[usb-ram-handoff.md](usb-ram-handoff.md)。
 
 ## 协议 v1
 
@@ -469,9 +493,9 @@ USBRAM: speed=3            (偶发 speed=2)
 同时回滚路径仍然完整：停止后 `write offset=800 value=00000060`、
 `write offset=c00 value=00020000`，`route release result=0 restored=1`。
 
-主机侧仍看不到设备，说明卡在枚举阶段。`speed` 在 2/3 之间跳变
-（3 对应 DSTS.CONNECTSPD=4，即超速编码，对 USB2-only 链路不合理），
-更像是链路速率上报不稳，而不是真正的 SS 连接。
+主机侧仍看不到设备，说明卡在枚举阶段。这里的 `speed` 是
+`EFI_USB_BUS_SPEED`，不是 DSTS 原始编码：2=Full、3=High、4=Super。
+先前把 speed=3 解释为 SS 是误读；它本身不是链路速率异常的证据。
 
 ## v16：枚举跟踪
 
@@ -512,7 +536,7 @@ v17 在 USB reset 分支里、`Dwc3Ep0ResetState()` 之后调用
 `Dwc3Ep0OutStart()`，并在 `Dwc3Ep0OutStart()` 与 `Dwc3HandleEp0Event()`
 增加不受 trace 预算限制的只读日志（`FUXI EP0: arm` / `FUXI EP0: evt=…`）。
 
-判读方式：出现 `FUXI EP0: arm` 且随后出现 `FUXI EP0: evt=4 …`（XFERCOMPLETE
+判读方式：出现 `FUXI EP0: arm` 且随后出现 `FUXI EP0: evt=1 …`（XFERCOMPLETE
 在 Setup 状态）说明 SETUP 已被接收；再配合 `USBRAM: setup rt=…` 即可看出
 枚举推进到哪个请求。若仍无 SETUP，则问题回到链路速率/描述符协商。
 
@@ -528,8 +552,10 @@ FUXI EP: submit ep=1 cmd=5 ...
 ```
 
 `rt=80 req=06 val=0100 len=18` 就是主机的 GET_DESCRIPTOR(DEVICE)，
-随后 EP0 IN 的数据阶段也完成了（`evt=3 ... state=1`）。
-这是枚举第一次真正进入控制传输阶段。
+它证明 SETUP 已送达。先前把 `evt=3 ... state=1` 当成数据阶段完成不正确：
+事件 1=COMPLETE、2=INPROGRESS、3=NOTREADY、7=EPCMDCMPLT。
+主机记录读到了 VID/PID、64 字节 EP0 和 480 Mb/s，但没有成功配置接口或 Bulk
+传输的证据，不能称为完整枚举验收通过。
 
 但每次都在**状态阶段**失败：
 
@@ -537,11 +563,10 @@ FUXI EP: submit ep=1 cmd=5 ...
 DWC3: STARTTRANSFER failed on Physical EP 0, TrbType 0x40 Len 0 RscIdx 0 Ep0State 2
 ```
 
-`status 1` 对应 `DEPEVT_TRANSFER_NO_RESOURCE`。原因在 v17 的改动里：
-reset 分支只调用 `Dwc3Ep0OutStart()`，没有重新执行 `Dwc3StartConfig()`
-（`DEPSTARTCFG` + `SETTRANSFRESOURCE`）——这两步只在
-`Dwc3EnableEndpoint(..., Modify=FALSE)` 时发生，而 bus reset 会丢弃
-端点的 transfer resource，所以状态阶段拿不到资源。
+`status 1` 对应 `DEPEVT_TRANSFER_NO_RESOURCE`，已对照上游
+`dwc3_send_gadget_ep_cmd()` 的命令状态处理和本树寄存器定义核实。
+它表示命令没有可用传输资源，不能单凭这一值推出“bus reset 丢弃资源分配”。
+此前基于后一假设制作了 v18，实机结果是回归；根因尚需实验验证。
 
 ## v18：reset 后完整重建 EP0
 
@@ -1405,3 +1430,13 @@ spi/trace/volume-args/witness/iokit/gate，gate 为 17 个 mock 门禁）；
 volume-nodes 未运行，其断言描述 v30 时代 md1s1 直连路径，v31 引入 IOKit
 后不再成立且 v31 亦未运行。KMEM 剩余 VA 下界 662548480 与 v31 相同。
 主机检查不证明实机 exec；user-entry 实机证据待 attempt-01 与照片回填。
+
+
+### v32 attempt-01：双对象 END 实际 RAM 校验通过（2026-10-24）
+
+fastboot Sending OKAY（4.220 秒）、Booting OKAY（12.643 秒），OS
+6077580800 字节与 SystemOS 3303014400 字节均完成，object RAM SHA256 逐个
+verified，总用时 583.681 秒，full_os_object_transfer_verified=true，
+无分区写入。原始记录在 out/usb-system-mount-v32/attempt-01。
+接下来等接收器正常停止（拍三标记）、手选 system-mount、拍最终屏幕；
+RAM_SYSTEM_USER PASS 与 user-entry 实机证据待照片，不据传输成功推断。
