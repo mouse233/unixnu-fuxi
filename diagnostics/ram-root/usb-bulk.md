@@ -1830,3 +1830,19 @@ KMEM剩余VA下界662548480。
 /sbin/launchd SHA256=OK、userland=0；auth行仅记录（EAUTH80或0都不
 改变本轮停止点）。pivot任何失败按errno如实panic。换根成功不等于
 launchd exec通过AMFI类别2，那是v38的问题。
+
+### v37 attempt-01 临时启动与传输发起（2026-10-25）
+
+用户回复"已进入"。操作前核对无活动传输，fastboot显示fcde91e，镜像
+SHA256重新核验匹配后发起attempt-01。本轮Sending与Booting均OKAY
+（boot_returncode=0），双对象传输开始；RAM SHA256校验与实机pivot
+结果待回填。
+
+### v37 attempt-01 双对象传输校验通过（2026-10-25）
+
+589.2秒完成双对象传输：OS 6,077,580,800字节、SystemOS 3,303,014,400
+字节，实际RAM回读SHA256均匹配，无分区写入。full_os_object_transfer_
+verified=true；normal_controller_stop_verified仍false。待实机：停机
+三标记照片后手选 `fuxi RAM diagnostic: system-mount`，照片须完整
+包含RAM_ROOT_SWITCH的pivot/rootfs/outgoing/dev/launchd/auth/userland
+字段；pivot失败时errno照实归档。
