@@ -1970,3 +1970,30 @@ mount触发线早期命中风险低）；/private/var存在但只读（写EROFS�
 同二进制在恢复盘有先例）；System/Library/LaunchDaemons共523项
 （子进程spawn将大量发生，spawn环修复正及时）；dyld缓存位于
 cryptex卷，v38已证launchd dyld装载成功，子进程同路径。
+
+### v39 静态预检完成：dyld 库解析链闭合（2026-10-25）
+
+spawn环修复后重建v39并重过13项检查：新镜像203190272字节，SHA256
+beace6e1e172c1173d72cc58626b25e269190e4b44448d50f6c3d6c524419d92；
+prelink edaf6c8c38373a0bf…（REVIEW已同步，attempt命令同号新哈希）。
+
+深度静态预检（详见diagnostics/ram-root/svc-dispatch-preflight.md）：
+v38的PASS仅证明dyld已启动（首SVC mprotect可能在加载库前）。静态
+推演v39放行后：launchd依赖仅存于dyld共享缓存；dyld三条缓存路径与
+内核vm_unix scdir表在切换后OS根上全为ENOENT（/usr/lib无libSystem、
+/private/preboot为空且只读无法建Cryptexes、/System/Cryptexes/OS
+悬空）；cryptex卷含6.1GB分片缓存（System/Library/Caches/com.apple.
+dyld/dyld_shared_cache_arm64[.01…]）但其usr/lib无核心dylib。
+结论：v39预期以dyld库解析失败→init死亡告终，快照write文本可能
+带dyld错误——此为必需真机证据，把库来源问题与exec问题分层。
+
+v40设计静态完备：pivot后把cryptex只读挂到/private/preboot（OS卷
+现存空目录），注入env DYLD_SHARED_CACHE_DIR=/private/preboot/System/
+Library/Caches/com.apple.dyld（与cryptex内部布局逐层对齐）；通道
+复用上游offline-owner-systemos-mount.patch的native_owner_cache_prepare
+envp机制（当前树load_init_program_at_path已带envp），cryptex授权
+用v36实测rootauth=0。不需真实dylib、不动dyld/AMFI/信任类别。
+
+静态终点：DSC文件级映射校验、dyld对该env的行为、launchd只读根
+运行行为、523守护进程spawn时序、高频SVC竞争——只能真机回答。
+v39上机命令不变（镜像哈希见REVIEW）。
