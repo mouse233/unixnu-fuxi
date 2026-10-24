@@ -1092,3 +1092,15 @@ boot-record.json、host-observation.json。normal_controller_stop_verified 保�
 已提示手动选择 fuxi RAM diagnostic: system-mount 并提供完整阶段照片。
 尚未取得 XNU 结果，不能宣称 EBUSY 根因已确定、挂载已修复或 RAM_SYSTEM PASS。
 后续读 at/dev/opens/spec/apfs/covered 定位，照片结论必须追加回填本日志与 REVIEW。
+
+## v27 实机照片：EBUSY 来自 APFS 回调（2026-10-24）
+
+IMG_6958.HEIC 已归档到 attempt-01，显示：
+`RAM_SYSTEM mount failed errno=16`；`at=apfs-mount path=/mnt1`；
+`dev=3000001 opens=0 spec=4`；`apfs=16 covered=84800 @vfs_syscalls.c:394`。
+因此 APFS 的 VFS_MOUNT 确实返回 EBUSY；VFS 挂载点/设备占用前置检查已通过。
+opens=0 是打开设备前原 vcount 的值，spec=4 是 SI_MOUNTING，不是 SI_MOUNTEDON。
+/mnt1 仍失败，/mnt2 未尝试，未达到 RAM_SYSTEM PASS；继续等待不会推进。
+
+下一步核对 RAM 专用挂载给 APFS 的参数与设备接口，定位 APFS 回调内部的拒绝。
+当前尚未确定内部根因。控制器停机三标记不在照片中，原 false 结论保持。

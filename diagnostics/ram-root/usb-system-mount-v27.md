@@ -97,3 +97,15 @@ OS 6,077,580,800 字节与 SystemOS 3,303,014,400 字节的 END 实际 RAM SHA25
 at/dev/opens/spec/apfs/covered 各行。尚未取得 v27 XNU 照片，不能确认失败
 阶段、两个 APFS 卷挂载通过或 RAM_SYSTEM PASS；normal_controller_stop_verified
 保持 false。后续照片必须回填本处及 usb-bulk.md，之后再按真实阶段修复。
+
+## v27 实机照片：EBUSY 来自 APFS 回调（2026-10-24）
+
+IMG_6958.HEIC 已归档到 attempt-01，显示：
+`RAM_SYSTEM mount failed errno=16`；`at=apfs-mount path=/mnt1`；
+`dev=3000001 opens=0 spec=4`；`apfs=16 covered=84800 @vfs_syscalls.c:394`。
+因此 APFS 的 VFS_MOUNT 确实返回 EBUSY；VFS 挂载点/设备占用前置检查已通过。
+opens=0 是打开设备前原 vcount 的值，spec=4 是 SI_MOUNTING，不是 SI_MOUNTEDON。
+/mnt1 仍失败，/mnt2 未尝试，未达到 RAM_SYSTEM PASS；继续等待不会推进。
+
+下一步核对 RAM 专用挂载给 APFS 的参数与设备接口，定位 APFS 回调内部的拒绝。
+当前尚未确定内部根因。控制器停机三标记不在照片中，原 false 结论保持。
