@@ -1690,3 +1690,34 @@ out/usb-system-mount-v35/attempt-01/full-transfer.json。
 完整照片；实机flags/ioctl字段尚未知。normal_controller_stop_verified仍
 false；kernel_handoff配置位、传输成功均不是进入XNU或exec/EL0/main通过
 的证据。本候选仅观察原始拒绝过程，尚不能宣称启动约束已修复。
+
+
+### v35 attempt-01 最终照片：rootfs=0、授权ioctl=EAUTH（2026-10-24）
+
+用户IMG_6984.HEIC原件/PNG/转写/photo-observation.json及PHOTO-REPORT.md
+归档到本次attempt。原始launchd CS_KILLED、namespace3 code0x4、Launch
+Constraint Violation、c[1]p[1]m[1]e[2]、launch type0、/mnt1/sbin/launchd
+仍保留。新增观察原文：
+
+```
+RAM_LC_OBS err=1 fatal=1
+flags=14909001 rootfs=0 reads=6 change=0
+auth=80084118 errno=80 calls=3 change=0
+```
+
+真实探针以%llx输出flags，故值为0x14909001，MNT_ROOTFS(0x4000)未置位。
+目标errno.h定义80=EAUTH；hook err1=EPERM，二者不是同一层返回。fatal1
+表示原理由长度非零。观察范围内同线程、目标mount/vnode的6次flags读取、
+3次现有ioctl返回分别无变化，不把计数当作类别评估次数。实际VNOP_IOCTL
+包装提前返回仅ENOTTY25或0，故80来自原有vnode操作dispatch；APFS内部
+具体授权失败分支尚未定位，不据此断言密钥/签名/seal或镜像损坏。
+
+结合固定原始类别2 DER，根卷与授权auth-APFS卷两个OR条件均未满足的
+推论现获实机支持。v35观察目标完成，exec/EL0/main仍未通过，panic后等待
+不会推进。15项既有主机检查均退出0，交付镜像完整SHA256及当前检查脚本
+哈希与报告重新核验匹配；没有重新构建、启动或改运行时代码。
+
+下一步审计原生系统根建立流程与RAM媒体接入时序，核对认证、rootvnode、
+/dev/旧根引用和只读边界后再做独立候选；不把给次级挂载补root位、改信任
+类别或改安全判定当修复。照片未提供停机三标记，normal_controller_stop_verified
+仍false；不能把观察成功写成完整系统启动。
