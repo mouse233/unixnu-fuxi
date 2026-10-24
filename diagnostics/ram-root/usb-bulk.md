@@ -1080,3 +1080,15 @@ prelink `cd451c0c…103b1`。四项必需检查、payload、KMEM、挂载 SPI、
 
 详细说明、命令和阶段解释见 usb-system-mount-v27.md 及候选 REVIEW.md。
 当前仅主机验证通过；将核对 fastboot 后执行 attempt-01，最终结果须回填照片。
+
+## v27 attempt-01：双对象 END RAM 校验通过，等待阶段照片（2026-10-24）
+
+镜像 d48f3284…6328d。上机前确认无传输任务、fcde91e 在 fastboot，运行器
+serial/product/unlocked 门通过，一次临时启动成功。OS 6,077,580,800 字节与
+SystemOS 3,303,014,400 字节的 END 实际 RAM SHA256 都匹配，552.387 秒，退出码 0。
+未写分区；记录在 out/usb-system-mount-v27/attempt-01/full-transfer.json、
+boot-record.json、host-observation.json。normal_controller_stop_verified 保持 false。
+
+已提示手动选择 fuxi RAM diagnostic: system-mount 并提供完整阶段照片。
+尚未取得 XNU 结果，不能宣称 EBUSY 根因已确定、挂载已修复或 RAM_SYSTEM PASS。
+后续读 at/dev/opens/spec/apfs/covered 定位，照片结论必须追加回填本日志与 REVIEW。

@@ -83,3 +83,17 @@ python3 scripts/test-usb-ram-full.py \
 取得完整故障屏幕（尤其 at/dev/opens/spec/apfs/covered）并归档，之后才按阶段修复。
 若显示 RAM_SYSTEM PASS，同样归档；不能把传输通过当作两个 APFS 卷挂载通过。
 控制器停机三标记仍须照片，normal_controller_stop_verified 不能仅凭 USB 消失改为 true。
+
+
+## attempt-01：双对象 RAM 校验通过，待阶段照片（2026-10-24）
+
+上机前再次确认无进行中脚本与 fastboot fcde91e。运行器核对 serial/product/
+unlocked 后，一次 fastboot boot 成功；镜像为本候选 d48f3284…6328d。
+OS 6,077,580,800 字节与 SystemOS 3,303,014,400 字节的 END 实际 RAM SHA256
+都匹配，完整运行 552.387 秒，退出码 0。未写分区。
+完整记录在 attempt-01/full-transfer.json、boot-record.json、host-observation.json。
+
+已提示手动选择 fuxi RAM diagnostic: system-mount，并拍摄最终屏幕中
+at/dev/opens/spec/apfs/covered 各行。尚未取得 v27 XNU 照片，不能确认失败
+阶段、两个 APFS 卷挂载通过或 RAM_SYSTEM PASS；normal_controller_stop_verified
+保持 false。后续照片必须回填本处及 usb-bulk.md，之后再按真实阶段修复。
