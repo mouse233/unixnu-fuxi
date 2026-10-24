@@ -1212,3 +1212,21 @@ preflight.json、boot-record.json、boot.log、full-transfer.json、host-observa
 normal_controller_stop_verified 保持 false；尚无停机三标记或 XNU 屏幕证据。
 kernel_handoff=true 仅是配置位；当前不能宣称解决 ENOENT、挂载通过或
 RAM_SYSTEM PASS。照片到位后须同时回填本日志与候选 REVIEW.md。
+
+## v29 实机照片：ENOENT 明确来自无效卷索引 -1（2026-10-24）
+
+IMG_6967.HEIC 已归档到 attempt-01，显示 errno=2、at=apfs-mount、
+path=/mnt1、dev=3000001、opens=0、spec=4、apfs=2、covered=84800，
+位置 @vfs_syscalls.c:426。新增 witness 为 open=0 count=1 /dev/md1：
+APFS 的再次打开已成功，不是设备路径不存在。
+
+原始 APFS 日志显示 block size 512、block count 11870208，读取并选中
+checkpoint largest/best xid 418 @3，stable desc 2/data 4；随后明确打印
+nx_is_mount_valid:2306: md1 invalid fsindex: -1，再返回 ENOENT。
+这将原始解析器 /dev/md1→index -1 与实机拒绝点联系起来，容器几何和
+checkpoint 读取均已推进；不能再把此 ENOENT 归因为设备名查找失败。
+
+/mnt1 仍失败，/mnt2 未尝试，未达到 RAM_SYSTEM PASS。panic 不会继续推进。
+停机三标记未出现在照片中，normal_controller_stop_verified 保持 false。
+下一候选拟仅为只读 RAM 容器发布第一卷设备名，并让专用挂载 SPI 选择该卷；
+不修改 APFS、不跳过资格检查。照片、转写和结构化结论见 attempt-01。
