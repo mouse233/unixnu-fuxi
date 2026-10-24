@@ -41,6 +41,11 @@ volatile unsigned fuxi_ram_root_stage;
 /* Set by RamSystemProbe's user-entry profile; RamSystemProbe.o is only linked
  * in system-object builds, so this owns the definition. */
 volatile unsigned fuxi_ram_system_user_entry;
+/* Set by RamSystemRootSwitch after a verified native pivot; the switch object
+ * is only linked in system builds, so this file owns these definitions too. */
+volatile unsigned fuxi_ram_native_root_entry;
+volatile int fuxi_ram_switch_auth = -1;
+volatile unsigned long long fuxi_ram_switch_flags = 0;
 #if RAM_ROOT_ALLOW_USER_ENTRY
 static unsigned exec_path_verified;
 #endif
@@ -131,6 +136,15 @@ void fuxi_ram_user_exec_begin(const char *path, int pid)
     const char *expected = fuxi_ram_system_user_entry ? "/mnt1/sbin/launchd" : "/sbin/launchd";
     if (fuxi_ram_root_stage != 7 || pid != 1 || !path || strcmp(path, expected))
         panic("RAM_USER refused init source: stage=%u pid=%d path=%s", fuxi_ram_root_stage, pid, path ? path : "<null>");
+    if (fuxi_ram_native_root_entry) {
+        /* The pivot armed this entry; re-assert the root identity at exec time
+         * so an identical ramdisk /sbin/launchd cannot pass for the switched
+         * OS-volume source (the two binaries are byte-identical). */
+        mount_t root_mount = rootvnode ? vnode_mount(rootvnode) : NULL;
+        if (!root_mount || !(vfs_flags(root_mount) & MNT_ROOTFS) ||
+            strcmp(vfs_statfs(root_mount)->f_fstypename, "apfs"))
+            panic("RAM_USER refused native root identity at exec: stage=%u", fuxi_ram_root_stage);
+    }
     exec_path_verified = 1;
 }
 
@@ -152,10 +166,12 @@ void fuxi_ram_user_exec_result(int error, const char *path, int pid)
 {
     int system_entry = fuxi_ram_system_user_entry != 0;
     const char *expected = system_entry ? "/mnt1/sbin/launchd" : "/sbin/launchd";
+    const char *tag = fuxi_ram_native_root_entry ? "RAM_NATIVE_ROOT_USER" :
+        system_entry ? "RAM_SYSTEM_USER" : "RAM_USER original";
     if (pid != 1 || !path || strcmp(path, expected))
         panic("RAM_USER refused exec: stage=%u pid=%d path=%s", fuxi_ram_root_stage, pid, path);
     if (error) panic("%s launchd exec failed: errno=%d; no user syscall dispatched",
-        system_entry ? "RAM_SYSTEM_USER" : "RAM_USER original", error);
+        tag, error);
     if (fuxi_ram_root_stage != 8 && fuxi_ram_root_stage != 9 && fuxi_ram_root_stage != 10)
         panic("RAM_USER exec returned without replacement-thread checkpoint: stage=%u", fuxi_ram_root_stage);
 }
@@ -172,6 +188,13 @@ void fuxi_ram_user_svc(uint64_t pc, uint32_t cpsr, uint32_t esr, uint64_t syscal
         (instruction & 0xffe0001fU) != 0xd4000001U)
         panic("RAM_USER invalid SVC instruction: pc=%llx instruction=%x", pc, instruction);
     fuxi_ram_root_stage = 9;
+    if (fuxi_ram_native_root_entry) {
+        if (fuxi_ram_system_user_entry)
+            panic("RAM_USER refused: both entry modes armed");
+        panic("RAM_NATIVE_ROOT_USER PASS\nroot=switched OS-volume apfs readonly=1 rootfs=1\nexec=/sbin/launchd (after native vfs_switch_root)\nPID1 executed at EL0; SVC trapped\npc=%llx cpsr=%x esr=%x\nx16=%lld instruction=%x\nswitch auth=%d flags=%llx\nstopped BEFORE first syscall dispatch\nrecovery programs not started",
+            pc, cpsr, esr, (int64_t)syscall, instruction,
+            fuxi_ram_switch_auth, fuxi_ram_switch_flags);
+    }
     if (fuxi_ram_system_user_entry)
         panic("RAM_SYSTEM_USER PASS\nroot=md0 apfs readonly=1\nexec=/mnt1/sbin/launchd\nPID1 executed at EL0; SVC trapped\npc=%llx cpsr=%x esr=%x\nx16=%lld instruction=%x\nstopped BEFORE first syscall dispatch\nrecovery programs not started",
             pc, cpsr, esr, (int64_t)syscall, instruction);

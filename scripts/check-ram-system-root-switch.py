@@ -83,6 +83,9 @@ typedef struct vnode { mount_t mount; int type, isroot, refs; } *vnode_t;
 vnode_t rootvnode;
 dev_t rootdev;
 volatile unsigned fuxi_ram_root_stage, fuxi_ram_system_stage, fuxi_ram_system_user_entry;
+volatile unsigned fuxi_ram_native_root_entry;
+volatile int fuxi_ram_switch_auth = -1;
+volatile unsigned long long fuxi_ram_switch_flags = 0;
 static int profile_arg, present, task, pid, lookup_error;
 static int switches, io_count, auth_result, switch_errno, place_errno, dev_errno;
 static int wrong_size, wrong_hash, post_wrong_hash, pivoted, lookups;
@@ -162,6 +165,7 @@ static void reset(void) {
  launchd=(struct vnode){&m[1],VREG,0,0};placed=(struct vnode){&m[0],VDIR,0,0};devnode=(struct vnode){&m_dev,VDIR,0,0};
  foreign=(struct vnode){&m_foreign,VDIR,1,0};
  rootvnode=&nodes[0];rootdev=101;fuxi_ram_root_stage=7;fuxi_ram_system_stage=6;fuxi_ram_system_user_entry=0;
+ fuxi_ram_native_root_entry=0;fuxi_ram_switch_auth=-1;fuxi_ram_switch_flags=0;
  profile_arg=present=task=1;pid=lookup_error=0;
  switches=io_count=0;auth_result=80;switch_errno=place_errno=dev_errno=0;
  wrong_size=wrong_hash=post_wrong_hash=pivoted=0;lookups=0;message[0]=0;
@@ -208,9 +212,18 @@ int main(void) {
   }
   run(1);assert(strstr(message,"refused") && switches==1);cases++;
  }
- for(int which=0;which<3;which++) {
+ for(int which=0;which<@SUCCESSES@;which++) {
   reset();auth_result=which==1?0:which==2?22:80;
-  run(1);assert(strstr(message,"RAM_ROOT_SWITCH observed") && strstr(message,"userland=0"));
+  run(1);@SUCCESS_ASSERTS@
+  cases++;
+ }
+@INIT_CASE@
+ printf("PASS: %d real root-switch C cases\n",cases);return 0;
+}
+'''
+
+
+MOUNT_SUCCESS = r'''assert(strstr(message,"RAM_ROOT_SWITCH observed") && strstr(message,"userland=0"));
   assert(strstr(message,"pivot=OK old=md0 newroot=apfs"));
   assert(strstr(message,"launchd=/sbin/launchd @LAUNCHD@ bytes SHA256=OK"));
   char expected[32];snprintf(expected,sizeof(expected),"auth=%d",auth_result);
@@ -218,21 +231,33 @@ int main(void) {
   assert(rootvnode==&nodes[1] && (m[1].flags&0x4000) && !(m[0].flags&0x4000));
   assert(nodes[0].refs==0 && nodes[1].refs==0 && nodes[2].refs==0);
   assert(dev_dir.refs==0 && place_dir.refs==0 && launchd.refs==0 && placed.refs==0 && devnode.refs==0);
-  assert(strstr(message,"outgoing=/Developer dev=devfs") && strstr(message,"rootfs=1"));
-  cases++;
- }
- reset();const char *path="/sbin/launchd";
+  assert(strstr(message,"outgoing=/Developer dev=devfs") && strstr(message,"rootfs=1"));'''
+
+MOUNT_INIT = r'''reset();const char *path="/sbin/launchd";
  if(!setjmp(done))fuxi_ram_system_user_init_path(&path);
- assert(strstr(message,"mount-only init reached") && !strcmp(path,"/sbin/launchd") && !switches && !io_count);cases++;
- printf("PASS: %d real root-switch C cases\n",cases);return 0;
-}
-'''
+ assert(strstr(message,"mount-only init reached") && !strcmp(path,"/sbin/launchd") && !switches && !io_count);cases++;'''
+
+USER_SUCCESS = r'''assert(message[0]==0 && switches==1 && io_count==1);
+  assert(fuxi_ram_native_root_entry==1 && fuxi_ram_switch_auth==auth_result);
+  assert(fuxi_ram_system_stage==7 && fuxi_ram_root_stage==7 && !fuxi_ram_system_user_entry);
+  assert(rootvnode==&nodes[1] && (m[1].flags&0x4000) && !(m[0].flags&0x4000));
+  assert(nodes[0].refs==0 && nodes[1].refs==0 && nodes[2].refs==0);
+  assert(dev_dir.refs==0 && place_dir.refs==0 && launchd.refs==0 && placed.refs==0 && devnode.refs==0);'''
+
+USER_INIT = r'''reset();const char *path="/sbin/launchd";
+ int override=fuxi_ram_system_user_init_path(&path);
+ assert(override==1 && !strcmp(path,"/sbin/launchd") && fuxi_ram_native_root_entry==0);cases++;
+ fuxi_ram_system_user_entry=1;const char *second="/sbin/launchd";
+ override=fuxi_ram_system_user_init_path(&second);
+ assert(override==0 && !strcmp(second,"/mnt1/sbin/launchd"));cases++;'''
 
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--base', type=Path, required=True)
+    p.add_argument('--mode', choices=['mount', 'user-entry'], default='mount',
+                   help='mount: stop after verification; user-entry: arm the bounded native-root init')
     args = p.parse_args()
     out = args.output.resolve()
     device = Path(__file__).resolve().parents[1]
@@ -242,14 +267,21 @@ def main():
     text = system.read_text()
     start = text.index('int fuxi_ram_system_user_init_path(const char **path)\n{')
     end = text.index('\n}\n',start)+3
-    init_guard = '\n#define RAM_SYSTEM_ALLOW_USER_ENTRY 0\n'+text[start:end]+'\n'
+    init_guard = ('\n#define RAM_SYSTEM_ALLOW_USER_ENTRY 1\n' if args.mode == 'user-entry'
+                  else '\n#define RAM_SYSTEM_ALLOW_USER_ENTRY 0\n') + text[start:end] + '\n'
+    preamble = '#define RAM_SYSTEM_ALLOW_USER_ENTRY 1\n' if args.mode == 'user-entry' else ''
     pin_bytes = ','.join('0x%02x' % b for b in bytes.fromhex(LAUNCHD_PIN))
     api = API.replace('@LAUNCHD@', str(LAUNCHD_BYTES)).replace('@PIN@', pin_bytes)
-    tests = TESTS.replace('@LAUNCHD@', str(LAUNCHD_BYTES))
+    success = MOUNT_SUCCESS if args.mode == 'mount' else USER_SUCCESS
+    init_case = MOUNT_INIT if args.mode == 'mount' else USER_INIT
+    tests = (TESTS.replace('@LAUNCHD@', str(LAUNCHD_BYTES))
+                  .replace('@SUCCESSES@', '3')
+                  .replace('@SUCCESS_ASSERTS@', success.replace('@LAUNCHD@', str(LAUNCHD_BYTES)))
+                  .replace('@INIT_CASE@', init_case))
     with tempfile.TemporaryDirectory(prefix='root-switch-') as tmp:
         tmp = Path(tmp)
         test = tmp / 'test.c'
-        test.write_text(api + body + init_guard + tests)
+        test.write_text(api + preamble + body + init_guard + tests)
         command = ['clang', '-std=c11', '-Wall', '-Wextra', '-Werror', '-fsanitize=address,undefined', str(test), '-o', str(tmp/'test')]
         subprocess.run(command, check=True)
         result = subprocess.check_output([str(tmp/'test')], text=True).strip()
@@ -277,7 +309,10 @@ def main():
     archives = [shlex.split(s) for s in board['kernel']['archives'] if shlex.split(s)[0]=='build-ram-root-probe.py']
     assert len(archives)==1
     entry = archives[0]
-    assert set(entry[1:]) == {'--user-entry','--system-objects','--system-root-switch','--pins',str(out/'pins.json')}
+    if args.mode == 'mount':
+        assert set(entry[1:]) == {'--user-entry','--system-objects','--system-root-switch','--pins',str(out/'pins.json')}
+    else:
+        assert set(entry[1:]) == {'--user-entry','--system-objects','--system-user-entry','--system-root-switch','--pins',str(out/'pins.json')}
     args_list = board['payload']['kernel_args']
     for prefix, expected in [('ram-root-probe=', ['ram-root-probe=2']),('ram-system-probe=', ['ram-system-probe=1']),
                              ('ram-system-root-switch=', ['ram-system-root-switch=1']),
@@ -293,13 +328,15 @@ def main():
     record = json.loads((build/'build-report.json').read_text())
     assert record['pins']==pins and record['system_root_switch'] is True and record['system_root_preflight'] is False
     assert record['user_entry'] is True and record['system_objects'] is True
-    for key in ('main_entry','progress','system_user_entry','launch_constraints_observer','restore_trust'):
+    assert record['system_user_entry'] is (args.mode == 'user-entry')
+    for key in ('main_entry','progress','launch_constraints_observer','restore_trust'):
         assert record[key] is False
     assert sha(source)==record['switch_source_sha256']==sha(tree/'kits/sheng'/source.name)
     assert sha(system)==record['system_source_sha256']==sha(tree/'kits/sheng'/system.name)
     assert sha(build/'libRamRootProbe.a')==record['archive_sha256']
     header = (build/'RamSystemProbePins.h').read_text()
-    assert '#define RAM_SYSTEM_ROOT_SWITCH 1' in header and '#define RAM_SYSTEM_ALLOW_USER_ENTRY 0' in header
+    assert '#define RAM_SYSTEM_ROOT_SWITCH 1' in header
+    assert ('#define RAM_SYSTEM_ALLOW_USER_ENTRY %d' % (1 if args.mode=='user-entry' else 0)) in header
     assert '#define RAM_SYSTEM_ROOT_PREFLIGHT 0' in header
     assert ('#define RAM_SYSTEM_LAUNCHD_BYTES UINT64_C(%d)' % LAUNCHD_BYTES) in header
     probe_text = system.read_text()
@@ -313,6 +350,14 @@ def main():
     assert members==['__.SYMDEF SORTED','RamRootProbe.o','RamSystemProbe.o','RamSystemRootSwitch.o']
     symbols = subprocess.check_output([llvm_tool('llvm-nm'),str(build/'RamSystemRootSwitch.o')],text=True)
     assert '_vfs_switch_root' in symbols and '_VNOP_IOCTL' in symbols and '_vn_rdwr' in symbols
+    root_symbols = subprocess.check_output([llvm_tool('llvm-nm'),str(build/'RamRootProbe.o')],text=True)
+    if args.mode == 'user-entry':
+        assert '_fuxi_ram_native_root_entry' in symbols      # referenced by the switch probe
+        defined = [l for l in root_symbols.splitlines() if l.endswith('_fuxi_ram_native_root_entry')]
+        assert defined and not defined[0].startswith('U')    # defined by RamRootProbe.o, not imported
+        assert '_fuxi_ram_switch_auth' in root_symbols and '_fuxi_ram_switch_flags' in root_symbols
+    else:
+        assert '_fuxi_ram_native_root_entry' not in symbols  # mount-only never arms the entry
     compile_command = json.loads((build/'switch-compile-command.json').read_text())
     assert str(tree/'kits/sheng'/source.name) in compile_command and '-Werror' in compile_command
     objdir = tree/'build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837'
@@ -349,8 +394,15 @@ def main():
         assert plan['original_executable_sha256'][module] == parent_plan['original_executable_sha256'][module]
     kernel = out/'work/kernel/kernel.macho'
     payload = json.loads((out/'payload-verification.json').read_text())
-    assert sha(kernel)==payload['kernel_sha256'] and b'RAM_ROOT_SWITCH observed' in kernel.read_bytes()
+    assert sha(kernel)==payload['kernel_sha256']
+    if args.mode == 'mount':
+        assert b'RAM_ROOT_SWITCH observed' in kernel.read_bytes()
+    else:
+        kernel_bytes = kernel.read_bytes()
+        assert b'RAM_NATIVE_ROOT_USER PASS' in kernel_bytes and b'native root entry armed' in kernel_bytes
+        assert b'RAM_ROOT_SWITCH observed' not in kernel_bytes
     report = dict(passed=[result],mutation_checks=3,sanitizers=['address','undefined'],
+                  mode=args.mode,
                   system_userland_allowed=False,archive_members=members,
                   boot_sha256=sha(out/'Mu-fuxi-usb-ram.img'),kernel_sha256=sha(kernel),
                   switch_source_sha256=sha(source),archive_sha256=record['archive_sha256'],

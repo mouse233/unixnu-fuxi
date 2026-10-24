@@ -1865,3 +1865,27 @@ dev=devfs；launchd=/sbin/launchd SHA256=OK；auth=80；userland=0；
 v38方向已定：同架构加回有界system user entry（init=新根
 /sbin/launchd，SVC前截停），直接验证AMFI类别2根卷分支是否放行
 launchd exec；不以改判定/信任/标志宣称修复。
+
+### v38：切根后有界 exec 候选（2026-10-25）
+
+独立v38从v37创建。boot参数不变（rd=md0、ram-root-probe=2、
+ram-system-probe=1、ram-system-root-switch=1），档案模式改为
+--user-entry --system-objects --system-user-entry --system-root-switch：
+switch探针完成v37全部校验后记录auth/flags、武装fuxi_ram_native_root_entry
+并返回；bsd_init以默认init路径创建PID1，/sbin/launchd解析在切换后的
+OS卷根。exec前钩子在native模式额外复验根挂载MNT_ROOTFS/apfs身份
+（新旧launchd字节相同，不能靠路径/哈希区分来源）；SVC截停panic为
+RAM_NATIVE_ROOT_USER PASS变体并内嵌pivot记录。mount-only行为不变。
+
+探针与构建/检查层改动，原生vfs_switch_root/AMFI/APFS不改。主机
+build-kernel→Docker固件→FUXIPAYL完成；13项检查退出0，root-switch以
+--mode user-entry跑真实C 43用例（成功路径断言武装态）与三项突变
+拒绝，ASan/UBSan零报告，并绑定内核字节（user-entry变体在、
+mount-only报告不在）与镜像。镜像203190272字节，SHA256
+0768bbad331ea6c62245eb5a47a60186c53492ef147fc72f50df85bfdd27c033；
+prelink 8384468415115d2e…；skew 0x7c000，KMEM下界662548480。
+
+上机待手机fastboot后发起。验收分支：根卷分支放行→RAM_NATIVE_ROOT_
+USER PASS（首次越过v34以来Launch Constraint Violation，exec完成、
+EL0、SVC截停）；仍拒绝→保留约束原文按新拒绝点定位。不以改判定、
+信任或标志宣称修复。

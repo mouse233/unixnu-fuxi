@@ -20,14 +20,14 @@ parser.add_argument('--system-objects', action='store_true', help='Stop after re
 parser.add_argument('--system-user-entry', action='store_true', help='After the system mounts, exec /mnt1/sbin/launchd and stop at its first EL0 SVC')
 parser.add_argument('--launch-constraints-observer', action='store_true', help='Observe existing AMFI vnode/flags/ioctl calls without changing policy')
 parser.add_argument('--system-root-preflight', action='store_true', help='Issue native root authentication on mounted RAM volumes and stop without switching root or starting userland')
-parser.add_argument('--system-root-switch', action='store_true', help='Pivot md0 to the OS volume with native vfs_switch_root, verify the switched root, and stop before userland')
+parser.add_argument('--system-root-switch', action='store_true', help='Pivot md0 to the OS volume with native vfs_switch_root; mount-only builds stop after verification, user-entry builds arm the bounded native-root init')
 args = parser.parse_args()
 if args.system_root_preflight and args.system_root_switch:
     parser.error('--system-root-preflight and --system-root-switch are exclusive archive modes')
 if args.system_root_preflight and (not args.system_objects or args.system_user_entry or args.main_entry or args.progress or args.launch_constraints_observer):
     parser.error('--system-root-preflight requires mount-only system objects')
-if args.system_root_switch and (not args.system_objects or args.system_user_entry or args.main_entry or args.progress or args.launch_constraints_observer):
-    parser.error('--system-root-switch requires mount-only system objects')
+if args.system_root_switch and (not args.system_objects or args.main_entry or args.progress or args.launch_constraints_observer):
+    parser.error('--system-root-switch requires system objects without main/progress/observation')
 if args.launch_constraints_observer and (not args.system_user_entry or not args.main_entry or args.progress):
     parser.error('--launch-constraints-observer requires bounded system main-entry')
 if args.system_objects and (not args.user_entry or args.progress):

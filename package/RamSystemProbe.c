@@ -17,7 +17,11 @@
 extern void fuxi_ram_system_root_preflight(unsigned) __attribute__((noreturn));
 #endif
 #if RAM_SYSTEM_ROOT_SWITCH
+#if RAM_SYSTEM_ALLOW_USER_ENTRY
+extern void fuxi_ram_system_root_switch(unsigned);
+#else
 extern void fuxi_ram_system_root_switch(unsigned) __attribute__((noreturn));
+#endif
 #endif
 
 extern unsigned long gPhysBase, gPhysSize;
@@ -119,6 +123,11 @@ void fuxi_ram_system_probe(void)
 #endif
 #if RAM_SYSTEM_ROOT_SWITCH
     fuxi_ram_system_root_switch(enabled);
+#if RAM_SYSTEM_ALLOW_USER_ENTRY
+    return;
+#else
+    panic("RAM_SYSTEM refused: root switch returned");
+#endif
 #endif
 #if RAM_SYSTEM_ALLOW_USER_ENTRY
     if (enabled==2) {

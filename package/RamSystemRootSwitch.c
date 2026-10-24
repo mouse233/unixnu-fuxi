@@ -1,5 +1,7 @@
-/* Native root switch: pivot md0 to the OS volume with vfs_switch_root, then
- * stop before PID1. Never modifies authentication results or starts userland. */
+/* Native root switch: pivot md0 to the OS volume with vfs_switch_root.
+ * Mount-only builds stop before PID1 after verification; user-entry builds
+ * arm the bounded native-root init (/sbin/launchd on the switched root).
+ * Never modifies authentication results. */
 #include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
@@ -15,12 +17,24 @@
 #include <pexpert/pexpert.h>
 #include <libkern/crypto/sha2.h>
 #include "RamSystemProbePins.h"
+#ifndef RAM_SYSTEM_ALLOW_USER_ENTRY
+#define RAM_SYSTEM_ALLOW_USER_ENTRY 0
+#endif
 
 extern volatile unsigned fuxi_ram_root_stage, fuxi_ram_system_stage, fuxi_ram_system_user_entry;
 extern dev_t rootdev;
 extern dev_t mdevlookup(int);
 extern int vfs_switch_root(const char *, const char *, uint32_t);
+#if RAM_SYSTEM_ALLOW_USER_ENTRY
+/* Owned by RamRootProbe.c so non-system builds still link; read by its
+ * exec/SVC checkpoints. */
+extern volatile unsigned fuxi_ram_native_root_entry;
+extern volatile int fuxi_ram_switch_auth;
+extern volatile unsigned long long fuxi_ram_switch_flags;
+void fuxi_ram_system_root_switch(unsigned);
+#else
 void fuxi_ram_system_root_switch(unsigned) __attribute__((noreturn));
+#endif
 
 static int directory(const char *prefix, const char *suffix, mount_t expected)
 {
@@ -148,6 +162,19 @@ void fuxi_ram_system_root_switch(unsigned profile)
     uint64_t auth_flags = vfs_flags(switched);
     int unchanged = rootdev == mdevlookup(0) && !fuxi_ram_system_user_entry &&
         fuxi_ram_root_stage == 7 && fuxi_ram_system_stage == 6;
+#if RAM_SYSTEM_ALLOW_USER_ENTRY
+    /* Arm the bounded native-root entry: PID1 execs /sbin/launchd, which now
+     * resolves on the switched OS-volume root; the SVC checkpoint stops before
+     * any syscall dispatch. The init override stays off, so the kernel default
+     * init path is used and its source is verified by the exec hooks. */
+    fuxi_ram_switch_auth = autherr;
+    fuxi_ram_switch_flags = auth_flags;
+    fuxi_ram_native_root_entry = 1;
+    fuxi_ram_system_stage = 7;
+    printf("RAM_SYSTEM native root entry armed: root=/sbin/launchd on switched OS volume "
+        "rootfs=1 auth=%d flags=%llx unchanged=%d\n", autherr, auth_flags, unchanged);
+    return;
+#else
     panic("RAM_ROOT_SWITCH observed\n"
         "pivot=OK old=md0 newroot=apfs\n"
         "rootfs=1 flags=%llx (old %llx, rootfs cleared)\n"
@@ -156,4 +183,5 @@ void fuxi_ram_system_root_switch(unsigned profile)
         "auth=%d flags_after=%llx\n"
         "rootdev=md0 unchanged=%d userland=0",
         flags, old_flags, after_bytes, autherr, auth_flags, unchanged);
+#endif
 }

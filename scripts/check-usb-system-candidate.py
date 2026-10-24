@@ -60,7 +60,10 @@ def main():
     if 'ram-system-root-preflight=1' in board['payload']['kernel_args']:
         checks.append(('root-preflight', 'check-ram-system-root-preflight.py', shared))
     if 'ram-system-root-switch=1' in board['payload']['kernel_args']:
-        checks.append(('root-switch', 'check-ram-system-root-switch.py', shared))
+        switch_mode = ['--mode', 'user-entry'] if any(
+            '--system-user-entry' in s for s in board['kernel']['archives']
+            if s.startswith('build-ram-root-probe.py')) else ['--mode', 'mount']
+        checks.append(('root-switch', 'check-ram-system-root-switch.py', shared + switch_mode))
     logs = out / 'logs'
     logs.mkdir(exist_ok=True)
     report = dict(boot_sha256=digest, complete=False, checks=[])
