@@ -1440,3 +1440,68 @@ verified，总用时 583.681 秒，full_os_object_transfer_verified=true，
 无分区写入。原始记录在 out/usb-system-mount-v32/attempt-01。
 接下来等接收器正常停止（拍三标记）、手选 system-mount、拍最终屏幕；
 RAM_SYSTEM_USER PASS 与 user-entry 实机证据待照片，不据传输成功推断。
+
+
+### v32 attempt-01 实机：IOKit transport EINVAL panic，未达挂载（2026-10-24）
+
+IMG_6972：手选 system-mount 后 XNU panic，屏幕
+`RAM_SYSTEM IOKit transport refused id=1 errno=22 @RamSystemProbe.c:87`。
+实际 RAM SHA256 校验已过，publish id=1 即被拒：驱动 configure() 门禁
+硬编码 `ram-system-probe == 1`，profile 2 被拒。UEFI 接收、菜单、
+DarwinBoot 到 probe 的链路实机走通。修复 unixnu-source 89a1bf1
+（configure 接受 profile 2，只读发布契约不变；shim 与替身测试同步），
+重建后交付镜像 203190272 字节 SHA256
+53f3df5724b52478637bfe1f9dc4037474b7783cf96d73468a62f6ed2cb4c6f3，
+prelink e0f0347b9a9f7ad217b7605aa5e1c6ba9ed4adf5fe1475ecb07040eea507043d，
+全部检查报告重绑该镜像。主机替身测试不覆盖启动参数取值，此前未拦住，
+已在 Test/transport.cpp 补 profile 2/3 用例（独立实例，占配置槽问题已修）。
+
+
+### v32 attempt-02/03：启动门禁拒绝，未触达设备（2026-10-24）
+
+两次 test-usb-ram-full.py 均在 boot-ram-window-once.py 候选验证门禁退出
+（boot.log：candidate verification is absent or belongs to a different
+image），未执行 fastboot boot，手机停留 fastboot 属预期。attempt-02：
+并行检查脚本开头删除 payload-verification.json 与门禁读取竞态；
+attempt-03：mount-spi/iokit-storage 报告仍绑定旧镜像 68f9abe8。
+教训：写门禁输入的检查（check-usb-system-mount.py 与镜像绑定类）必须先于
+传输完成，可与传输并行的只有源码树检查；spi baseline 须用 v25 源码文件
+（v31 已含 SPI 修复会 SIGABRT）。门禁输入全部绑定 53f3df57 后发起
+attempt-04；传输与实机结论待回填。
+
+
+### v32 attempt-04：门禁通过后双对象传输成功（2026-10-24）
+
+门禁输入全部绑定 53f3df57 后 fastboot Sending/Booting OKAY，OS
+6077580800 字节与 SystemOS 3303014400 字节全部送达并逐对象实际 RAM
+SHA256 verified，总用时 603.544 秒，full_os_object_transfer_verified=true，
+无分区写入，记录在 attempt-04。normal_controller_stop_verified 仍 false。
+后续：拍接收器停止标记，手选 system-mount，拍最终屏幕；
+RAM_SYSTEM_USER PASS 与 user-entry 实机证据待照片，不据传输成功推断。
+
+
+### v32 attempt-04 实机：RAM_SYSTEM_USER PASS，首次实机 user-entry（2026-10-24）
+
+IMG_6974（归档 attempt-04）：手选 system-mount 后最终屏幕与预期逐行一致：
+
+    RAM_SYSTEM_USER PASS
+    root=/mnt1 apfs readonly=1
+    system launchd exec=OK
+    PID1 executed at EL0; SVC trapped
+    pc=1006b6fb4 cpsr=0 esr=56000080
+    x16=74 instruction=d4001001
+    stopped BEFORE first syscall dispatch
+    recovery programs not started @RamRootProbe.c:160
+    TCR=0x00000022a51a251a
+    SCTLR=0x0000000003454593d
+    pages=0x000000000000ac664
+    free=0x000000000000aa47e
+
+解读（陷阱代码 RamRootProbe.c:160 及其前置校验为准）：stage 8、pid 1、
+cpsr=0（EL0）、ESR EC=0x15 SVC64、指令 d4001001=svc #0x80 校验全过后，
+按 user-entry 钉子 panic 截停。/mnt1 只读 APFS 系统卷上的 launchd 已被
+load_init_program exec 并运行到其首条系统调用；x16=74 经 XNU syscall.h
+查得 mprotect（dyld 早期页保护）。SVC 未派发、recovery 程序未启动、
+根文件系统仍为 md0——user-entry 是 exec 来源验收点，不是完整 userland。
+normal_controller_stop_verified 仍 false（本 attempt 未拍停止标记）。
+下一步验收点：放开 SVC 派发与 recovery 程序，观察 launchd 真实用户态启动。
