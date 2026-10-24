@@ -1796,3 +1796,37 @@ normal_controller_stop_verified仍false。
 下一候选两个具体问题：launchd从/mnt2 exec是否满足授权分支；/mnt2
 切根目录前置如何补足。仍不以改ioctl返回、补MNT_ROOTFS位或改信任
 类别当修复。v36观察目标完成。
+
+### v37：原生 vfs_switch_root 切根预检（2026-10-25）
+
+主机侧原生挂载确认卷身份：/mnt1为DawnUpdate21H461…OS（完整iOS系统卷，
+sbin/dev/private/var俱全，Sealed=No，features=0x12）；/mnt2为…SystemCryptex
+（System/usr/lib框架内容，无sbin无launchd，Sealed=Yes，features=0x2）。
+v36的auth=0/80与密封状态一致：rootauth验证卷密封，OS卷restore预装态
+无密封故EAUTH，此启动路径不可修复；/mnt2无launchd，"从/mnt2 exec"路线
+否决。imageboot pivot在切根前认证且失败即放弃；直接调用vfs_switch_root
+无认证前置。审计确认其前置仅为入根真卷根、旧根安置目录、保留挂载点
+目录，flags=0不查虚拟设备；rd=md0使bsd_init根认证门跳过，切根在门后
+不冲突。
+
+独立v37从v36创建，新archive --system-root-switch（ram-system-root-switch=1，
+ram-root-probe=2，system-user/main/progress/observer关闭）。stage6
+noreturn探针先校验md0根、两互异只读APFS卷根、/mnt1上Developer安置目录
+与dev目录、/mnt1/sbin/launchd字节SHA256 pin，释放全部vnode后调用
+vfs_switch_root("/mnt1","Developer",0)；成功后核验换根身份、MNT_ROOTFS
+由vfs_subr原生落位/清除、/Developer旧根、/dev仍devfs、新根/sbin/launchd
+字节不变，记录换根后rootauth原始返回（不设门），停于PID1前。
+
+主机build-kernel→Docker固件→FUXIPAYL打包完成（首次finalize因容器
+停机失败，重启后成功）。13项检查真实退出0并绑定交付镜像；新
+check-ram-system-root-switch.py以真实C跑42用例与三项突变拒绝
+（ASan/UBSan零报告），并绑定vfs_subr的MNT_ROOTFS契约与原始执行体
+哈希。镜像203190272字节，SHA256
+59c76a5376df295ed9aa3fe32a3ab9930b6bf29ae636e747333554f2bc010dd8；
+prelink da439dd864342ab5…；base 0xfffffff00427c000，skew 0x7c000，
+KMEM剩余VA下界662548480。
+
+上机与实机结果待追加。预期验收：pivot=OK、rootfs落位、launchd=
+/sbin/launchd SHA256=OK、userland=0；auth行仅记录（EAUTH80或0都不
+改变本轮停止点）。pivot任何失败按errno如实panic。换根成功不等于
+launchd exec通过AMFI类别2，那是v38的问题。

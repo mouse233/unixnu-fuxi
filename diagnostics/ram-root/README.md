@@ -369,3 +369,25 @@ It also binds pins/config/boot args, the compiled call and three-member archive,
 init object, source hashes and delivered image. It runs in the candidate check
 suite whenever the explicit preflight argument is present. Hardware output still
 requires a photo in the candidate's independent attempt directory.
+
+### Native root switch via vfs_switch_root
+
+`--system-root-switch` is the mount-only archive profile that pivots the md0
+root to the OS volume with the original `vfs_switch_root("/mnt1", "Developer",
+0)`. The probe validates the outgoing md0 root, both RAM APFS volume roots, the
+outgoing placement directory (`Developer`) and the preserved `dev` directory,
+plus the pinned `/mnt1/sbin/launchd` content, before releasing every vnode and
+letting the native pivot run. Afterwards it verifies the switched rootvnode
+mount, `MNT_ROOTFS` moved to the OS volume (and cleared from md0), the outgoing
+mount at `/Developer`, preserved devfs at `/dev`, and `/sbin/launchd` on the
+new root with the same bytes. The original `FSIOC_KERNEL_ROOTAUTH` result on
+the switched root is recorded but never gates; userland stays prohibited and
+the probe stops before PID1.
+
+`check-ram-system-root-switch.py` compiles the real probe C with a model of
+the pivot (including switch failures, a forgotten incoming `MNT_ROOTFS`, a
+retained outgoing flag, wrong placement, missing devfs and a changed
+post-switch launchd) under ASan/UBSan with three mutation rejections, and
+binds pins/config/boot args, the archive, the `vfs_switch_root`/`MNT_ROOTFS`
+source contract, original executable hashes and the delivered image. Hardware
+output still requires a photo in the candidate's attempt directory.

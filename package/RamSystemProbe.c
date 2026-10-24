@@ -16,6 +16,9 @@
 #if RAM_SYSTEM_ROOT_PREFLIGHT
 extern void fuxi_ram_system_root_preflight(unsigned) __attribute__((noreturn));
 #endif
+#if RAM_SYSTEM_ROOT_SWITCH
+extern void fuxi_ram_system_root_switch(unsigned) __attribute__((noreturn));
+#endif
 
 extern unsigned long gPhysBase, gPhysSize;
 extern dev_t fuxi_mdev_add_ro(int, uint64_t, uint64_t);
@@ -113,6 +116,9 @@ void fuxi_ram_system_probe(void)
     fuxi_ram_system_stage=6;
 #if RAM_SYSTEM_ROOT_PREFLIGHT
     fuxi_ram_system_root_preflight(enabled);
+#endif
+#if RAM_SYSTEM_ROOT_SWITCH
+    fuxi_ram_system_root_switch(enabled);
 #endif
 #if RAM_SYSTEM_ALLOW_USER_ENTRY
     if (enabled==2) {

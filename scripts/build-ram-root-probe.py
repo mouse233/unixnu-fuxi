@@ -20,9 +20,14 @@ parser.add_argument('--system-objects', action='store_true', help='Stop after re
 parser.add_argument('--system-user-entry', action='store_true', help='After the system mounts, exec /mnt1/sbin/launchd and stop at its first EL0 SVC')
 parser.add_argument('--launch-constraints-observer', action='store_true', help='Observe existing AMFI vnode/flags/ioctl calls without changing policy')
 parser.add_argument('--system-root-preflight', action='store_true', help='Issue native root authentication on mounted RAM volumes and stop without switching root or starting userland')
+parser.add_argument('--system-root-switch', action='store_true', help='Pivot md0 to the OS volume with native vfs_switch_root, verify the switched root, and stop before userland')
 args = parser.parse_args()
+if args.system_root_preflight and args.system_root_switch:
+    parser.error('--system-root-preflight and --system-root-switch are exclusive archive modes')
 if args.system_root_preflight and (not args.system_objects or args.system_user_entry or args.main_entry or args.progress or args.launch_constraints_observer):
     parser.error('--system-root-preflight requires mount-only system objects')
+if args.system_root_switch and (not args.system_objects or args.system_user_entry or args.main_entry or args.progress or args.launch_constraints_observer):
+    parser.error('--system-root-switch requires mount-only system objects')
 if args.launch_constraints_observer and (not args.system_user_entry or not args.main_entry or args.progress):
     parser.error('--launch-constraints-observer requires bounded system main-entry')
 if args.system_objects and (not args.user_entry or args.progress):
@@ -43,6 +48,10 @@ if pins.get('system_root_preflight', False) is not args.system_root_preflight:
     raise SystemExit('Root preflight pins disagree with the archive mode')
 if args.system_root_preflight and pins.get('system_userland_allowed') is not False:
     raise SystemExit('Root preflight must explicitly prohibit system userland')
+if pins.get('system_root_switch', False) is not args.system_root_switch:
+    raise SystemExit('Root switch pins disagree with the archive mode')
+if args.system_root_switch and pins.get('system_userland_allowed') is not False:
+    raise SystemExit('Root switch must explicitly prohibit system userland')
 if (pins['image_bytes'] != 184549376 or pins['file_bytes'] != 561856 or
         pins['image_sha256'] != 'aadb59ed21a8f0218a348f070913ab5a7679805c58408534d811170871f1fc05' or
         pins['file_sha256'] != '8cec9a3c44a443b08e977ccc5d577850316ad428c575dc01f09b018dbd5b6a25' or
@@ -60,6 +69,11 @@ if args.system_user_entry and (
         not pins.get('system_file_bytes') or
         len(bytes.fromhex(pins.get('system_file_sha256', ''))) != 32):
     raise SystemExit('Require exact system launchd pins for --system-user-entry')
+if args.system_root_switch and (
+        pins.get('system_file_path') != '/mnt1/sbin/launchd' or
+        pins.get('system_file_bytes') != 561856 or
+        pins.get('system_file_sha256') != '8cec9a3c44a443b08e977ccc5d577850316ad428c575dc01f09b018dbd5b6a25'):
+    raise SystemExit('Require the photo-verified system launchd pins for --system-root-switch')
 if args.system_user_entry and args.main_entry and pins['system_file_sha256'] != pins['file_sha256']:
     # The hardware checkpoint offset is pinned from the restore ramdisk binary;
     # the system entry is only covered by it while the two files are identical.
@@ -84,7 +98,8 @@ for name, key in [('image', 'image_sha256'), ('file', 'file_sha256')]:
 (out / 'RamRootProbePins.h').write_text(header)
 system_header = '#define RAM_SYSTEM_ALLOW_USER_ENTRY ' + str(int(args.system_user_entry)) + '\n'
 system_header += '#define RAM_SYSTEM_ROOT_PREFLIGHT ' + str(int(args.system_root_preflight)) + '\n'
-if args.system_user_entry:
+system_header += '#define RAM_SYSTEM_ROOT_SWITCH ' + str(int(args.system_root_switch)) + '\n'
+if args.system_user_entry or args.system_root_switch:
     system_header += '#define RAM_SYSTEM_LAUNCHD_BYTES UINT64_C(%d)\n' % pins['system_file_bytes']
     system_digest = bytes.fromhex(pins['system_file_sha256'])
     system_header += 'static const uint8_t ram_system_launchd_sha256[32] = {' + ','.join(hex(x) for x in system_digest) + '};\n'
@@ -129,6 +144,15 @@ if args.system_root_preflight:
     (out / 'preflight-compile.log').write_text(result.stdout + result.stderr)
     if result.returncode: raise SystemExit(result.stdout + result.stderr)
     objects.append(preflight_object)
+if args.system_root_switch:
+    switch_source = ROOT / 'kits/sheng/RamSystemRootSwitch.c'
+    switch_object = out / 'RamSystemRootSwitch.o'
+    switch_command = [str(switch_source) if value == str(source) else str(switch_object) if value == str(obj) else value for value in command]
+    (out / 'switch-compile-command.json').write_text(json.dumps(switch_command, indent=2) + '\n')
+    result = subprocess.run(switch_command, cwd=record['directory'], capture_output=True, text=True)
+    (out / 'switch-compile.log').write_text(result.stdout + result.stderr)
+    if result.returncode: raise SystemExit(result.stdout + result.stderr)
+    objects.append(switch_object)
 if args.main_entry:
     main_source = ROOT / 'kits/sheng/RamLaunchdProbe.c'
     main_object = out / 'RamLaunchdProbe.o'
@@ -182,6 +206,8 @@ subprocess.run(['xcrun', 'ar', 'rcs', archive, *objects], check=True)
     observation_source_sha256=hashlib.sha256(observation_source.read_bytes()).hexdigest() if args.launch_constraints_observer else None,
     system_root_preflight=args.system_root_preflight,
     preflight_source_sha256=hashlib.sha256(preflight_source.read_bytes()).hexdigest() if args.system_root_preflight else None,
+    system_root_switch=args.system_root_switch,
+    switch_source_sha256=hashlib.sha256(switch_source.read_bytes()).hexdigest() if args.system_root_switch else None,
     restore_trust=bool(args.restore_trust_cache),
     restore_trust_sha256=hashlib.sha256(restore).hexdigest() if args.restore_trust_cache else None,
     restore_source_sha256=hashlib.sha256(restore_source.read_bytes()).hexdigest() if args.restore_trust_cache else None,
