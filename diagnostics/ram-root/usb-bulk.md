@@ -1262,3 +1262,20 @@ Booting FAILED (usb_read failed with status e00002ed)，退出 1。
 用户明确要求重新启动后，重新检查无活动传输、fcde91e 已处于 fastboot，
 镜像和八份报告未变，使用独立 attempt-02 开始一次新的临时启动。
 未在接收器状态不明或数据传输期间自动重复 fastboot boot。
+
+## v30 attempt-02：双对象 END RAM 校验通过（2026-10-24）
+
+重新核对 fcde91e、无活动传输以及未变的镜像/八份交付报告绑定后，
+运行器 product=fuxi、unlocked=yes 门通过；本轮一次临时 fastboot boot 成功。
+镜像 SHA256 3b3a181c5ad47087e4e08a5fe63eadfdce5c224ff2b02715a999fe5a10316c1b。
+OS 6,077,580,800 字节和 SystemOS 3,303,014,400 字节的 END 实际 RAM
+SHA256 均匹配，561.043 秒，运行器退出 0。未写分区。
+
+原始 preflight.json、boot.log、boot-record.json、full-transfer.json 和
+host-observation.json 保存在 out/usb-system-mount-v30/attempt-02；失败的
+attempt-01 独立保留。已提示等待接收器正常退出，再手选
+fuxi RAM diagnostic: system-mount 并拍完整最终屏幕。
+
+尚待 XNU/witness 照片，不能确认已越过 invalid fsindex、挂载通过或
+RAM_SYSTEM PASS。normal_controller_stop_verified 保持 false；
+配置 kernel_handoff=true 不替代 XNU 屏幕证据。后续照片须回填 REVIEW.md。
