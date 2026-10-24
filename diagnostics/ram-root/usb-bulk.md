@@ -1589,3 +1589,26 @@ SystemOS 3303014400 字节均完成 END 实际 RAM SHA256 verified，总用时
 
 等待接收器停止标记、用户手选 system-mount 后的最终屏幕。当前不能宣称
 RAM_SYSTEM_MAIN PASS，normal_controller_stop_verified 仍 false。
+
+
+### v34 attempt-01 最终照片：system-init 生效，启动约束拒绝（2026-10-24）
+
+用户 IMG_6980.HEIC 已归档 attempt-01，含 PNG、转写、photo-observation.json
+和 launch-constraint-audit.json/相关源码片段。屏幕为 unexpected SIGKILL of
+launchd (CS_KILLED)，namespace 3 code 0x4，Launch Constraint Violation，
+error info c[1]p[1]m[1]e[2]，Constraint not matched，launch type 0，
+failure proc [vc: 1]: /mnt1/sbin/launchd。不是 RAM_SYSTEM_MAIN PASS。
+
+直接证据：这次 exec 的目标路径确实为 /mnt1/sbin/launchd，旧 init 覆盖未编入
+导致 md0 fallback 的问题已修复。不能据此宣称 exec 完成、argv 校验通过或
+PID1 已进入 EL0。源码顺序：process_signature 中启动约束钩子拒绝后设置
+CS_KILLED、向 initproc 发送 SIGKILL，kern_sig.c 随即 panic；此处在
+fuxi_ram_user_exec_ready/argv 校验/EL0 放行之前。先前即时口述“越过 argv
+拒绝点”不够准确，现以本条顺序说明为准。
+
+14 项主机检查仍全为退出 0，镜像/检查脚本/探针源码绑定复核一致（67f10f04…）。
+新阻塞是 exec 安全策略的启动约束，具体失败条件尚未定位；不能仅凭错误
+子字段断定信任缓存缺失、launchd 损坏或单纯路径问题。后续应审计原始约束
+与运行时路径/卷身份/启动上下文的匹配关系，不跳过约束来宣称修复。
+本轮未改运行时代码、未构建或启动新候选。根仍为 md0；没有停机三标记照片，
+normal_controller_stop_verified 仍 false。panic 后继续等待不会推进。
