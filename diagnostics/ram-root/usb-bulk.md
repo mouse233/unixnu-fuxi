@@ -1889,3 +1889,19 @@ prelink 8384468415115d2e…；skew 0x7c000，KMEM下界662548480。
 USER PASS（首次越过v34以来Launch Constraint Violation，exec完成、
 EL0、SVC截停）；仍拒绝→保留约束原文按新拒绝点定位。不以改判定、
 信任或标志宣称修复。
+
+### v38 attempt-01 临时启动与传输发起（2026-10-25）
+
+用户回复"已进入"。核对互斥无活动传输、fastboot显示fcde91e、镜像
+SHA256重新核验匹配后发起attempt-01。Sending与Booting均OKAY
+（boot_returncode=0），双对象传输开始；RAM SHA256校验与实机exec
+结果待回填。
+
+### v38 attempt-01 双对象传输校验通过（2026-10-25）
+
+573.6秒完成双对象传输：OS 6,077,580,800字节、SystemOS 3,303,014,400
+字节，实际RAM回读SHA256均匹配，无分区写入。full_os_object_transfer_
+verified=true；normal_controller_stop_verified仍false。待实机：停机
+三标记照片后手选 `fuxi RAM diagnostic: system-mount`，最终屏幕完整
+归档——RAM_NATIVE_ROOT_USER PASS（含switch auth/flags）或约束拒绝
+原文，两者均为决定性证据。
