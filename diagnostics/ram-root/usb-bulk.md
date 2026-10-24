@@ -1777,3 +1777,22 @@ full_os_object_transfer_verified=true；normal_controller_stop_verified
 待实机：停机三标记照片后手选 `fuxi RAM diagnostic: system-mount`，
 照片须完整包含RAM_ROOT_PREFLIGHT的auth返回、flags前后值、目录errno
 与unchanged字段；auth=0不等于系统根建立，结果待照片回填。
+
+### v36 attempt-02 最终照片：SystemOS 原生根认证成功（2026-10-24）
+
+用户IMG_6986原件/PNG/转写/photo-observation.json及PHOTO-REPORT.md
+归档到attempt-02。探针自证前置全过后输出：root=md0 unchanged=1
+userland=0；OS（/mnt1）auth=80 EAUTH，SystemOS（/mnt2）auth=0成功；
+两卷flags前后均0x14909001未变；/mnt1有dev与private/var目录，
+/mnt2卷根四项目录全ENOENT。无切根、无用户态，panic为预期停止。
+
+首次实机证明授权卷身份可在次级只读挂载上通过原生
+FSIOC_KERNEL_ROOTAUTH建立。边界：auth=0不等于vfs_switch_root前置
+满足、launchd自/mnt2 exec通过AMFI类别2或完整启动；rootauth成功与
+授权分支的关联仍是待验证假设；真实切根到/mnt2将缺dev/private/var
+等目录，/mnt1有目录但认证失败。照片无停机三标记，
+normal_controller_stop_verified仍false。
+
+下一候选两个具体问题：launchd从/mnt2 exec是否满足授权分支；/mnt2
+切根目录前置如何补足。仍不以改ioctl返回、补MNT_ROOTFS位或改信任
+类别当修复。v36观察目标完成。
