@@ -1036,3 +1036,15 @@ prelink `7c8bfa41…ad8a0`，skew 0x7c000。四项必需主机检查、payload/A
 
 详细步骤和限制见候选 REVIEW.md 及 usb-system-mount-v26.md。
 当前等待 fastboot，尚未实机，不能宣称 APFS 挂载通过。
+
+## v26 attempt-01：双对象 END RAM 校验通过（2026-10-24）
+
+镜像 `791840bcbcf95b77d85592e00bd9b148ed7716470306766ed4576f5c06aa9838`。
+确认无进行中脚本、fastboot 序列号 fcde91e、镜像与四份验证报告绑定后，
+运行器完成 product/unlocked 检查和一次临时启动。OS 6,077,580,800 字节、
+SystemOS 3,303,014,400 字节的 END 实际 RAM SHA256 均通过，551.584 秒。
+报告位于 out/usb-system-mount-v26/attempt-01/full-transfer.json、host-observation.json。
+未写分区，normal_controller_stop_verified 仍为 false；USB 消失不替代停机屏幕证据。
+
+已提示用户手动选择 fuxi RAM diagnostic: system-mount。尚待 DarwinBoot/XNU
+最终屏幕照片，不能宣称 /mnt1、/mnt2 挂载通过或 RAM_SYSTEM PASS。

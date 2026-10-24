@@ -74,3 +74,16 @@ DYLD_LIBRARY_PATH=/opt/homebrew/lib python3 scripts/test-usb-ram-full.py \
 观察 DarwinBoot 与 XNU 最终哈希、/mnt1 与 /mnt2 只读 APFS 挂载，最终应停在
 panic `RAM_SYSTEM PASS`。控制器 HALTED、路由恢复、QUIESCE 与最终 XNU 结果均
 以照片为准。当前 v26 尚未实机，不能宣称 APFS 挂载或普通系统启动成功。
+
+
+## attempt-01：双对象 RAM 校验通过，待 XNU 照片（2026-10-24）
+
+用户确认进入 fastboot 后，已核对 fcde91e、无进行中任务与候选/验证报告
+SHA256 绑定。运行器 product/unlocked 门通过，一次 fastboot boot 返回 0。
+OS 6,077,580,800 字节和 SystemOS 3,303,014,400 字节的 END 实际 RAM
+SHA256 均通过，551.584 秒。未写分区。报告位于 attempt-01/full-transfer.json
+与 host-observation.json。主机观察到接收器不在总线上，不替代停机三标记。
+
+已提示用户手动选择 fuxi RAM diagnostic: system-mount，并等待最终屏幕照片。
+normal_controller_stop_verified 保持 false；尚不能确认 v26 越过挂载错误、
+/mnt1 与 /mnt2 挂载通过或 RAM_SYSTEM PASS。后续照片结论必须补入本处及规范日志。
