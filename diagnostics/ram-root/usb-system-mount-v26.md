@@ -87,3 +87,34 @@ SHA256 均通过，551.584 秒。未写分区。报告位于 attempt-01/full-tra
 已提示用户手动选择 fuxi RAM diagnostic: system-mount，并等待最终屏幕照片。
 normal_controller_stop_verified 保持 false；尚不能确认 v26 越过挂载错误、
 /mnt1 与 /mnt2 挂载通过或 RAM_SYSTEM PASS。后续照片结论必须补入本处及规范日志。
+
+
+## attempt-01 最终照片：首次挂载返回 EBUSY（2026-10-24）
+
+IMG_6957.HEIC、PNG 副本及 photo-observation.json 已归档到 attempt-01。
+照片明确显示：
+
+```
+RAM_SYSTEM APFS mount failed id=1 errno=16
+@RamSystemProbe.c:65
+```
+
+XNU 运行到同一挂载探针；错误从 v25 的 EINVAL(22) 变为 EBUSY(16)。
+/mnt1 未挂载通过，/mnt2 尚未尝试，未达到 RAM_SYSTEM PASS。
+两对象在 XNU 中的哈希和只读设备注册按源码顺序已先通过；这是路径推论，
+照片未直接展示相应日志。
+
+不能把该 errno 单独归因于 APFS。mount_common/prepare_coveredvp 中的
+挂载点竞争、vfs_setmounting 的设备已挂载标记、vcount 的打开计数、
+文件系统回调和挂载提交阶段均可能返回 EBUSY。当前没有分阶段证据，
+不得通过跳过占用检查或强制挂载来宣称修复。
+
+主机只读检查 NXSB，三个输入容器 UUID 各不相同：
+RestoreRamDisk=d44a6496-3ab5-49ee-a309-b894ab575503；
+OS=50f8a67f-afc1-4a1b-bcbb-82162674c67f；
+SystemOS=e886f82c-ee56-4b52-af5f-e70bf46320c4。
+因此排除这三份输入的容器 UUID 直接重复，尚未确认其他原因。
+
+下一步：为 RAM 专用挂载路径记录失败阶段、设备号/打开计数和
+VFS_MOUNT 的返回值，以区分 VFS 前置检查与 APFS 内部拒绝。
+本轮只归档和诊断，没有修改 v26、没有构建或启动下一候选。

@@ -1048,3 +1048,19 @@ SystemOS 3,303,014,400 字节的 END 实际 RAM SHA256 均通过，551.584 秒�
 
 已提示用户手动选择 fuxi RAM diagnostic: system-mount。尚待 DarwinBoot/XNU
 最终屏幕照片，不能宣称 /mnt1、/mnt2 挂载通过或 RAM_SYSTEM PASS。
+
+## v26 实机照片：首次挂载 EBUSY，来源待定位（2026-10-24）
+
+IMG_6957.HEIC 归档于 out/usb-system-mount-v26/attempt-01，显示
+`RAM_SYSTEM APFS mount failed id=1 errno=16 @RamSystemProbe.c:65`。
+错误从 v25 的 EINVAL(22) 变成 EBUSY(16)，但 /mnt1 仍失败，/mnt2 未尝试，
+未达到 RAM_SYSTEM PASS。不能仅凭该 errno 宣称 APFS 已被调用或锁定某个原因。
+
+已查源码：挂载点竞争、设备 mounted 标记、打开计数检查、文件系统回调及
+挂载提交均有可能返回 EBUSY。当前没有分阶段证据，不跳过占用检查。
+主机只读检查三输入的 NXSB，RestoreRamDisk/OS/SystemOS 的容器 UUID
+互不相同，排除输入容器 UUID 直接重复；数值与分析见该候选 REVIEW.md
+及 attempt-01/photo-observation.json。
+
+下一步在 RAM 挂载专用路径记录失败阶段、设备号/打开计数、VFS_MOUNT
+返回值，区分 VFS 前置检查和 APFS 拒绝。本轮未修改 v26 或制作下一候选。
