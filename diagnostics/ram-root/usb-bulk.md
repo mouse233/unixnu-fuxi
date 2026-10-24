@@ -1151,3 +1151,22 @@ path=/mnt1、dev=3000001、opens=0、spec=4、apfs=2、covered=84800，
 不存在，因为前置 VFS namei/占用检查已经通过。下一步检查 APFS 的设备名处理、
 容器/卷查找与 IOMedia 发布，并补充回调内部日志和文件打开路径证据，避免猜测。
 控制器停机三标记未出现在照片中，normal_controller_stop_verified 保持 false。
+
+## v29：APFS 日志和实际打开路径诊断候选（2026-10-24）
+
+v28 照片确认 APFS 回调 ENOENT，尚未确认具体缺失对象。只读检查显示普通卷
+路径还会处理设备名、再次 vnode_open 并查找容器/卷/IOMedia，不能直接猜测修补。
+新增 zz-ram-system-mount-witness.patch（XNU）：在 RAM 专用 VFS_MOUNT 前后用
+原 bsd_log 锁保存最多 640 字节 legacy 日志尾部，原子 owner 限定挂载线程的
+vnode_open 结果；失败屏幕增加 open 路径/错误/次数及 LOG tail。
+不改原打印/日志路径、vnode_open 语义、APFS、只读条件或挂载错误清理。
+
+候选 out/usb-system-mount-v29/Mu-fuxi-usb-ram.img，203,190,272 字节，SHA256
+`f9068392e3a1539f1506a6b777dd64c3e9bef6f8f60ee81abd403060445257ef`，
+prelink `ca42c99f…fa7b2`。四项必需检查、payload、KMEM、SPI、trace、参数与启动门均通过。
+新 witness 主机检查在 ASan/UBSan 下覆盖范围/线程隔离、回绕、截断、控制字符、
+缓冲区变化及无效情况，并核对实际编译来源、交付诊断字符串和原打开行为保持。
+详细步骤与诊断限制见 usb-system-mount-v29.md 和候选 REVIEW.md。
+
+当前 fastboot 列表为空，无运行中传输；等待用户重启进入 fastboot 后执行 attempt-01。
+v29 尚未实机，未宣称解决 ENOENT、两卷挂载通过或 RAM_SYSTEM PASS。

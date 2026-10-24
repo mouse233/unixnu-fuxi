@@ -38,6 +38,25 @@ def ram_types(source):
     return source[source.index(marker):source.index('int fuxi_ram_mount_ro(const char *, const char *);')] if marker in source else ''
 
 
+def check_mount_patch(root, base, patch):
+    source = (root / 'bsd/vfs/vfs_syscalls.c').read_text()
+    stack = [('zz-ram-system-mount-spi.patch', 'KERNEL_MOUNT_RAM_SYSTEM) == 0'),
+             ('zz-ram-system-mount-trace.patch', 'fuxi_ram_mount_reset'),
+             ('zz-ram-system-mount-volume-args.patch', 'struct fuxi_ram_mount_request'),
+             ('zz-ram-system-mount-witness.patch', '/* RAM mount witness:')]
+    index = [name for name, _ in stack].index(patch.name)
+    with tempfile.TemporaryDirectory(prefix='ram-mount-patches-') as directory:
+        scratch = Path(directory)
+        for relative in ['bsd/vfs/vfs_syscalls.c', 'bsd/vfs/vfs_subr.c']:
+            target = scratch / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes((root / relative).read_bytes())
+        for name, marker in reversed(stack[index + 1:]):
+            if marker in source:
+                subprocess.run(['git', '-C', str(scratch), 'apply', '--reverse', str(base / 'patches/xnu' / name)], check=True)
+        subprocess.run(['git', '-C', str(scratch), 'apply', '--reverse', '--check', str(patch)], check=True)
+
+
 def exercise(source, constants, fixed):
     wrapper, guard, gate, segment = snippets(source)
     harness = r'''
@@ -51,6 +70,7 @@ def exercise(source, constants, fixed):
 #define fuxi_ram_mount_reset() ((void)0)
 #define fuxi_ram_mount_mark(flags, stage) ((void)0)
 #define panic(...) abort()
+#define fuxi_ram_mount_witness() ""
 #define current_task() ((void *)1)
 #define kernel_task ((void *)1)
 static struct {
@@ -151,18 +171,7 @@ def main():
     patch = base / 'patches/xnu/zz-ram-system-mount-spi.patch'
     # A later trace patch changes the wrapper's context. Remove it only in a
     # disposable copy, then verify the SPI patch; never edit a built candidate.
-    with tempfile.TemporaryDirectory(prefix='ram-mount-patches-') as directory:
-        scratch = Path(directory)
-        target = scratch / 'bsd/vfs/vfs_syscalls.c'
-        target.parent.mkdir(parents=True)
-        target.write_text(source)
-        volume = base / 'patches/xnu/zz-ram-system-mount-volume-args.patch'
-        if 'struct fuxi_ram_mount_request' in source:
-            subprocess.run(['git', '-C', str(scratch), 'apply', '--reverse', str(volume)], check=True)
-        trace = base / 'patches/xnu/zz-ram-system-mount-trace.patch'
-        if 'fuxi_ram_mount_reset' in source:
-            subprocess.run(['git', '-C', str(scratch), 'apply', '--reverse', str(trace)], check=True)
-        subprocess.run(['git', '-C', str(scratch), 'apply', '--reverse', '--check', str(patch)], check=True)
+    check_mount_patch(root, base, patch)
     baseline = a.baseline.resolve().read_text()
     results = [exercise(baseline, constants, False), exercise(source, constants, True)]
     record_path = out / 'work/tree/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/bsd/DEVELOPMENT/vfs_syscalls.o.json'

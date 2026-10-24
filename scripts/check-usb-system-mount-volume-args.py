@@ -53,6 +53,7 @@ def exercise(source, copy_source, constants, baseline_source):
 #define USER_ACCESS_READ 0
 #define KASAN 0
 #define panic(...) abort()
+#define fuxi_ram_mount_witness() ""
 #define bcopy(s,d,n) memcpy(d,s,n)
 #define fuxi_ram_mount_reset() ((void)0)
 typedef size_t vm_size_t;
@@ -166,13 +167,14 @@ def audit_apfs(out, base):
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--output',required=True,type=Path);p.add_argument('--base',required=True,type=Path)
+    p.add_argument('--baseline',type=Path,help='v27 candidate output with NULL APFS args')
     a=p.parse_args();out,base=a.output.resolve(),a.base.resolve();root=out/'work/tree/.cache/xnu-work'
     source=(root/'bsd/vfs/vfs_syscalls.c').read_text();copy_source=(root/'osfmk/arm64/copyio.c').read_text()
     public=(root/'bsd/sys/mount.h').read_text();internal=(root/'bsd/sys/mount_internal.h').read_text()
     constants='\n'.join(re.findall(r'^#define (?:MNT_RDONLY|MNT_DONTBROWSE)\s+[^\n]+',public,re.M)+re.findall(r'^#define KERNEL_MOUNT_RAM_SYSTEM\s+[^\n]+',internal,re.M))
     patch=base/'patches/xnu/zz-ram-system-mount-volume-args.patch'
-    subprocess.run(['git','-C',str(root),'apply','--reverse','--check',str(patch)],check=True)
-    parent=Path(json.loads((out/'parent.json').read_text())['path'])
+    spi['check_mount_patch'](root,base,patch)
+    parent=a.baseline.resolve() if a.baseline else out.parent/'usb-system-mount-v27'
     baseline_source=(parent/'work/tree/.cache/xnu-work/bsd/vfs/vfs_syscalls.c').read_text()
     results=exercise(source,copy_source,constants,baseline_source);audit=audit_apfs(out,base)
     payload=json.loads((out/'payload-verification.json').read_text())

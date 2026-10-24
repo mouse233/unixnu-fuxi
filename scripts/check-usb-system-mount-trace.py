@@ -43,6 +43,9 @@ def exercise(source, constants):
 #define NODEV (-1)
 #define current_task() ((void *)1)
 #define kernel_task ((void *)1)
+#define fuxi_ram_mount_witness() ""
+#define fuxi_ram_mount_witness_begin(flags) ((void)0)
+#define fuxi_ram_mount_witness_end(flags) ((void)0)
 #define MNT_WAIT 1
 #define BUF_WRITE_DATA 1
 #define VDIR 1
@@ -174,15 +177,7 @@ def main():
         new = source[source.index(begin):source.index(end)]
         assert old == new, 'mount cleanup changed'
     patch = base / 'patches/xnu/zz-ram-system-mount-trace.patch'
-    with tempfile.TemporaryDirectory(prefix='ram-trace-patch-') as directory:
-        scratch = Path(directory)
-        target = scratch / 'bsd/vfs/vfs_syscalls.c'
-        target.parent.mkdir(parents=True)
-        target.write_text(source)
-        if 'struct fuxi_ram_mount_request' in source:
-            volume = base / 'patches/xnu/zz-ram-system-mount-volume-args.patch'
-            subprocess.run(['git', '-C', str(scratch), 'apply', '--reverse', str(volume)], check=True)
-        subprocess.run(['git', '-C', str(scratch), 'apply', '--reverse', '--check', str(patch)], check=True)
+    spi['check_mount_patch'](root, base, patch)
     constants = []
     for header, pattern in [('bsd/sys/mount_internal.h', r'KERNEL_MOUNT_\w+'),
                             ('bsd/sys/mount.h', r'MNT_(?:RDONLY|DONTBROWSE|UPDATE|ROOTFS)'),
@@ -196,7 +191,8 @@ def main():
     kernel = (out / 'work/kernel/kernel.macho').read_bytes()
     assert hashlib.sha256(kernel).hexdigest() == payload['kernel_sha256']
     # XNU's panic macro appends the source location to the format string.
-    for text in ['RAM_SYSTEM mount failed errno=%d\nat=%s path=%s\ndev=%x opens=%d spec=%x\napfs=%d covered=%x @%s:%d',
+    suffix = '\n%s' if '/* RAM mount witness:' in source else ''
+    for text in ['RAM_SYSTEM mount failed errno=%d\nat=%s path=%s\ndev=%x opens=%d spec=%x\napfs=%d covered=%x' + suffix + ' @%s:%d',
                  'covered-busy', 'device-setmounting', 'device-vcount', 'apfs-mount', 'mount-list-add']:
         assert text.encode() + b'\0' in kernel, 'trace missing from delivered prelink: ' + text
     report = dict(passed=results, cleanup_identical_to_parent=True,
