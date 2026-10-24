@@ -1612,3 +1612,31 @@ fuxi_ram_user_exec_ready/argv 校验/EL0 放行之前。先前即时口述“越
 与运行时路径/卷身份/启动上下文的匹配关系，不跳过约束来宣称修复。
 本轮未改运行时代码、未构建或启动新候选。根仍为 md0；没有停机三标记照片，
 normal_controller_stop_verified 仍 false。panic 后继续等待不会推进。
+
+
+### v34 启动约束深入审计：原始类别 2 要求根/授权 APFS 卷（2026-10-24）
+
+只读审计固定哈希原始 AMFI 和 launchd，新增可复现脚本
+scripts/analyze-ram-launch-constraints.py；详细报告/DER/机器可读结果在
+v34 attempt-01/launch-constraint-detail。原始 launchd 签名没有槽8/9/10
+的嵌入约束；其 CDHash 1d52c69747dffc4b1937d241bdbc9cee3b22df18 在原始
+StaticTrustCache v2 第279项（零基）的 constraintCategory=2。原始 Restore
+v1 第32项也匹配但没有类别字段，v34 未加载它，本轮没有修改缓存或优先级。
+
+实际执行原 AMFI 类别2选择函数，提取并独立解码75字节 DER：
+on-authorized-authapfs-volume=true OR on-system-volume=true。
+没有路径/identifier/launch-type 条件。固定二进制数据流表明照片 c1/p1/m1/e2
+是类别型 self 检查不匹配，e2 在该路径为类别2，不是 errno/ENOENT。
+
+原始 on-system-volume 叶实际读取 vnode_mount→vfs_flags 的 bit14，即
+MNT_ROOTFS=0x4000；仅只读不够。原始授权 APFS 叶检查 VNOP_IOCTL 请求
+0x80084118 是否返回0。Unicorn 直接执行未修改的两个 AMFI 叶，9项接口
+模型用例通过；不等于完整回调模拟或手机 ioctl 实测。AMFI __TEXT_EXEC
+SHA256 a1088aaa…41db6，镜像仍67f10f04…，输入/策略未修改。
+
+v34 /mnt1 是次级只读挂载、根仍为md0，故非系统根是源码/角色推论；结合
+实机类别2 OR失败可推论授权 APFS 条件也未满足，但具体手机flags/ioctl返回
+仍待只读观测。这解释同字节launchd在md0根可过、换成/mnt1来源却拒绝，
+不能推广成其它 AMFI 检查已通过。下一步可先观察真实卷身份/授权ioctl，
+再设计真正系统根挂载；改argv、chroot或路径名不能解决该根标志要求。
+本轮未构建/启动新候选，未修改AMFI、信任缓存或挂载flag来绕过拒绝。
