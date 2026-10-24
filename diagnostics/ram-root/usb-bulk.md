@@ -1846,3 +1846,22 @@ verified=true；normal_controller_stop_verified仍false。待实机：停机
 三标记照片后手选 `fuxi RAM diagnostic: system-mount`，照片须完整
 包含RAM_ROOT_SWITCH的pivot/rootfs/outgoing/dev/launchd/auth/userland
 字段；pivot失败时errno照实归档。
+
+### v37 attempt-01 最终照片：原生切根成功（2026-10-25）
+
+用户IMG_6987原件/PNG/转写/photo-observation.json及PHOTO-REPORT.md
+归档到attempt-01。最终panic结构完整可读：pivot=OK old=md0
+newroot=apfs；rootfs=1且旧根rootfs cleared；outgoing=/Developer；
+dev=devfs；launchd=/sbin/launchd SHA256=OK；auth=80；userland=0；
+@RamSystemRootSwitch调用点。flags十六进制与unchanged数字位照片有
+噪声已注明，'d'位恰对应0x14909001|0x4000=0x1490d001。
+
+该文本仅在全链校验（换根身份、rootfs置位/清除、安置目录、devfs、
+新根launchd字节一致）通过后可达，结论不依赖噪声位。**首次在本
+启动路径建立原生系统根**：OS卷成为/并持有MNT_ROOTFS，md0迁至
+/Developer，devfs保留。换根后rootauth仍EAUTH80（未密封，仅记录）。
+停机三标记未拍，normal_controller_stop_verified仍false。
+
+v38方向已定：同架构加回有界system user entry（init=新根
+/sbin/launchd，SVC前截停），直接验证AMFI类别2根卷分支是否放行
+launchd exec；不以改判定/信任/标志宣称修复。
