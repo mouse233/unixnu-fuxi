@@ -1303,3 +1303,48 @@ iokit-eligibility-audit.{json,txt} 和 photo-observation.json/photo-transcript.t
 下一步需要真正的只读 RAM IOKit 存储发布与受验证的卷身份；不跳过 APFS
 资格检查。现有 NativeRamBlock 是可写 Data/持久化路径，且 RAM_ROOT_PROBE
 明确禁止同时启用，不能直接套用其开关；本轮未构建或启动 v31。
+
+
+## v31：只读 RAM IOKit 存储候选（2026-10-24，实机待回填）
+
+v30 IMG_6968 已证明 s1 选择生效；新阻塞为原 APFS 缺少 IOMedia/BSD 身份，
+资格检查返回 EPERM。v31 在 XNU 新增独立 NativeRamSystemBlock：实际 RAM
+对象 SHA256 通过后借用只读 APFS slice，原 IOBlockStorageDriver/APFS 发布
+真实卷节点。SPI 保留固定 md1→/mnt1、md2→/mnt2 输入，内部解析唯一、只读、
+有效 BSD/UUID 且 provider 链属于本次 RAM 设备的 AppleAPFSVolume diskNs1。
+最多 30 秒查询，歧义失败，附读取/发布统计；没有修改原 APFS 资格检查。
+物理 UFS、可写 NativeRamBlock、持久化和用户态均保持关闭。
+
+独立 out/usb-system-mount-v31 APFS clone 构建完成，四项必需主机检查及
+payload/KMEM/SPI/trace/args/witness/只读 IOKit/启动门检查均退出 0。
+新驱动 190 个真实 ABI 槽位、23 个覆盖通过显式静态 bring-up 审计；同一 C++
+源码在 IOKit 依赖替身/ASan/UBSan 下通过 >4GiB 末扇区、边界、写入拒绝、
+完成回调、卷归属、坏身份、歧义及超时测试；17 个 mock fastboot 门禁通过。
+主机验证不能证明实机 metaclass/匹配/I/O/完整 APFS 挂载。
+
+镜像 203190272 字节，SHA256
+9a623fcd52e1d2e0bf26745a8598bc2f17b95a9d339e49501cc40f7b7baa716e；
+prelink 8ea05e09ff61e89efd11f3353fb61b486f8124e12fd20ff2115649c7978d3b8c。
+FUXIPAYL、kernel base 0xfffffff00427c000、重算 skew 0x7c000，KMEM 下界
+662548480 均通过。UEFI/DarwinBoot 功能未改，组合镜像已重构建打包。
+
+无活动传输，发现 fcde91e 处于 fastboot，准备按 REVIEW.md 一次临时启动
+attempt-01 并传输 OS/SystemOS。暂未宣称实机挂载或 RAM_SYSTEM PASS。
+结果及照片需同时追加本日志和回填候选 REVIEW.md。
+
+
+### v31 attempt-01：Booting USB 读错误，尚无挂载证据
+
+发送镜像 OKAY（4.202 秒），Booting usb_read failed e00002ed，退出 1；
+serial/product/unlocked 门禁已通过。运行器停于 temporary-boot，两个对象
+acknowledged_bytes 均为 0，没有协议数据或分区写入。原始记录已归档
+attempt-01。之后只读 IOUSB 枚举未发现接收器，fastboot 列表也为空；
+设备实际屏幕待用户确认，不据 USB 消失判定 HALTED，也未自动重启/重传。
+v31 驱动实机匹配、节点发布、只读挂载与 RAM_SYSTEM PASS 均仍未验证。
+
+
+### v31 attempt-02：用户明确要求再次临时启动
+
+用户确认手机显示 fastboot 并说“你再进一遍”。重新确认没有传输任务，
+fcde91e 在主机 fastboot 列表，使用同一镜像及九份绑定报告开始独立
+attempt-02。命令见候选 REVIEW.md；上机/传输结果待回填。

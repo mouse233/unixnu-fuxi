@@ -44,7 +44,8 @@ def check_mount_patch(root, base, patch):
              ('zz-ram-system-mount-trace.patch', 'fuxi_ram_mount_reset'),
              ('zz-ram-system-mount-volume-args.patch', 'struct fuxi_ram_mount_request'),
              ('zz-ram-system-mount-witness.patch', '/* RAM mount witness:'),
-             ('zz-ram-system-volume-nodes.patch', 'const char *volume_device')]
+             ('zz-ram-system-volume-nodes.patch', 'const char *volume_device'),
+             ('zzz-ram-system-iokit.patch', 'fuxi_ram_system_volume')]
     index = [name for name, _ in stack].index(patch.name)
     with tempfile.TemporaryDirectory(prefix='ram-mount-patches-') as directory:
         scratch = Path(directory)
@@ -53,6 +54,7 @@ def check_mount_patch(root, base, patch):
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes((root / relative).read_bytes())
         for name, marker in reversed(stack[index + 1:]):
+            source = (scratch / 'bsd/vfs/vfs_syscalls.c').read_text()
             if marker in source:
                 subprocess.run(['git', '-C', str(scratch), 'apply', '--reverse', str(base / 'patches/xnu' / name)], check=True)
         subprocess.run(['git', '-C', str(scratch), 'apply', '--reverse', '--check', str(patch)], check=True)
@@ -61,7 +63,10 @@ def check_mount_patch(root, base, patch):
 def exercise(source, constants, fixed):
     wrapper, guard, gate, segment = snippets(source)
     suffix = 's1' if 'const char *volume_device' in source else ''
+    iokit = 'fuxi_ram_system_volume' in source
     constants += '\n#define RAM_DEVICE1 "/dev/md1' + suffix + '"\n#define RAM_DEVICE2 "/dev/md2' + suffix + '"\n'
+    if iokit:
+        constants += '\n#undef RAM_DEVICE1\n#undef RAM_DEVICE2\n#define RAM_DEVICE1 \"/dev/disk11s1\"\n#define RAM_DEVICE2 \"/dev/disk12s1\"\n'
     harness = r'''
 #include <assert.h>
 #include <stdbool.h>
@@ -89,9 +94,17 @@ typedef bool boolean_t;
 enum uio_seg { UIO_USERSPACE, UIO_SYSSPACE };
 struct vfstable { unsigned vfc_vfsflags; };
 static int calls;
-static const char *seen_device, *seen_path;
+static char seen_device[64];
+static const char *seen_path;
 static vfs_context_t vfs_context_kernel(void) { return (void *)1; }
 ''' + constants + '\n'
+    if iokit:
+        harness += '''
+int __attribute__((weak)) fuxi_ram_system_volume(unsigned id,char *path,size_t size) {
+    snprintf(path,size,"/dev/disk%us1",id+10);return 0;
+}
+const char * __attribute__((weak)) fuxi_ram_system_status(unsigned id) { (void)id;return "host mock"; }
+'''
     harness += '''
 static int admit(const char *fstypename, int flags, uint32_t internal_flags, unsigned local) {
     boolean_t kernelmount = !!(internal_flags & KERNEL_MOUNT_KMOUNT);
@@ -106,7 +119,7 @@ static int segment_for(uint32_t internal_flags) {
 }
 static int kernel_mount(const char *type, vnode_t pvp, vnode_t vp, const char *path,
     void *data, size_t datalen, int flags, uint32_t internal_flags, vfs_context_t ctx) {
-    calls++; seen_device = *(const char **)data; seen_path = path;
+    calls++; snprintf(seen_device,sizeof(seen_device),"%s",*(const char **)data); seen_path = path;
     assert(!pvp && !vp && datalen >= sizeof(char *) && ctx == vfs_context_kernel());
     assert(!strcmp(type,"apfs") && flags == (MNT_RDONLY | MNT_DONTBROWSE));
     assert(internal_flags == KERNEL_MOUNT_RAM_SYSTEM);

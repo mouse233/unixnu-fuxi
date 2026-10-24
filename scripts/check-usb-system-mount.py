@@ -172,7 +172,8 @@ receiver = (out / 'FuxiUsbRamDxe.efi').read_bytes()
 require(b'USBRAM SYSTEM: immutable objects published' in receiver,
         'delivered receiver lacks the handoff publish path')
 
-volume_nodes = b'/dev/md1s1\0' in fat('Payloads/kernel.macho') and b'/dev/md2s1\0' in fat('Payloads/kernel.macho')
+iokit_storage = b'NativeRamSystemBlock\0' in fat('Payloads/kernel.macho')
+volume_nodes = not iokit_storage and b'/dev/md1s1\0' in fat('Payloads/kernel.macho') and b'/dev/md2s1\0' in fat('Payloads/kernel.macho')
 
 report = dict(boot_sha256=candidate['sha256'], boot_bytes=candidate['bytes'],
               ramdisk_offset=ramdisk_offset, payload_sha256=sha(ramdisk),
@@ -182,6 +183,6 @@ report = dict(boot_sha256=candidate['sha256'], boot_bytes=candidate['bytes'],
               data_ramdisk_sha256=payload_report['data_ramdisk_sha256'],
               kernel_args=payload_report['kernel_args'], loader_sources=len(loader_sources),
               window_bytes='0x300000000', window_skew=hex(skew), kernel_base=hex(kernel_base),
-              ram_volume_nodes=volume_nodes, hardware_result='pending')
+              ram_volume_nodes=volume_nodes, ram_iokit_storage=iokit_storage, hardware_result='pending')
 (out / 'payload-verification.json').write_text(json.dumps(report, indent=2) + '\n')
 print(json.dumps(report, indent=2))

@@ -28,6 +28,8 @@ def exercise(source, constants):
     commit_start = source.index('fuxi_ram_mount_mark(internal_flags, "mount-list-add");')
     commit_if = source.index('if (mount_list_add(mp) != 0) {', commit_start)
     commit = source[commit_start:commit_if] + braced(source, commit_if)
+    if 'fuxi_ram_system_volume' in source:
+        constants += '\n#include <stdio.h>\n#include <stddef.h>\nint __attribute__((weak)) fuxi_ram_system_volume(unsigned id,char *path,size_t size) { snprintf(path,size,\"/dev/disk%us1\",id+10);return 0; }\nconst char * __attribute__((weak)) fuxi_ram_system_status(unsigned id) { (void)id;return \"host mock\"; }\n'
     harness = constants + '\n' + r'''
 #include <assert.h>
 #include <errno.h>

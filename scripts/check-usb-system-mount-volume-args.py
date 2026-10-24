@@ -22,6 +22,9 @@ braced = spi['braced']
 def exercise(source, copy_source, constants, baseline_source):
     suffix = 's1' if 'const char *volume_device' in source else ''
     constants += '\n#define RAM_DEVICE1 "/dev/md1' + suffix + '"\n#define RAM_DEVICE2 "/dev/md2' + suffix + '"\n'
+    iokit = 'fuxi_ram_system_volume' in source
+    if iokit:
+        constants += '\n#undef RAM_DEVICE1\n#undef RAM_DEVICE2\n#define RAM_DEVICE1 \"/dev/disk11s1\"\n#define RAM_DEVICE2 \"/dev/disk12s1\"\n'
     types = spi['ram_types'](source)
     wrapper = braced(source, source.index('int\nfuxi_ram_mount_ro('))
     block_start = source.index('        if (internal_flags & KERNEL_MOUNT_RAM_SYSTEM) {\n            if (strcmp(fstypename')
@@ -83,7 +86,10 @@ static void user_access_disable(int direction) { (void)direction; }
 static int _bcopyin(const char *s,char *d,vm_size_t n) { slow_copy_calls++;memcpy(d,s,n);return 0; }
 static vfs_context_t vfs_context_kernel(void) { return (void *)1; }
 static struct { const char *stage; uint32_t dev,spec,covered; int opens,apfs; } fuxi_ram_mount_diag __attribute__((unused));
-''' + copy_functions + '\n' + types + r'''
+''' + ('''
+int __attribute__((weak)) fuxi_ram_system_volume(unsigned id,char *path,size_t size) { snprintf(path,size,"/dev/disk%us1",id+10);return 0; }
+const char * __attribute__((weak)) fuxi_ram_system_status(unsigned id) { (void)id;return "host mock"; }
+''' if iokit else '') + copy_functions + '\n' + types + r'''
 static unsigned calls;
 static int kernel_mount(const char *fstypename,vnode_t p,vnode_t v,const char *path,void *data,size_t n,int flags,uint32_t internal_flags,vfs_context_t ctx) {
     assert(!p && !v && ctx==vfs_context_kernel());

@@ -42,7 +42,7 @@ def configure(parent, out):
                  'kmem-tests.json', 'mount-spi-tests.json', 'mount-trace-tests.json',
                  'mount-volume-args-tests.json',
                  'mount-witness-tests.json',
-                 'volume-nodes-tests.json', 'volume-parser.json',
+                 'volume-nodes-tests.json', 'volume-parser.json', 'iokit-storage-tests.json',
                  'state.json', 'restore-mountpoints.json'):
         (out / name).unlink(missing_ok=True)
     for name in ('board-effective.json', 'pins.json'):

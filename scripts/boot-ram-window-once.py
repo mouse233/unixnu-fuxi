@@ -50,6 +50,14 @@ def main():
                         bool(nodes.get('passed')) and
                         nodes.get('boot_sha256') == a.expected_sha256 and
                         nodes.get('kernel_sha256') == payload.get('kernel_sha256'))
+        if payload.get('ram_iokit_storage'):
+            storage_path = image.parent / 'iokit-storage-tests.json'
+            storage = json.loads(storage_path.read_text()) if storage_path.is_file() else {}
+            verified = (verified and storage.get('read_only_transport_verified') is True and
+                        storage.get('ownership_selection_verified') is True and bool(storage.get('passed')) and
+                        storage.get('virtual_methods_checked') == 190 and
+                        storage.get('boot_sha256') == a.expected_sha256 and
+                        storage.get('kernel_sha256') == payload.get('kernel_sha256'))
     else:
         verified = (report.get('receiver_only') and report.get('compressed_firmware_roundtrip') and
                     set(report.get('delivered_modules', {})) == {'FuxiUsbRamDxe', 'UsbfnDwc3Dxe'} and

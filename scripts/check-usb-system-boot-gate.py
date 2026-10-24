@@ -20,7 +20,9 @@ def main():
     script = Path(__file__).with_name('boot-ram-window-once.py')
     results = []
     names = ['valid', 'missing-nodes', 'wrong-image', 'wrong-kernel', 'unverified-links',
-             'empty-checks', 'short-kmem', 'wrong-spi', 'legacy-without-nodes']
+             'empty-checks', 'short-kmem', 'wrong-spi', 'legacy-without-nodes',
+             'iokit-valid','iokit-missing','iokit-wrong-image','iokit-wrong-kernel',
+             'iokit-writable','iokit-unowned','iokit-wrong-slots','iokit-empty-checks']
     for name in names:
         with tempfile.TemporaryDirectory(prefix='ram-boot-gate-') as tmp:
             root = Path(tmp).resolve()
@@ -45,6 +47,19 @@ def main():
             if name == 'empty-checks': reports['volume-nodes-tests']['passed'] = []
             if name == 'short-kmem': reports['kmem-tests']['remaining_va_lower_bound'] = 1
             if name == 'wrong-spi': reports['mount-spi-tests']['kernel_sha256'] = '0'*64
+            if name.startswith('iokit-'):
+                reports['payload-verification'].update(ram_volume_nodes=False,ram_iokit_storage=True)
+                storage = dict(boot_sha256=digest,kernel_sha256=kernel,passed=['actual transport C++'],
+                               read_only_transport_verified=True,ownership_selection_verified=True,
+                               virtual_methods_checked=190)
+                reports['iokit-storage-tests'] = storage
+                if name == 'iokit-missing': del reports['iokit-storage-tests']
+                if name == 'iokit-wrong-image': storage['boot_sha256']='0'*64
+                if name == 'iokit-wrong-kernel': storage['kernel_sha256']='0'*64
+                if name == 'iokit-writable': storage['read_only_transport_verified']=False
+                if name == 'iokit-unowned': storage['ownership_selection_verified']=False
+                if name == 'iokit-wrong-slots': storage['virtual_methods_checked']=189
+                if name == 'iokit-empty-checks': storage['passed']=[]
             for key, value in reports.items():
                 (root / (key+'.json')).write_text(json.dumps(value))
             commands = []
@@ -67,7 +82,7 @@ def main():
                     code=error.code
                 else:
                     raise AssertionError('gate did not exit')
-            allowed = name in ('valid','legacy-without-nodes')
+            allowed = name in ('valid','legacy-without-nodes','iokit-valid')
             assert (code == 0) == allowed, (name,code)
             assert len(commands) == (6 if allowed else 0), (name,commands)
             results.append(dict(case=name,allowed=allowed,fastboot_mock_calls=len(commands)))
@@ -75,7 +90,7 @@ def main():
     report = dict(passed=results,fastboot_is_mocked=True,gate_source_sha256=hashlib.sha256(script.read_bytes()).hexdigest(),
                   boot_sha256=hashlib.sha256((out/'Mu-fuxi-usb-ram.img').read_bytes()).hexdigest())
     (out/'boot-gate-tests.json').write_text(json.dumps(report,indent=2)+'\n')
-    print('PASS: 9 temporary-boot gate cases; no real fastboot commands')
+    print(f'PASS: {len(names)} temporary-boot gate cases; no real fastboot commands')
 
 
 if __name__ == '__main__': main()
