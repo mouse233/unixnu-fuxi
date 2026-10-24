@@ -117,6 +117,15 @@ archive, stage policy and delivered image. Its PASS screens report `root=md0`
 and `exec=/mnt1/sbin/launchd` separately. It is still a bounded main checkpoint,
 not a system-root switch or full iPadOS startup.
 
+The optional v35 launch observer records only existing `vfs_flags` and
+`VNOP_IOCTL` returns during the original AMFI callback, scoped to the current
+PID1 thread and the exact target vnode/mount. It issues no extra authorization
+ioctl. `XNU_RAM_LAUNCH_OBSERVE`, the archive option, pins and boot selector must
+all opt in; otherwise it stays disabled. The original policy error, reason and
+SIGKILL remain intact. Its appended `RAM_LC_OBS` reports missing observations
+as `unseen`. `check-ram-launch-observer.py` checks actual production C and XNU
+wrappers in both modes, including unchanged return values and call counts.
+
 Earlier, a separate UFS probe read the GPT and the first userdata block. Its
 purpose was to establish real storage reads, not to authorize replacing userdata.
 The normal board defaults remain a read-only UFS diagnostic; RAM diagnostics

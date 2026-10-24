@@ -15,6 +15,7 @@ def main():
     parser.add_argument('--ramdisk', type=Path)
     parser.add_argument('--launchd', type=Path)
     parser.add_argument('--init-defect-baseline', type=Path)
+    parser.add_argument('--observer-parent', type=Path, help='Parent without the launch observation patch')
     args = parser.parse_args()
     out = args.output.resolve()
     image = out / 'Mu-fuxi-usb-ram.img'
@@ -24,6 +25,9 @@ def main():
     main_entry = 'ram-root-probe=3' in board['payload']['kernel_args']
     if main_entry and (not args.ramdisk or not args.launchd):
         parser.error('main-entry checks require --ramdisk and --launchd')
+    observer = 'ram-launch-observe=1' in board['payload']['kernel_args']
+    if observer and not args.observer_parent:
+        parser.error('launch observation checks require --observer-parent')
     shared = ['--output', str(out), '--base', str(args.base.resolve())]
     checks = [
         ('smmu', 'check-usb-smmu-audit.py', ['--uefi', str(args.uefi.resolve()), '--report', str(out/'smmu-tests.json')]),
@@ -50,6 +54,9 @@ def main():
                 '--syscall-header', str(out/'work/tree/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/bsd/sys/syscall.h'),
                 '--system-entry', '--output', str(out)]),
         ]
+    if observer:
+        checks.append(('launch-observer', 'check-ram-launch-observer.py',
+                       shared + ['--parent', str(args.observer_parent.resolve())]))
     logs = out / 'logs'
     logs.mkdir(exist_ok=True)
     report = dict(boot_sha256=digest, complete=False, checks=[])

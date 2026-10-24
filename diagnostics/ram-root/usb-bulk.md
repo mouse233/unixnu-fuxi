@@ -1640,3 +1640,37 @@ v34 /mnt1 是次级只读挂载、根仍为md0，故非系统根是源码/角色
 不能推广成其它 AMFI 检查已通过。下一步可先观察真实卷身份/授权ioctl，
 再设计真正系统根挂载；改argv、chroot或路径名不能解决该根标志要求。
 本轮未构建/启动新候选，未修改AMFI、信任缓存或挂载flag来绕过拒绝。
+
+
+### v35：原始启动约束的旁路实机观察候选（2026-10-24）
+
+自 v34 创建独立候选。目标是记录原始 AMFI hook 期间目标 launchd 卷的
+vfs_flags 与授权 VNOP_IOCTL(0x80084118) 实际返回，不主动发起额外 ioctl。
+XNU mac_process 在原 hook 前后限定作用域；kpi_vfs 只旁路记录原始返回，
+kern_sig 在原始 init SIGKILL 原因后附加 RAM_LC_OBS。原始 hook 错误合并、
+原因、CS_KILLED、SIGKILL 和返回路径均保留；原始 AMFI/APFS 可执行代码
+SHA256 不变。UEFI/DarwinBoot 功能未改，组合镜像已重构建打包。
+
+独立开关 CONFIG_XNU_RAM_LAUNCH_OBSERVE=y、archive
+--launch-constraints-observer、pins observe_launch_constraints=true、boot
+ram-launch-observe=1；其它候选默认关闭。仅 stage7/PID1/system-entry/AMFI/
+profile2 首次回调，按 owner thread 与 exact vnode/mount 过滤；观察未出现
+明确显示 unseen，返回/flags 变化会显示 change=1，不把未观察到当作0。
+根仍为 md0，/mnt1 仅 exec 来源；保留 v34 的有界 main/SVC/进程创建保护，
+不修改根标志、信任类别或安全判定来放行。
+
+15 项主机检查全部退出0并绑定镜像：v34 同集14项加 launch-observer。
+新测试提取真实 patched XNU 包装及MAC调用块，连同实际观察C，在开关0/1
+下各31用例通过ASan/UBSan；覆盖作用域/外部线程/对象拒绝、unseen、变化、
+flags/errno透传、ENOTTY/SSD提前返回、每次原始dispatch调用次数、原理由
+指针和原MAC错误合并保留。编译对象/探针档案/pins/源码/链接绑定均通过。
+首次档案编译发现 proc_getpid 私有声明缺失，补 sys/proc_internal.h 后重建
+成功；交付镜像为新产物，没有沿用父候选镜像或成功日志。
+
+镜像203190272字节，SHA256
+54bd42bb6b5a58a241918a5928e1acbb9aeeba93ce4944dc7c8ca1868c4c4f6a；
+prelink 66fff7096dff62f8e116cbf59617768cb9c2351940825a2e60a9a58439e7ae8c。
+FUXIPAYL、kernel base 0xfffffff00427c000、重新推导 skew=0x7c000 通过。
+用户确认“已进 fastboot”，核对无传输任务与 fcde91e 后发起 attempt-01。
+命令/报告见候选 REVIEW.md。RAM_LC_OBS 实机字段尚未取得；传输结果待追加，
+normal_controller_stop_verified=false，不能据主机通过宣称约束已修复。

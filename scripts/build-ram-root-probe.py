@@ -18,7 +18,10 @@ parser.add_argument('--progress', action='store_true', help='Continue past main 
 parser.add_argument('--restore-trust-cache', type=Path, help='Exact original v1 restore module, embedded unchanged')
 parser.add_argument('--system-objects', action='store_true', help='Stop after read-only OS/SystemOS mounts, before userland')
 parser.add_argument('--system-user-entry', action='store_true', help='After the system mounts, exec /mnt1/sbin/launchd and stop at its first EL0 SVC')
+parser.add_argument('--launch-constraints-observer', action='store_true', help='Observe existing AMFI vnode/flags/ioctl calls without changing policy')
 args = parser.parse_args()
+if args.launch_constraints_observer and (not args.system_user_entry or not args.main_entry or args.progress):
+    parser.error('--launch-constraints-observer requires bounded system main-entry')
 if args.system_objects and (not args.user_entry or args.progress):
     parser.error('--system-objects requires --user-entry and excludes progress mode')
 if args.system_user_entry and not args.system_objects:
@@ -31,6 +34,8 @@ if args.main_entry and not args.user_entry:
     parser.error('--main-entry requires --user-entry')
 pins = json.loads(args.pins.read_text())
 validate_stage_policy(pins, args.user_entry, args.main_entry, args.progress)
+if pins.get('observe_launch_constraints', False) is not args.launch_constraints_observer:
+    raise SystemExit('Launch observation pins disagree with the archive mode')
 if (pins['image_bytes'] != 184549376 or pins['file_bytes'] != 561856 or
         pins['image_sha256'] != 'aadb59ed21a8f0218a348f070913ab5a7679805c58408534d811170871f1fc05' or
         pins['file_sha256'] != '8cec9a3c44a443b08e977ccc5d577850316ad428c575dc01f09b018dbd5b6a25' or
@@ -52,7 +57,7 @@ if args.system_user_entry and args.main_entry and pins['system_file_sha256'] != 
     # The hardware checkpoint offset is pinned from the restore ramdisk binary;
     # the system entry is only covered by it while the two files are identical.
     raise SystemExit('--main-entry system checkpoint requires byte-identical system launchd')
-for key, enabled in [('XNU_RAM_USER_ENTRY', args.user_entry), ('XNU_RAM_MAIN_PROBE', args.main_entry), ('XNU_RAM_PROGRESS', args.progress), ('XNU_RAM_RESTORE_TRUST', bool(args.restore_trust_cache))]:
+for key, enabled in [('XNU_RAM_USER_ENTRY', args.user_entry), ('XNU_RAM_MAIN_PROBE', args.main_entry), ('XNU_RAM_PROGRESS', args.progress), ('XNU_RAM_RESTORE_TRUST', bool(args.restore_trust_cache)), ('XNU_RAM_LAUNCH_OBSERVE', args.launch_constraints_observer)]:
     if key in os.environ and os.environ[key] != str(int(enabled)):
         raise SystemExit(key + ' disagrees with requested diagnostic archive mode')
 out = ROOT / 'build/ram-root-probe'
@@ -118,6 +123,15 @@ if args.main_entry:
     if struct.unpack_from('<4I', main_object.read_bytes()) != (0xfeedfacf, 0x100000c, 0, 1):
         raise SystemExit('Expected ordinary ARM64 main probe object')
     objects.append(main_object)
+if args.launch_constraints_observer:
+    observation_source = ROOT / 'kits/sheng/RamLaunchConstraintProbe.c'
+    observation_object = out / 'RamLaunchConstraintProbe.o'
+    observation_command = [str(observation_source) if value == str(source) else str(observation_object) if value == str(obj) else value for value in command]
+    (out / 'observation-compile-command.json').write_text(json.dumps(observation_command, indent=2) + '\n')
+    result = subprocess.run(observation_command, cwd=record['directory'], capture_output=True, text=True)
+    (out / 'observation-compile.log').write_text(result.stdout + result.stderr)
+    if result.returncode: raise SystemExit(result.stdout + result.stderr)
+    objects.append(observation_object)
 if args.restore_trust_cache:
     restore = args.restore_trust_cache.read_bytes()
     if (len(restore) != 5898 or struct.unpack_from('<I', restore)[0] != 1 or
@@ -147,6 +161,8 @@ subprocess.run(['xcrun', 'ar', 'rcs', archive, *objects], check=True)
     system_objects=args.system_objects, system_user_entry=args.system_user_entry,
     system_source_sha256=hashlib.sha256(system_source.read_bytes()).hexdigest() if args.system_objects else None,
     main_source_sha256=hashlib.sha256(main_source.read_bytes()).hexdigest() if args.main_entry else None,
+    launch_constraints_observer=args.launch_constraints_observer,
+    observation_source_sha256=hashlib.sha256(observation_source.read_bytes()).hexdigest() if args.launch_constraints_observer else None,
     restore_trust=bool(args.restore_trust_cache),
     restore_trust_sha256=hashlib.sha256(restore).hexdigest() if args.restore_trust_cache else None,
     restore_source_sha256=hashlib.sha256(restore_source.read_bytes()).hexdigest() if args.restore_trust_cache else None,
