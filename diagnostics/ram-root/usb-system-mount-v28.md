@@ -98,3 +98,17 @@ python3 scripts/test-usb-ram-full.py \
 拍摄最终完整屏幕；若失败，保留 at/dev/opens/spec/apfs/covered。
 验收目标仍为两个卷只读挂载后的 RAM_SYSTEM PASS，停在用户态之前。
 最终结论须追加回填本文件、REVIEW.md 和 usb-bulk.md；当前尚未实机。
+
+## v28 attempt-01：双对象 END RAM 校验通过，待挂载照片（2026-10-24）
+
+用户确认进入 fastboot 后，再次核对无传输任务、fcde91e 与 v28 镜像及六份
+交付验证报告绑定。运行器 serial/product/unlocked 门通过，一次 fastboot boot
+成功。镜像 SHA256 为 836bd4bb…4b16b3；OS 6,077,580,800 字节与
+SystemOS 3,303,014,400 字节的 END 实际 RAM SHA256 均匹配，581.145 秒，退出码 0。
+未写分区。记录在 out/usb-system-mount-v28/attempt-01/full-transfer.json、
+boot-record.json、host-observation.json。normal_controller_stop_verified 保持 false。
+
+已提示手动选择 fuxi RAM diagnostic: system-mount 并拍摄最终完整屏幕。
+尚未取得 v28 XNU 照片，不能确认已越过 APFS EBUSY、两个卷挂载通过或
+RAM_SYSTEM PASS。若仍失败，读取 at/dev/opens/spec/apfs/covered 后继续定位。
+照片结论须追加回填本日志与候选 REVIEW.md。
