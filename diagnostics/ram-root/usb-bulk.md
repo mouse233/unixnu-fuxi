@@ -1230,3 +1230,35 @@ checkpoint 读取均已推进；不能再把此 ENOENT 归因为设备名查找�
 停机三标记未出现在照片中，normal_controller_stop_verified 保持 false。
 下一候选拟仅为只读 RAM 容器发布第一卷设备名，并让专用挂载 SPI 选择该卷；
 不修改 APFS、不跳过资格检查。照片、转写和结构化结论见 attempt-01。
+
+## v30：只读 RAM 第一卷名称修复候选（2026-10-24）
+
+根据 v29 照片明确的 invalid fsindex: -1，新增 XNU 补丁
+zz-ram-system-volume-nodes.patch：在设置只读与精确边界后，为 md1/md2
+发布 devfs 硬链接 md1s1/md2s1；失败立即拒绝设备注册结果。专用挂载 SPI
+仍只许可原容器/路径配对，内部改选 s1 名称，使原 APFS 解析到卷 index 0。
+两个真实容器的卷表均只有 index 0 有效。不修改 APFS 或 VFS 资格检查。
+
+候选 out/usb-system-mount-v30/Mu-fuxi-usb-ram.img，203,190,272 字节，SHA256
+3b3a181c5ad47087e4e08a5fe63eadfdce5c224ff2b02715a999fe5a10316c1b。
+prelink b30b118e…58df9；FUXIPAYL、实际 kernel base 与 skew 0x7c000 均核验。
+四项必需主机检查、payload/KMEM/SPI/trace/参数/witness/卷节点与启动门全过。
+新增检查执行真实旧/新 C 注册路径（ASan/UBSan）及交付原始解析器八组输入；
+启动门九种 mock 情况验证卷节点报告与镜像/内核绑定，未执行真实设备命令。
+
+详见 usb-system-mount-v30.md 和候选 REVIEW.md。用户再次确认 fastboot 并授权启动，
+复核无其他构建/传输、fcde91e、八份交付报告绑定后已开始 attempt-01。
+尚待双对象 END RAM 校验与实机照片，不宣称挂载修复通过。
+
+## v30 attempt-01：Booting 阶段 USB 读取失败，未开始对象传输（2026-10-24）
+
+product/unlocked 等检查通过；fastboot 显示 Sending boot.img OKAY，随后
+Booting FAILED (usb_read failed with status e00002ed)，退出 1。
+运行器在 temporary-boot 阶段停止，OS/SystemOS acknowledged_bytes 均为 0；
+未写分区。该错误不证明固件或 XNU 已运行，也不推断其 panic。
+原始 boot.log、boot-record.json、full-transfer.json 与 host-observation.json
+保存在 attempt-01。
+
+用户明确要求重新启动后，重新检查无活动传输、fcde91e 已处于 fastboot，
+镜像和八份报告未变，使用独立 attempt-02 开始一次新的临时启动。
+未在接收器状态不明或数据传输期间自动重复 fastboot boot。

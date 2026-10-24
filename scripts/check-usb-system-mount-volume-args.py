@@ -20,6 +20,8 @@ braced = spi['braced']
 
 
 def exercise(source, copy_source, constants, baseline_source):
+    suffix = 's1' if 'const char *volume_device' in source else ''
+    constants += '\n#define RAM_DEVICE1 "/dev/md1' + suffix + '"\n#define RAM_DEVICE2 "/dev/md2' + suffix + '"\n'
     types = spi['ram_types'](source)
     wrapper = braced(source, source.index('int\nfuxi_ram_mount_ro('))
     block_start = source.index('        if (internal_flags & KERNEL_MOUNT_RAM_SYSTEM) {\n            if (strcmp(fstypename')
@@ -92,7 +94,7 @@ static int kernel_mount(const char *fstypename,vnode_t p,vnode_t v,const char *p
     int error=0;
 ''' + plumbing + r'''
     assert(!do_copyin_devpath && devpath);
-    assert(!strcmp((const char *)devpath,!strcmp(path,"/mnt1")?"/dev/md1":"/dev/md2"));
+    assert(!strcmp((const char *)devpath,!strcmp(path,"/mnt1")?RAM_DEVICE1:RAM_DEVICE2));
     assert(fsmountargs==(uintptr_t)data+sizeof(char *));
     {
         user_addr_t fsmountargs=(uintptr_t)data,devpath=0;

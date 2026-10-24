@@ -135,7 +135,7 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--kernel',type=Path,required=True);p.add_argument('--base',type=Path,required=True);p.add_argument('--report',type=Path,required=True)
     a=p.parse_args();m=Machine(a.kernel.resolve(),a.base.resolve())
-    cases=[m.parse(path) for path in ['/dev/md1','/dev/md2','/dev/md1s1','/dev/disk1s1','/dev/disk10s2s1','/dev/disk1s2','snap@/dev/disk1s1']]
+    cases=[m.parse(path) for path in ['/dev/md1','/dev/md2','/dev/md1s1','/dev/md2s1','/dev/disk1s1','/dev/disk10s2s1','/dev/disk1s2','snap@/dev/disk1s1']]
     report=dict(kernel_sha256=hashlib.sha256(m.data).hexdigest(),original_apfs_text_sha256=APFS_TEXT_SHA,parser_cases=cases,
                 scope='Original parser executed; strlen/strlcpy modeled. No phone or complete filesystem execution.')
     a.report.parent.mkdir(parents=True,exist_ok=True);a.report.write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2))

@@ -43,6 +43,13 @@ def main():
                     kmem.get('remaining_va_lower_bound', 0) >= 512 * 2**20 and
                     spi.get('boot_sha256') == a.expected_sha256 and
                     spi.get('kernel_sha256') == payload.get('kernel_sha256'))
+        if payload.get('ram_volume_nodes'):
+            nodes_path = image.parent / 'volume-nodes-tests.json'
+            nodes = json.loads(nodes_path.read_text()) if nodes_path.is_file() else {}
+            verified = (verified and nodes.get('read_only_links_verified') is True and
+                        bool(nodes.get('passed')) and
+                        nodes.get('boot_sha256') == a.expected_sha256 and
+                        nodes.get('kernel_sha256') == payload.get('kernel_sha256'))
     else:
         verified = (report.get('receiver_only') and report.get('compressed_firmware_roundtrip') and
                     set(report.get('delivered_modules', {})) == {'FuxiUsbRamDxe', 'UsbfnDwc3Dxe'} and

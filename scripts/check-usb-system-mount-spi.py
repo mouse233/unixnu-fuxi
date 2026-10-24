@@ -43,11 +43,12 @@ def check_mount_patch(root, base, patch):
     stack = [('zz-ram-system-mount-spi.patch', 'KERNEL_MOUNT_RAM_SYSTEM) == 0'),
              ('zz-ram-system-mount-trace.patch', 'fuxi_ram_mount_reset'),
              ('zz-ram-system-mount-volume-args.patch', 'struct fuxi_ram_mount_request'),
-             ('zz-ram-system-mount-witness.patch', '/* RAM mount witness:')]
+             ('zz-ram-system-mount-witness.patch', '/* RAM mount witness:'),
+             ('zz-ram-system-volume-nodes.patch', 'const char *volume_device')]
     index = [name for name, _ in stack].index(patch.name)
     with tempfile.TemporaryDirectory(prefix='ram-mount-patches-') as directory:
         scratch = Path(directory)
-        for relative in ['bsd/vfs/vfs_syscalls.c', 'bsd/vfs/vfs_subr.c']:
+        for relative in ['bsd/vfs/vfs_syscalls.c', 'bsd/vfs/vfs_subr.c', 'bsd/dev/memdev.c']:
             target = scratch / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes((root / relative).read_bytes())
@@ -59,6 +60,8 @@ def check_mount_patch(root, base, patch):
 
 def exercise(source, constants, fixed):
     wrapper, guard, gate, segment = snippets(source)
+    suffix = 's1' if 'const char *volume_device' in source else ''
+    constants += '\n#define RAM_DEVICE1 "/dev/md1' + suffix + '"\n#define RAM_DEVICE2 "/dev/md2' + suffix + '"\n'
     harness = r'''
 #include <assert.h>
 #include <stdbool.h>
@@ -122,9 +125,9 @@ int main(void) {
     assert(admit("apfs", MNT_RDONLY, ram, VFC_VFSLOCALARGS) == (FIXED ? 0 : EINVAL));
     assert(segment_for(ram) == (FIXED ? UIO_SYSSPACE : UIO_USERSPACE));
     assert(fuxi_ram_mount_ro("/dev/md1", "/mnt1") == (FIXED ? 0 : EINVAL));
-    assert(!strcmp(seen_device,"/dev/md1") && !strcmp(seen_path,"/mnt1"));
+    assert(!strcmp(seen_device,RAM_DEVICE1) && !strcmp(seen_path,"/mnt1"));
     assert(fuxi_ram_mount_ro("/dev/md2", "/mnt2") == (FIXED ? 0 : EINVAL));
-    assert(!strcmp(seen_device,"/dev/md2") && !strcmp(seen_path,"/mnt2"));
+    assert(!strcmp(seen_device,RAM_DEVICE2) && !strcmp(seen_path,"/mnt2"));
     int before = calls;
     assert(fuxi_ram_mount_ro(NULL,"/mnt1") == EINVAL);
     assert(fuxi_ram_mount_ro("/dev/md1",NULL) == EINVAL);
