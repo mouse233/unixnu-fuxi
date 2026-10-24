@@ -136,7 +136,10 @@ require(payload_report['trust_cache_sha256'] ==
         '7416ca4f8377146626bb284e2133c76bee6cb4e3ee0af5d648b186235a7323a7', 'original trust bundle changed')
 pins = json.loads((out / 'pins.json').read_text())
 if probe_evidence is None:
-    validate_stage_policy(pins, True, False, False)
+    archive_entries = [e for e in board['kernel'].get('archives', []) if e.startswith('build-ram-root-probe.py')]
+    main_mode = any('--main-entry' in e for e in archive_entries)
+    progress_mode = any('--progress' in e for e in archive_entries)
+    validate_stage_policy(pins, True, main_mode, progress_mode)
 
 adt = fat('Payloads/kernel.macho.adt')
 nodes = {}

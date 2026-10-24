@@ -1926,3 +1926,26 @@ launchd一致（mprotect），符合预期。rootauth EAUTH80为记录项。
 只读RAM；不把本PASS写成完整系统启动。停机三标记未拍，
 normal_controller_stop_verified仍false。下一验收点：SVC派发
 （progress模式，沿用mount/reboot/ptrace封锁）。
+
+### v39：切根后 SVC 派发与用户态跟随候选（2026-10-25）
+
+独立v39从v38创建，组合模式--user-entry --system-objects
+--system-user-entry --system-root-switch --main-entry --progress，
+boot参数ram-root-probe=4。switch探针与v38一致；exec_ready武装
+LC_MAIN+4硬件断点（偏移/字节pin沿用，两份launchd同二进制）；SVC
+放行派发并观察，unix前后记录code/errno/rval与spawn路径；
+mount/unmount/reboot/ptrace封锁（tmpfs例外），fork/exec/posix_spawn
+放行跟随；90秒或131072次SVC后bounded run ended收场。progress快照
+按native标志区分根身份文案。progress快照屏为固定ASCII字体渲染。
+
+主机build-kernel→Docker固件→FUXIPAYL完成。13项检查退出0；首次
+套件暴露两处检查脚本缺陷（mount检查硬编码非progress策略、
+root-switch符号断言漏progress分支）与一处脚本语法错误，修正后
+全过，失败记录保留。root-switch以--mode progress跑43例真实C与
+三项突变拒绝。镜像203190272字节，SHA256
+35833600a64cb72cc169d86fafeb39f85e0fc59b26ef8201299688e9dfb2ce72；
+prelink 01a3a3bd2bd76cb3…。
+
+上机待fastboot。验收：RAM_PROGRESS快照与收场panic中main=PASS、
+spawn成功（e=0 r=pid）即用户态拉起的直接证据；只读卷EROFS/ENOENT
+类失败照实归档。不把部分spawn写成完整系统启动。

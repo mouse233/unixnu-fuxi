@@ -256,8 +256,9 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--base', type=Path, required=True)
-    p.add_argument('--mode', choices=['mount', 'user-entry'], default='mount',
-                   help='mount: stop after verification; user-entry: arm the bounded native-root init')
+    p.add_argument('--mode', choices=['mount', 'user-entry', 'progress'], default='mount',
+                   help='mount: stop after verification; user-entry: arm the bounded native-root init; '
+                        'progress: arm it with main-entry/progress follow mode')
     args = p.parse_args()
     out = args.output.resolve()
     device = Path(__file__).resolve().parents[1]
@@ -267,9 +268,9 @@ def main():
     text = system.read_text()
     start = text.index('int fuxi_ram_system_user_init_path(const char **path)\n{')
     end = text.index('\n}\n',start)+3
-    init_guard = ('\n#define RAM_SYSTEM_ALLOW_USER_ENTRY 1\n' if args.mode == 'user-entry'
+    init_guard = ('\n#define RAM_SYSTEM_ALLOW_USER_ENTRY 1\n' if args.mode != 'mount'
                   else '\n#define RAM_SYSTEM_ALLOW_USER_ENTRY 0\n') + text[start:end] + '\n'
-    preamble = '#define RAM_SYSTEM_ALLOW_USER_ENTRY 1\n' if args.mode == 'user-entry' else ''
+    preamble = '#define RAM_SYSTEM_ALLOW_USER_ENTRY 1\n' if args.mode != 'mount' else ''
     pin_bytes = ','.join('0x%02x' % b for b in bytes.fromhex(LAUNCHD_PIN))
     api = API.replace('@LAUNCHD@', str(LAUNCHD_BYTES)).replace('@PIN@', pin_bytes)
     success = MOUNT_SUCCESS if args.mode == 'mount' else USER_SUCCESS
@@ -300,43 +301,54 @@ def main():
             assert failure.returncode != 0, 'root-switch guard/pivot/identity mutation was not detected'
     board = json.loads((out/'board-effective.json').read_text())
     pins = json.loads((out/'pins.json').read_text())
-    validate_stage_policy(pins, True, False, False)
+    validate_stage_policy(pins, True, args.mode == 'progress', args.mode == 'progress')
     assert pins['system_root_switch'] is True and pins.get('system_root_preflight') is not True
     assert pins['system_userland_allowed'] is False
     assert pins.get('observe_launch_constraints', False) is False
     assert pins['system_file_path'] == '/mnt1/sbin/launchd' and pins['system_file_bytes'] == LAUNCHD_BYTES
     assert pins['system_file_sha256'] == SYSTEM_LAUNCHD_SHA
+    if args.mode == 'progress':
+        assert pins['main_entry_offset'] == 85896 and pins['main_entry_bytes'] == 'ff8305d1fc6f12a9f65713a9f44f14a9'
+        assert pins['stop_before_first_user_svc'] is False and pins['continue_after_main'] is True
+        assert pins['follow_process_creation'] is True and pins['block_process_creation'] is False
     archives = [shlex.split(s) for s in board['kernel']['archives'] if shlex.split(s)[0]=='build-ram-root-probe.py']
     assert len(archives)==1
     entry = archives[0]
     if args.mode == 'mount':
         assert set(entry[1:]) == {'--user-entry','--system-objects','--system-root-switch','--pins',str(out/'pins.json')}
-    else:
+    elif args.mode == 'user-entry':
         assert set(entry[1:]) == {'--user-entry','--system-objects','--system-user-entry','--system-root-switch','--pins',str(out/'pins.json')}
+    else:
+        assert set(entry[1:]) == {'--user-entry','--system-objects','--system-user-entry','--system-root-switch',
+                                  '--main-entry','--progress','--pins',str(out/'pins.json')}
     args_list = board['payload']['kernel_args']
-    for prefix, expected in [('ram-root-probe=', ['ram-root-probe=2']),('ram-system-probe=', ['ram-system-probe=1']),
+    for prefix, expected in [('ram-root-probe=', ['ram-root-probe=%d' % (4 if args.mode=='progress' else 2)]),
+                             ('ram-system-probe=', ['ram-system-probe=1']),
                              ('ram-system-root-switch=', ['ram-system-root-switch=1']),
                              ('ram-system-root-preflight=', []),('ram-launch-observe=', [])]:
         assert [s for s in args_list if s.startswith(prefix)] == expected
     assert args_list.count('rd=md0')==1
     config = (out/'config').read_text().splitlines()
-    for key, value in [('XNU_RAM_ROOT_PROBE','y'),('XNU_RAM_USER_ENTRY','y'),('XNU_RAM_MAIN_PROBE','n'),
-                       ('XNU_RAM_PROGRESS','n'),('XNU_RAM_RESTORE_TRUST','n'),('XNU_RAM_LAUNCH_OBSERVE','n')]:
+    for key, value in [('XNU_RAM_ROOT_PROBE','y'),('XNU_RAM_USER_ENTRY','y'),
+                       ('XNU_RAM_MAIN_PROBE','y' if args.mode=='progress' else 'n'),
+                       ('XNU_RAM_PROGRESS','y' if args.mode=='progress' else 'n'),
+                       ('XNU_RAM_RESTORE_TRUST','n'),('XNU_RAM_LAUNCH_OBSERVE','n')]:
         assert [s for s in config if s.startswith('CONFIG_'+key+'=')] == ['CONFIG_'+key+'='+value]
     tree = out/'work/tree'
     build = tree/'build/ram-root-probe'
     record = json.loads((build/'build-report.json').read_text())
     assert record['pins']==pins and record['system_root_switch'] is True and record['system_root_preflight'] is False
     assert record['user_entry'] is True and record['system_objects'] is True
-    assert record['system_user_entry'] is (args.mode == 'user-entry')
-    for key in ('main_entry','progress','launch_constraints_observer','restore_trust'):
+    assert record['system_user_entry'] is (args.mode != 'mount')
+    assert record['main_entry'] is (args.mode == 'progress') and record['progress'] is (args.mode == 'progress')
+    for key in ('launch_constraints_observer','restore_trust'):
         assert record[key] is False
     assert sha(source)==record['switch_source_sha256']==sha(tree/'kits/sheng'/source.name)
     assert sha(system)==record['system_source_sha256']==sha(tree/'kits/sheng'/system.name)
     assert sha(build/'libRamRootProbe.a')==record['archive_sha256']
     header = (build/'RamSystemProbePins.h').read_text()
     assert '#define RAM_SYSTEM_ROOT_SWITCH 1' in header
-    assert ('#define RAM_SYSTEM_ALLOW_USER_ENTRY %d' % (1 if args.mode=='user-entry' else 0)) in header
+    assert ('#define RAM_SYSTEM_ALLOW_USER_ENTRY %d' % (0 if args.mode=='mount' else 1)) in header
     assert '#define RAM_SYSTEM_ROOT_PREFLIGHT 0' in header
     assert ('#define RAM_SYSTEM_LAUNCHD_BYTES UINT64_C(%d)' % LAUNCHD_BYTES) in header
     probe_text = system.read_text()
@@ -347,11 +359,13 @@ def main():
         '--no-show-raw-insn', '--symbolize-operands', str(build/'RamSystemProbe.o')], text=True)
     assert '_fuxi_ram_system_root_switch' in disassembly
     members = subprocess.check_output(['xcrun','ar','t',str(build/'libRamRootProbe.a')],text=True).splitlines()
-    assert members==['__.SYMDEF SORTED','RamRootProbe.o','RamSystemProbe.o','RamSystemRootSwitch.o']
+    expected_members = ['__.SYMDEF SORTED','RamRootProbe.o','RamSystemProbe.o','RamSystemRootSwitch.o']
+    if args.mode == 'progress': expected_members.append('RamLaunchdProbe.o')
+    assert members==expected_members
     symbols = subprocess.check_output([llvm_tool('llvm-nm'),str(build/'RamSystemRootSwitch.o')],text=True)
     assert '_vfs_switch_root' in symbols and '_VNOP_IOCTL' in symbols and '_vn_rdwr' in symbols
     root_symbols = subprocess.check_output([llvm_tool('llvm-nm'),str(build/'RamRootProbe.o')],text=True)
-    if args.mode == 'user-entry':
+    if args.mode != 'mount':
         assert '_fuxi_ram_native_root_entry' in symbols      # referenced by the switch probe
         defined = [l for l in root_symbols.splitlines() if l.endswith('_fuxi_ram_native_root_entry')]
         assert defined and not defined[0].startswith('U')    # defined by RamRootProbe.o, not imported
@@ -364,10 +378,11 @@ def main():
     assert record['archive_sha256'] in (objdir/'.native-aes-link-input').read_text()
     init_evidence = inspect_compiled_init(out)
     native_objects = {}
+    main_flag = 1 if args.mode == 'progress' else 0
     for relative, defines in [
             ('bsd/DEVELOPMENT/bsd_init.o', {'XNU_RAM_ROOT_PROBE':1,'XNU_RAM_USER_ENTRY':1}),
-            ('bsd/DEVELOPMENT/systemcalls.o', {'XNU_RAM_MAIN_PROBE':0}),
-            ('osfmk/DEVELOPMENT/sleh.o', {'XNU_RAM_USER_ENTRY':1,'XNU_RAM_MAIN_PROBE':0}),
+            ('bsd/DEVELOPMENT/systemcalls.o', {'XNU_RAM_MAIN_PROBE':main_flag}),
+            ('osfmk/DEVELOPMENT/sleh.o', {'XNU_RAM_USER_ENTRY':1,'XNU_RAM_MAIN_PROBE':main_flag}),
             ('security/DEVELOPMENT/mac_process.o', {'XNU_RAM_LAUNCH_OBSERVE':0}),
             ('bsd/DEVELOPMENT/kpi_vfs.o', {'XNU_RAM_LAUNCH_OBSERVE':0}),
             ('bsd/DEVELOPMENT/kern_sig.o', {'XNU_RAM_LAUNCH_OBSERVE':0})]:
@@ -401,6 +416,10 @@ def main():
         kernel_bytes = kernel.read_bytes()
         assert b'RAM_NATIVE_ROOT_USER PASS' in kernel_bytes and b'native root entry armed' in kernel_bytes
         assert b'RAM_ROOT_SWITCH observed' not in kernel_bytes
+        if args.mode == 'progress':
+            assert b'RAM_PROGRESS stage=' in kernel_bytes
+            assert b'root=switched OS-volume apfs readonly rootfs=1' in kernel_bytes
+            assert b'RAM_FOLLOW blocked syscall' in kernel_bytes
     report = dict(passed=[result],mutation_checks=3,sanitizers=['address','undefined'],
                   mode=args.mode,
                   system_userland_allowed=False,archive_members=members,

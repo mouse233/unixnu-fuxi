@@ -26,12 +26,12 @@ if args.system_root_preflight and args.system_root_switch:
     parser.error('--system-root-preflight and --system-root-switch are exclusive archive modes')
 if args.system_root_preflight and (not args.system_objects or args.system_user_entry or args.main_entry or args.progress or args.launch_constraints_observer):
     parser.error('--system-root-preflight requires mount-only system objects')
-if args.system_root_switch and (not args.system_objects or args.main_entry or args.progress or args.launch_constraints_observer):
-    parser.error('--system-root-switch requires system objects without main/progress/observation')
+if args.system_root_switch and (not args.system_objects or args.launch_constraints_observer):
+    parser.error('--system-root-switch requires system objects without launch observation')
 if args.launch_constraints_observer and (not args.system_user_entry or not args.main_entry or args.progress):
     parser.error('--launch-constraints-observer requires bounded system main-entry')
-if args.system_objects and (not args.user_entry or args.progress):
-    parser.error('--system-objects requires --user-entry and excludes progress mode')
+if args.system_objects and (not args.user_entry or (args.progress and not args.system_root_switch)):
+    parser.error('--system-objects requires --user-entry; progress additionally requires --system-root-switch')
 if args.system_user_entry and not args.system_objects:
     parser.error('--system-user-entry requires --system-objects')
 if args.restore_trust_cache and not args.progress:

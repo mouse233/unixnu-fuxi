@@ -17,6 +17,8 @@
 
 extern volatile unsigned fuxi_ram_root_stage;
 extern volatile unsigned fuxi_ram_system_user_entry;
+/* Owned by RamRootProbe.c; set after a verified native root switch. */
+extern volatile unsigned fuxi_ram_native_root_entry;
 /* This Mach-private declaration is hidden from the BSD compile-record headers. */
 extern kern_return_t machine_thread_set_state(thread_t, thread_flavor_t, thread_state_t, mach_msg_type_number_t);
 static const char ram_main_argv0[] = "/sbin/launchd";
@@ -51,9 +53,11 @@ static int last_pid, last_stat_pid, last_write_pid;
 static void progress_snapshot(void)
 {
     size_t used = (size_t)snprintf(fuxi_ram_progress_text, sizeof(fuxi_ram_progress_text),
-        "RAM_PROGRESS stage=%u main=%s\nmd0 APFS readonly; original hashes OK\n"
+        "RAM_PROGRESS stage=%u main=%s\n%s\n"
         "pid=%d svc=%u unix=%u exec=%u drop=%u\nlastpc=%llx x16=%d\n",
         fuxi_ram_root_stage, fuxi_ram_root_stage == 10 ? "PASS" : "pending",
+        fuxi_ram_native_root_entry ? "root=switched OS-volume apfs readonly rootfs=1" :
+            "md0 APFS readonly; original hashes OK",
         last_pid, svc_count, unix_count, spawn_total, dropped_events, last_pc, recent_calls[(svc_count - 1) & 7]);
     unsigned first = unix_count > 6 ? unix_count - 6 : 0;
     for (unsigned i = first; i < unix_count && used < sizeof(fuxi_ram_progress_text); i++) {
