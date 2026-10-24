@@ -1765,3 +1765,15 @@ REVIEW.md已回填。
 23:35重核对互斥与fcde91e、镜像SHA256后发起attempt-02（新目录，脚本
 拒绝复用失败报告）。本轮Sending与Booting均OKAY，boot_returncode=0，
 已进入discovery并开始双对象传输；RAM SHA256校验与实机结果待回填。
+
+### v36 attempt-02 双对象传输校验通过（2026-10-24）
+
+attempt-02临时启动成功（Sending/Booting均OKAY，boot_returncode=0）。
+597.8秒完成双对象传输：OS 6,077,580,800字节、SystemOS 3,303,014,400
+字节，实际RAM回读SHA256均匹配（e5634d04…/b4908cde…），无分区写入。
+full_os_object_transfer_verified=true；normal_controller_stop_verified
+仍false，待停机三标记照片。候选代码与检查已提交41a6fbf并推送fork。
+
+待实机：停机三标记照片后手选 `fuxi RAM diagnostic: system-mount`，
+照片须完整包含RAM_ROOT_PREFLIGHT的auth返回、flags前后值、目录errno
+与unchanged字段；auth=0不等于系统根建立，结果待照片回填。
