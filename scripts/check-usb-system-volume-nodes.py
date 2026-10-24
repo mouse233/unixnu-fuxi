@@ -105,7 +105,8 @@ def main():
     assert 'strlcpy(mp->mnt_vfsstat.f_mntfromname, nd.ni_cnd.cn_pnbuf, MAXPATHLEN);' in vfs
     assert 'const char *volume_device = !strcmp(device, "/dev/md1") ? "/dev/md1s1" : "/dev/md2s1";' in vfs
     args = (out / 'work/payload/payload.json').read_text()
-    assert 'ram-system-probe=1' in args and 'native-ufs-root=0' in args
+    assert 'ram-system-probe=1' in args or 'ram-system-probe=2' in args
+    assert 'native-ufs-root=0' in args
     kernel = out / 'work/kernel/kernel.macho'
     data = kernel.read_bytes()
     payload = json.loads((out / 'payload-verification.json').read_text())

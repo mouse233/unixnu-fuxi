@@ -37,6 +37,9 @@ extern void fuxi_ram_main_arm(thread_t);
 void fuxi_ram_root_probe_after_mount(dev_t, vnode_t) __attribute__((noreturn));
 #endif
 volatile unsigned fuxi_ram_root_stage;
+/* Set by RamSystemProbe's user-entry profile; RamSystemProbe.o is only linked
+ * in system-object builds, so this owns the definition. */
+volatile unsigned fuxi_ram_system_user_entry;
 static uint8_t file_buffer[4096];
 
 void fuxi_ram_root_probe_before_mount(dev_t device)
@@ -131,9 +134,11 @@ void fuxi_ram_user_exec_ready(thread_t target, int pid)
 
 void fuxi_ram_user_exec_result(int error, const char *path, int pid)
 {
-    if (pid != 1 || strcmp(path, "/sbin/launchd"))
+    int system_entry = fuxi_ram_system_user_entry && !strcmp(path, "/mnt1/sbin/launchd");
+    if (pid != 1 || (!system_entry && strcmp(path, "/sbin/launchd")))
         panic("RAM_USER refused exec: stage=%u pid=%d path=%s", fuxi_ram_root_stage, pid, path);
-    if (error) panic("RAM_USER original launchd exec failed: errno=%d; no user syscall dispatched", error);
+    if (error) panic("%s launchd exec failed: errno=%d; no user syscall dispatched",
+        system_entry ? "RAM_SYSTEM_USER" : "RAM_USER original", error);
     if (fuxi_ram_root_stage != 8 && fuxi_ram_root_stage != 9 && fuxi_ram_root_stage != 10)
         panic("RAM_USER exec returned without replacement-thread checkpoint: stage=%u", fuxi_ram_root_stage);
 }
@@ -150,6 +155,9 @@ void fuxi_ram_user_svc(uint64_t pc, uint32_t cpsr, uint32_t esr, uint64_t syscal
         (instruction & 0xffe0001fU) != 0xd4000001U)
         panic("RAM_USER invalid SVC instruction: pc=%llx instruction=%x", pc, instruction);
     fuxi_ram_root_stage = 9;
+    if (fuxi_ram_system_user_entry)
+        panic("RAM_SYSTEM_USER PASS\nroot=/mnt1 apfs readonly=1\nsystem launchd exec=OK\nPID1 executed at EL0; SVC trapped\npc=%llx cpsr=%x esr=%x\nx16=%lld instruction=%x\nstopped BEFORE first syscall dispatch\nrecovery programs not started",
+            pc, cpsr, esr, (int64_t)syscall, instruction);
     panic("RAM_USER_ENTRY PASS\nroot=md0 apfs readonly=1\noriginal launchd exec=OK\nPID1 executed at EL0; SVC trapped\npc=%llx cpsr=%x esr=%x\nx16=%lld instruction=%x\nstopped BEFORE first syscall dispatch\nrecovery programs not started",
         pc, cpsr, esr, (int64_t)syscall, instruction);
 }

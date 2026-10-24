@@ -65,7 +65,22 @@ def fat(path):
 
 
 config = fat('unixnu.toml').decode()
-require('ram-system-probe=1' in config and 'rd=md0' in config, 'missing mount-only guard args')
+board = json.loads((out / 'board-effective.json').read_text())
+probe_args = [x for x in board['payload']['kernel_args'] if x.startswith('ram-system-probe=')]
+require(len(probe_args) == 1 and probe_args[0] in ('ram-system-probe=1', 'ram-system-probe=2') and
+        probe_args[0] in config and 'rd=md0' in config, 'missing mount-only guard args')
+if probe_args[0] == 'ram-system-probe=2':
+    # User-entry profile: the probe archive must carry the exact system launchd
+    # pins, hashed host-side from the unsealed OS volume (same bytes as the
+    # restore ramdisk's /sbin/launchd).
+    pins = json.loads((out / 'pins.json').read_text())
+    require(pins.get('system_file_path') == '/mnt1/sbin/launchd' and
+            pins.get('system_file_bytes') == 561856 and
+            pins.get('system_file_sha256') == '8cec9a3c44a443b08e977ccc5d577850316ad428c575dc01f09b018dbd5b6a25',
+            'user-entry profile lacks the exact system launchd pins')
+    require(any('build-ram-root-probe.py' in entry and '--system-user-entry' in entry
+                for entry in board['kernel'].get('archives', [])),
+            'probe archive lacks --system-user-entry')
 require('native-ufs-root=0' in config and 'native-ufs-probe=0' in config, 'storage root not disabled')
 require('sheng-data-persist=0' in config and 'sheng-log=0' in config, 'sheng persistence not disabled')
 require('initrd = "Payloads/scratch-data.img"' in config, 'wrong md0 input')

@@ -1,4 +1,5 @@
-// Read-only OS/SystemOS mount checkpoint; never starts userland.
+// Read-only OS/SystemOS mount checkpoint; profile 2 continues to a bounded
+// user entry but never dispatches a user syscall.
 #include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
@@ -11,14 +12,32 @@
 #include <pexpert/device_tree.h>
 #include <libkern/crypto/sha2.h>
 #include <Protocol/UniXNURamObjects.h>
+#include "RamSystemProbePins.h"
 
 extern unsigned long gPhysBase, gPhysSize;
 extern dev_t fuxi_mdev_add_ro(int, uint64_t, uint64_t);
 extern int mdevgetrange(int, uint64_t *, uint64_t *);
 extern int fuxi_ram_mount_ro(const char *, const char *);
 extern int fuxi_ram_system_publish(unsigned, uint64_t, uint64_t) __attribute__((weak_import));
+#if RAM_SYSTEM_ALLOW_USER_ENTRY
+void fuxi_ram_system_probe(void);
+int fuxi_ram_system_user_init_path(const char **);
+/* Definition lives in RamRootProbe.c so non-system builds still link. */
+extern volatile unsigned fuxi_ram_system_user_entry;
+#else
 void fuxi_ram_system_probe(void) __attribute__((noreturn));
+#endif
 volatile unsigned fuxi_ram_system_stage;
+static uint8_t file_buffer[4096];
+
+#if RAM_SYSTEM_ALLOW_USER_ENTRY
+int fuxi_ram_system_user_init_path(const char **path)
+{
+    if (!fuxi_ram_system_user_entry) return 1;
+    *path = "/mnt1/sbin/launchd";
+    return 0;
+}
+#endif
 
 void fuxi_ram_system_probe(void)
 {
@@ -26,8 +45,15 @@ void fuxi_ram_system_probe(void)
     DTEntry entry;
     const void *value=NULL;
     UR_HANDOFF objects;
-    if (!PE_parse_boot_argn("ram-system-probe",&enabled,sizeof(enabled)) || enabled!=1)
+    if (!PE_parse_boot_argn("ram-system-probe",&enabled,sizeof(enabled)))
         panic("RAM_SYSTEM refused: explicit mount-only profile required");
+#if RAM_SYSTEM_ALLOW_USER_ENTRY
+    if (enabled!=1 && enabled!=2)
+        panic("RAM_SYSTEM refused: unknown profile %u",enabled);
+#else
+    if (enabled!=1)
+        panic("RAM_SYSTEM refused: explicit mount-only profile required");
+#endif
     fuxi_ram_system_stage=1;
     if (SecureDTLookupEntry(NULL,"/chosen/memory-map",&entry)!=kSuccess ||
         SecureDTGetProperty(entry,"RamSystemObjects",&value,&length)!=kSuccess || length!=sizeof(objects))
@@ -77,5 +103,40 @@ void fuxi_ram_system_probe(void)
         printf("RAM_SYSTEM %s mounted APFS readonly=1\n",path);
     }
     fuxi_ram_system_stage=6;
+#if RAM_SYSTEM_ALLOW_USER_ENTRY
+    if (enabled==2) {
+        vfs_context_t context=vfs_context_kernel();
+        vnode_t file=NULLVP;
+        off_t bytes=0;
+        uint8_t digest[32];SHA256_CTX hash;
+        int error=vnode_lookup("/mnt1/sbin/launchd",0,&file,context);
+        if(error) panic("RAM_SYSTEM launchd lookup errno=%d",error);
+        error=vnode_size(file,&bytes,context);
+        if(error || bytes!=RAM_SYSTEM_LAUNCHD_BYTES) {
+            vnode_put(file);
+            panic("RAM_SYSTEM launchd size mismatch: errno=%d bytes=%lld",error,bytes);
+        }
+        SHA256_Init(&hash);
+        for(off_t offset=0;offset<bytes;) {
+            int count=(int)((bytes-offset)<(off_t)sizeof(file_buffer)?bytes-offset:(off_t)sizeof(file_buffer));
+            int residual=count;
+            error=vn_rdwr(UIO_READ,file,(caddr_t)file_buffer,count,offset,
+                UIO_SYSSPACE,0,vfs_context_ucred(context),&residual,vfs_context_proc(context));
+            if(error || residual) {
+                vnode_put(file);
+                panic("RAM_SYSTEM launchd read errno=%d residual=%d at=%lld",error,residual,offset);
+            }
+            SHA256_Update(&hash,file_buffer,(size_t)count);
+            offset+=count;
+        }
+        SHA256_Final(digest,&hash);
+        vnode_put(file);
+        if(memcmp(digest,ram_system_launchd_sha256,sizeof(digest))) panic("RAM_SYSTEM launchd SHA256 mismatch");
+        fuxi_ram_system_user_entry=1;
+        fuxi_ram_system_stage=7;
+        printf("RAM_SYSTEM user entry armed: /mnt1/sbin/launchd %lld bytes SHA256=OK\n",bytes);
+        return;
+    }
+#endif
     panic("RAM_SYSTEM PASS\nOS/SystemOS actual RAM SHA256=OK\nAPFS readonly=1\n/mnt1 and /mnt2 mounted\nuserland not started; partition IO absent");
 }

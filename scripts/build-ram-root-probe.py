@@ -15,7 +15,13 @@ parser.add_argument('--user-entry', action='store_true', help='Permit original P
 parser.add_argument('--main-entry', action='store_true', help='Observe original LC_MAIN+4 with hardware debug')
 parser.add_argument('--progress', action='store_true', help='Continue past main into follow mode: children run, mount/reboot/ptrace stay blocked')
 parser.add_argument('--restore-trust-cache', type=Path, help='Exact original v1 restore module, embedded unchanged')
+parser.add_argument('--system-objects', action='store_true', help='Stop after read-only OS/SystemOS mounts, before userland')
+parser.add_argument('--system-user-entry', action='store_true', help='After the system mounts, exec /mnt1/sbin/launchd and stop at its first EL0 SVC')
 args = parser.parse_args()
+if args.system_objects and (not args.user_entry or args.main_entry or args.progress):
+    parser.error('--system-objects requires --user-entry and excludes main/progress modes')
+if args.system_user_entry and not args.system_objects:
+    parser.error('--system-user-entry requires --system-objects')
 if args.restore_trust_cache and not args.progress:
     parser.error('--restore-trust-cache requires --progress')
 if args.progress and not args.main_entry:
@@ -35,6 +41,11 @@ if (pins['image_bytes'] != 184549376 or pins['file_bytes'] != 561856 or
                              pins.get('follow_process_creation', False) != args.progress or
                              pins.get('main_entry_offset') != 85896 or pins.get('main_entry_bytes') != 'ff8305d1fc6f12a9f65713a9f44f14a9'))):
     raise SystemExit('Require exact inspected RAM disk and bounded stage policy')
+if args.system_user_entry and (
+        pins.get('system_file_path') != '/mnt1/sbin/launchd' or
+        not pins.get('system_file_bytes') or
+        len(bytes.fromhex(pins.get('system_file_sha256', ''))) != 32):
+    raise SystemExit('Require exact system launchd pins for --system-user-entry')
 for key, enabled in [('XNU_RAM_USER_ENTRY', args.user_entry), ('XNU_RAM_MAIN_PROBE', args.main_entry), ('XNU_RAM_PROGRESS', args.progress), ('XNU_RAM_RESTORE_TRUST', bool(args.restore_trust_cache))]:
     if key in os.environ and os.environ[key] != str(int(enabled)):
         raise SystemExit(key + ' disagrees with requested diagnostic archive mode')
@@ -53,6 +64,12 @@ for name, key in [('image', 'image_sha256'), ('file', 'file_sha256')]:
     if len(value) != 32: raise SystemExit('Expected SHA256 pins')
     header += 'static const uint8_t ram_root_' + name + '_sha256[32] = {' + ','.join(hex(x) for x in value) + '};\n'
 (out / 'RamRootProbePins.h').write_text(header)
+system_header = '#define RAM_SYSTEM_ALLOW_USER_ENTRY ' + str(int(args.system_user_entry)) + '\n'
+if args.system_user_entry:
+    system_header += '#define RAM_SYSTEM_LAUNCHD_BYTES UINT64_C(%d)\n' % pins['system_file_bytes']
+    system_digest = bytes.fromhex(pins['system_file_sha256'])
+    system_header += 'static const uint8_t ram_system_launchd_sha256[32] = {' + ','.join(hex(x) for x in system_digest) + '};\n'
+(out / 'RamSystemProbePins.h').write_text(system_header)
 record = json.loads((ROOT / 'build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/bsd/DEVELOPMENT/kern_exec.o.json').read_text().strip().rstrip(','))
 source = ROOT / 'kits/sheng/RamRootProbe.c'
 obj = out / 'RamRootProbe.o'
@@ -74,6 +91,16 @@ if result.returncode: raise SystemExit(result.stdout + result.stderr)
 if struct.unpack_from('<4I', obj.read_bytes()) != (0xfeedfacf, 0x100000c, 0, 1):
     raise SystemExit('Expected ordinary ARM64 Mach-O object')
 objects = [obj]
+if args.system_objects:
+    system_source=ROOT/'kits/sheng/RamSystemProbe.c'
+    system_object=out/'RamSystemProbe.o'
+    system_command=[str(system_source) if value==str(source) else str(system_object) if value==str(obj) else value for value in command]
+    system_command += ['-I',str(ROOT/'package/UniXNUPkg/Include')]
+    (out/'system-compile-command.json').write_text(json.dumps(system_command,indent=2)+'\n')
+    result=subprocess.run(system_command,cwd=record['directory'],capture_output=True,text=True)
+    (out/'system-compile.log').write_text(result.stdout+result.stderr)
+    if result.returncode: raise SystemExit(result.stdout+result.stderr)
+    objects.append(system_object)
 if args.main_entry:
     main_source = ROOT / 'kits/sheng/RamLaunchdProbe.c'
     main_object = out / 'RamLaunchdProbe.o'
@@ -111,6 +138,8 @@ subprocess.run(['xcrun', 'ar', 'rcs', archive, *objects], check=True)
     source_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),
     archive_sha256=hashlib.sha256(archive.read_bytes()).hexdigest(),
     user_entry=args.user_entry, main_entry=args.main_entry, progress=args.progress,
+    system_objects=args.system_objects, system_user_entry=args.system_user_entry,
+    system_source_sha256=hashlib.sha256(system_source.read_bytes()).hexdigest() if args.system_objects else None,
     main_source_sha256=hashlib.sha256(main_source.read_bytes()).hexdigest() if args.main_entry else None,
     restore_trust=bool(args.restore_trust_cache),
     restore_trust_sha256=hashlib.sha256(restore).hexdigest() if args.restore_trust_cache else None,
