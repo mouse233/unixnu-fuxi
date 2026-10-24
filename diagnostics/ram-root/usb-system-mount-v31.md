@@ -37,3 +37,8 @@ attempt-01：serial/product/unlocked 门禁通过，镜像发送 OKAY，但 Boot
 fastboot 并要求再次进入；重新识别 fcde91e、核对无占用后开始 attempt-02。
 原始失败和后续结果分别归档，详细命令与实机回填见候选 REVIEW.md 和
 规范日志 usb-bulk.md。当前尚无 v31 挂载照片，不宣称实机修复已通过。
+
+
+attempt-02 最终传输结果：临时启动成功，两个对象 END 实际 RAM SHA256
+均通过，560.733 秒，退出 0，未写分区。等待正常停止证据、用户手选
+system-mount 及最终照片；这尚不能证明 XNU 挂载成功。

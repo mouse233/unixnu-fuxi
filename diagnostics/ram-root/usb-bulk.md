@@ -1348,3 +1348,16 @@ v31 驱动实机匹配、节点发布、只读挂载与 RAM_SYSTEM PASS 均仍�
 用户确认手机显示 fastboot 并说“你再进一遍”。重新确认没有传输任务，
 fcde91e 在主机 fastboot 列表，使用同一镜像及九份绑定报告开始独立
 attempt-02。命令见候选 REVIEW.md；上机/传输结果待回填。
+
+
+### v31 attempt-02：双对象 END 实际 RAM SHA256 通过
+
+用户明确要求重试后，本轮 fastboot 临时启动成功（Sending 4.202 秒，Booting
+1.846 秒），OS 6077580800 字节、SystemOS 3303014400 字节均完成 END 实际
+RAM SHA256 校验，总用时 560.733 秒，运行器退出 0，无分区写入。原始记录
+在 out/usb-system-mount-v31/attempt-02，attempt-01 的 USB 失败记录保留。
+
+源代码 ae963f4、设备集成 3503c1f 已推送到 mouse233 fork。接下来等待接收器
+正常停止，拍停机三标记并手选 system-mount，再拍最终 IOKit/APFS/挂载结果。
+当前没有 v31 XNU 挂载照片，不把传输成功或 kernel_handoff=true 当成挂载
+通过；normal_controller_stop_verified=false，RAM_SYSTEM PASS 仍未验证。
