@@ -1505,3 +1505,23 @@ load_init_program exec 并运行到其首条系统调用；x16=74 经 XNU syscal
 根文件系统仍为 md0——user-entry 是 exec 来源验收点，不是完整 userland。
 normal_controller_stop_verified 仍 false（本 attempt 未拍停止标记）。
 下一步验收点：放开 SVC 派发与 recovery 程序，观察 launchd 真实用户态启动。
+
+
+### v32 后续：v33 候选（系统 launchd 运行到 LC_MAIN+4，2026-10-24）
+
+v32 验收后下一步：启用既有 XNU_RAM_MAIN_PROBE 机制（RamLaunchdProbe.c，
+md0 线曾实机到达 stage=10 main=PASS）。SVC 真实派发，硬件断点钉 launchd
+LC_MAIN+4，命中即 RAM_SYSTEM_MAIN PASS；fork/vfork/execve/posix_spawn/
+mount/unmount/reboot/ptrace 派发前 panic；30 秒/2048 条 SVC 兜底。
+改动层：package/RamLaunchdProbe.c（argv0 接受 /mnt1/sbin/launchd、PASS
+屏幕区分 system entry）、scripts/build-ram-root-probe.py（放开
+--system-objects 与 --main-entry 组合并要求系统 launchd 与 md0 launchd
+字节一致）；断点钉子 main_entry_offset=85896 主机侧对 OS 卷 launchd 实
+字节核验一致（系统卷与恢复盘 launchd 同为 561856 字节 8cec9a3c…b6a25，
+该偏移曾在 md0 线实机验证）。ram-root-probe=2→3，ram-system-probe=2
+不变；候选 config 需 CONFIG_XNU_RAM_MAIN_PROBE=y（克隆自 v32 时为 n，
+首次构建在档案一致性检查处失败）。UniXNU-fuxi bf72331 已推 fork。
+镜像 203190272 字节 SHA256
+f5e13fcf31c7664a92dc3397c3002cebed20357bb0bed18468af64f20fde26b5，
+11 项检查全部退出 0 并绑定该镜像（spi baseline v25 文件、witness parent
+v28、volume-nodes 不适用同 v32）。attempt-01 传输与实机结论待回填。
