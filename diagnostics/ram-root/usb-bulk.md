@@ -1361,3 +1361,18 @@ RAM SHA256 校验，总用时 560.733 秒，运行器退出 0，无分区写入�
 正常停止，拍停机三标记并手选 system-mount，再拍最终 IOKit/APFS/挂载结果。
 当前没有 v31 XNU 挂载照片，不把传输成功或 kernel_handoff=true 当成挂载
 通过；normal_controller_stop_verified=false，RAM_SYSTEM PASS 仍未验证。
+
+
+### v31 attempt-02：最终照片确认 RAM_SYSTEM PASS（2026-10-24，首次）
+
+用户手选 system-mount 后发来 IMG_6969.HEIC（已归档 attempt-02）。完整最终
+屏幕显示 RAM_SYSTEM PASS、OS/SystemOS actual RAM SHA256=OK、
+APFS readonly=1、/mnt1 and /mnt2 mounted，以及 userland not started;
+partition IO absent @RamSystemProbe.c:80 与 TCR/SCTLR/pages/free。
+v31 NativeRamSystemBlock 只读 IOKit 存储驱动实机匹配、卷节点发布与两个
+APFS 只读挂载均通过，RAM_SYSTEM PASS 首次在实机达成；用户态未启动、
+物理 UFS partition IO 关闭，与设计一致。
+
+未验证：接收器停机三标记照片仍未提供，normal_controller_stop_verified
+保持 false；屏幕未展示卷 BSD 名/UUID。下一验收点是用户态
+（launchd/RestoreRamDisk），需单独候选决定从只读挂载推进用户态的路径。
