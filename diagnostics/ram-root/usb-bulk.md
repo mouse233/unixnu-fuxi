@@ -1905,3 +1905,24 @@ verified=true；normal_controller_stop_verified仍false。待实机：停机
 三标记照片后手选 `fuxi RAM diagnostic: system-mount`，最终屏幕完整
 归档——RAM_NATIVE_ROOT_USER PASS（含switch auth/flags）或约束拒绝
 原文，两者均为决定性证据。
+
+### v38 attempt-01 最终照片：launchd 放行，PID1 到达 EL0（2026-10-25）
+
+用户IMG_6988原件/PNG/转写/photo-observation.json及PHOTO-REPORT.md
+归档到attempt-01。最终panic：RAM_NATIVE_ROOT_USER PASS；root=switched
+OS-volume apfs readonly=1 rootfs=1；exec=/sbin/launchd（after native
+vfs_switch_root）；PID1 executed at EL0; SVC trapped；pc=100904fb4
+cpsr=0 esr=56000080；x16=74（mprotect）instruction=d4001001；
+switch auth=80 flags=1490d001；stopped BEFORE first syscall dispatch。
+
+**v34以来阻断系统卷launchd的Launch Constraint Violation消失**：
+AMFI类别2的根卷分支由真实切根的MNT_ROOTFS满足，exec全链（约束、
+信任缓存、签名）完成，dyld启动，PID1在EL0发出首个SVC后被探针截停。
+exec来源经exec钩子的根身份复验（新旧launchd字节相同，路径/哈希不足
+区分）与v37切根链共同判定为OS卷。首个SVC与v32时代同二进制的ramdisk
+launchd一致（mprotect），符合预期。rootauth EAUTH80为记录项。
+
+边界：无syscall派发，主循环/dyld完整装载/用户态程序未验证；根为
+只读RAM；不把本PASS写成完整系统启动。停机三标记未拍，
+normal_controller_stop_verified仍false。下一验收点：SVC派发
+（progress模式，沿用mount/reboot/ptrace封锁）。
