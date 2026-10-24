@@ -39,7 +39,8 @@ def configure(parent, out):
             path.unlink()
     # Hardware conclusions and delivered-image checks must be produced again.
     for name in ('device-test.json', 'verification.json', 'payload-verification.json',
-                 'kmem-tests.json', 'mount-spi-tests.json', 'state.json', 'restore-mountpoints.json'):
+                 'kmem-tests.json', 'mount-spi-tests.json', 'mount-trace-tests.json',
+                 'state.json', 'restore-mountpoints.json'):
         (out / name).unlink(missing_ok=True)
     for name in ('board-effective.json', 'pins.json'):
         path = out / name

@@ -42,6 +42,15 @@ def exercise(source, constants, fixed):
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <stdlib.h>
+#define fuxi_ram_mount_reset() ((void)0)
+#define fuxi_ram_mount_mark(flags, stage) ((void)0)
+#define panic(...) abort()
+static struct {
+    const char *stage;
+    uint32_t dev, spec, covered;
+    int opens, apfs;
+} fuxi_ram_mount_diag __attribute__((unused));
 #define CONFIG_BASESYSTEMROOT 1
 #define NULLVP NULL
 typedef void *vnode_t;
@@ -133,7 +142,17 @@ def main():
         defines.append(re.search(r'^#define '+name+r'\s+[^\n]+', public, re.M).group())
     constants = '\n'.join(defines)
     patch = base / 'patches/xnu/zz-ram-system-mount-spi.patch'
-    subprocess.run(['git', '-C', str(root), 'apply', '--reverse', '--check', str(patch)], check=True)
+    # A later trace patch changes the wrapper's context. Remove it only in a
+    # disposable copy, then verify the SPI patch; never edit a built candidate.
+    with tempfile.TemporaryDirectory(prefix='ram-mount-patches-') as directory:
+        scratch = Path(directory)
+        target = scratch / 'bsd/vfs/vfs_syscalls.c'
+        target.parent.mkdir(parents=True)
+        target.write_text(source)
+        trace = base / 'patches/xnu/zz-ram-system-mount-trace.patch'
+        if 'fuxi_ram_mount_reset' in source:
+            subprocess.run(['git', '-C', str(scratch), 'apply', '--reverse', str(trace)], check=True)
+        subprocess.run(['git', '-C', str(scratch), 'apply', '--reverse', '--check', str(patch)], check=True)
     baseline = a.baseline.resolve().read_text()
     results = [exercise(baseline, constants, False), exercise(source, constants, True)]
     record_path = out / 'work/tree/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/bsd/DEVELOPMENT/vfs_syscalls.o.json'

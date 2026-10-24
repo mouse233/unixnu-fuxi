@@ -1064,3 +1064,19 @@ IMG_6957.HEIC 归档于 out/usb-system-mount-v26/attempt-01，显示
 
 下一步在 RAM 挂载专用路径记录失败阶段、设备号/打开计数、VFS_MOUNT
 返回值，区分 VFS 前置检查和 APFS 拒绝。本轮未修改 v26 或制作下一候选。
+
+## v27：RAM 挂载失败阶段诊断候选（2026-10-24）
+
+针对 v26 首次挂载 EBUSY，新增 zz-ram-system-mount-trace.patch，仅在 XNU
+RAM 专用路径记录阶段、设备号、vcount、设备/挂载点 flags 和 APFS 返回值。
+原 kernel_mount 清理完毕后显示诊断 panic；不保留 vnode 指针，不跳过检查。
+UEFI 接收流程、双对象布局与只读限制未改。尚未认定 EBUSY 根因或修复挂载。
+
+候选 out/usb-system-mount-v27/Mu-fuxi-usb-ram.img，203,190,272 字节，
+SHA256 `d48f32848b9f1da0b469b001dbbe2365430061ad27409ed7f30d1ef362d6328d`，
+prelink `cd451c0c…103b1`。四项必需检查、payload、KMEM、挂载 SPI、启动门均通过。
+新诊断检查在 ASan/UBSan 下覆盖 13 个故障注入、成功与普通挂载隔离，验证清理后
+仍保留准确阶段，并核对清理代码与 v26 一致、编译来源和交付 prelink 的诊断字符串。
+
+详细说明、命令和阶段解释见 usb-system-mount-v27.md 及候选 REVIEW.md。
+当前仅主机验证通过；将核对 fastboot 后执行 attempt-01，最终结果须回填照片。
