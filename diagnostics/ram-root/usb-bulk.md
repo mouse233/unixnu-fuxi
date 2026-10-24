@@ -1577,3 +1577,15 @@ SPI/trace/volume-args/witness/IOKit/gate/probe-policy/system probe-guards。
 用户已确认“已进 fastboot”，无活动传输、fcde91e 已核对，attempt-01 执行一次
 fastboot boot 与 RAM 传输。命令/报告见候选 REVIEW.md。传输及新实机 main
 结果待回填；主机检查不等于实机修复通过。
+
+
+### v34 attempt-01：临时启动及双对象 RAM 校验通过（2026-10-24）
+
+Sending OKAY 4.213 秒，Booting OKAY 9.046 秒；OS 6077580800 字节与
+SystemOS 3303014400 字节均完成 END 实际 RAM SHA256 verified，总用时
+581.749 秒，运行器退出 0，full_os_object_transfer_verified=true，无分区
+写入。记录在 out/usb-system-mount-v34/attempt-01；14 项主机检查均已退出 0
+并绑定镜像 67f10f04…。源码 95070f2/760c9c5 已推 mouse233 fork。
+
+等待接收器停止标记、用户手选 system-mount 后的最终屏幕。当前不能宣称
+RAM_SYSTEM_MAIN PASS，normal_controller_stop_verified 仍 false。
