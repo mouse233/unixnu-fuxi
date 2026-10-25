@@ -2540,3 +2540,40 @@ system-mount。wdt=3只证明服务注册/匹配/启动，clients增量证明原
 客户端打开，beats增量证明真实心跳；越过旧lookup brk不等于完整
 系统启动。v46尚无运行照片，服务实际验收/完整系统/持久化待证；
 保留fault全局覆盖与锁丢失边界，无fault不能排除brk。
+
+
+### TWRP /data → UEFI 移植分支：M0说明与只读基础（2026-10-25）
+
+按用户要求从实验UEFI 4fda548d创建feat/twrp-data-uefi，独立检出
+ramdisk-test/uefi-twrp-data；原feat/ramdisk-test未切换。本阶段改动
+位于UEFI诊断、主机审计/测试和说明文档，不改DarwinBoot/XNU/USB
+对象交接或系统打包；UEFI提交e64deffc。
+
+输入为用户更正的twrp-3.7.1_12-v9.0_A16-fuxi-skkk.img，SHA256
+68f3829ba4b7faaf8b873fd0dce7dabd03b2bdd750debbae56b1dbe326f87da5。
+重新解包并双pin image/CPIO，13组件哈希和ELF接口档案入UEFI文档；
+找到Decrypt_DE/User、vold取钥/装钥、高通KeyMint/Gatekeeper/QSEE与
+UFS-crypto/SCM依赖。源码路径和符号不是运行时解密证据。
+
+M0实现：限界只读回调、GPT CRC/身份/重叠检查、F2FS头部几何识别、
+唯一UFS LUN0 BlockIo适配、SCM/QSEE协议发现及单独开关的INFO调用
+存在性查询。默认两个固件开关均0。查询只执行INFO，不执行ICE
+set/clear/derive，不读取口令/密钥、不写分区、不加载TA或调用RPMB。
+
+82个fixture直接编译生产C，经ASan/UBSan通过；容器独立DXE构建两版
+真实退出0。no-smc 12800字节SHA256 d0b54e2fda7c01d25db5d6d858ea4ad
+564819bde13ac58f295a128d4e9eaffd1；query 13824字节SHA256
+90ad4c5e4a3e8022292ced90636ca1545d4758986e7461622b3d8ddd48286baa。
+源绑定复核通过；EFI反汇编分别0/1条SMC。明细在独立检出的
+out/data-port-m0/REVIEW.md、build.json和host-tests。
+
+没有完整启动镜像、fastboot操作或attempt，不占用v46手机会话。
+当前默认固件无UFS提供者，原生UEFI UFS接管、F2FS文件读取、元数据
+解密、fscrypt及本地RAM对象发布均未实现；availability与F2FS头部
+识别不代替解密/挂载验收。已有2026-10-23-ufs-readonly照片确认的
+fuxi XNU原始GPT/首块读取可参考，但不是UEFI结果。
+
+移植说明：UEFI docs/fuxi-twrp-data-port.md，列M1原生只读UFS→
+M2 metadata文件→M3安全/元数据解密→M4已知文件明文SHA256→M5完整
+对象加载各阶段和停止条件。下一实现点为M1，重核本机MMIO/SID/DMA/
+队列停机，不能直接打开整个vendor栈或复用USB SID路由。
