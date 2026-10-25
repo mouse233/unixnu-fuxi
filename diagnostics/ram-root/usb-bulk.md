@@ -2053,3 +2053,14 @@ svc-dispatch-preflight.md已更正；v39 REVIEW已标旧判据不可用。
 AMFI映射/LC_MAIN/子进程执行均待新attempt证据；normal_controller_
 stop_verified仍false。不预判历史PMGR依赖必然复现或已经修复，不把
 主机验证写成实机或完整系统启动成功。
+
+
+### v40 attempt-01 发起（2026-10-25）
+
+用户确认已进入 fastboot。重新核对无活动设备任务、fcde91e 可见，
+交付镜像 SHA256 1718540b450ba9b49d6eb6c4191fa5befb390a9f99dad3410413a2a010415a0e
+与完整16项检查及脚本绑定匹配；使用新 attempt-01。完整脚本重新
+校验两对象源窗口后，仅 fastboot boot 临时启动，Sending/Booting
+均 OKAY（4.269s/1.489s，returncode=0）。接收器发现和双对象 RAM
+传输/回读校验继续；没有分区写入。尚无 XNU/cache/progress 实机
+结论，normal_controller_stop_verified 仍 false。
