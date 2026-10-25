@@ -2188,3 +2188,36 @@ fuxi RAM diagnostic: system-mount，拍完整RAM_CACHE/RAM_PROGRESS
 和最终panic。carrier/cache准备、签名验证、实际映射、LC_MAIN与
 子进程执行均待照片；kernel_handoff=true仍只是配置位，不是进入
 XNU证据。未因fastboot消失而重启或重复传输。
+
+
+### v41 attempt-01 实机照片：缓存映射成功，main PASS，子进程运行（2026-10-25）
+
+IMG_6990.HEIC（SHA256 962cbfe9b45ed3d8872949f4443d6f4b37b136f760814db5e3be5d57971d8ccc）
+归档于attempt-01，含转写与photo-observation.json。写结论前镜像哈希
+d9111f8b934df910a67bf6787a83b618988aa4cef3cd77eee2de985ab4f31468与
+post-transfer-binding（17项、脚本/探针源码匹配）重新核对一致。
+
+照片直接证明：carrier=1 cache=2 dyld_flags=8；sigblobs=53
+blocks=201083与主机审计逐一吻合；map=1 err=0 rv=0为
+SYS_shared_region_map_and_slide_2_np原返回0，缓存实际映射成功；
+stage=10 main=PASS由LC_MAIN+4硬件断点+指令字节比对置位。PID1
+posix_spawn出xpcproxy（child=69 pe=0，e=0 rv=0），PID69再spawn
+/System/Library/CoreServices/Rep…（路径截断）成功；exec=65，
+pid=41/57/63/69多进程EL0运行（FeatureFlags plist、
+/usr/swift-backtrace stat、write尝试）。v40的main前no dyld cache
+阻塞已消除。
+
+终止：PID57调用ptrace(PT_DENY_ATTACH=31)（a0=0x1f，与
+ios-obj EXPORT_HDRS syscall.h/ptrace.h核对），属follow模式设计内
+封锁集（mount/unmount/__mac_mount/fmount/reboot/ptrace），
+RamLaunchdProbe.c:387派发前panic停机。探针策略停机，非启动链故障。
+
+边界：末次cache-open err=2不与map成功矛盾（多路径探测，以map原
+返回为准）；PID69 spawn的child=-1 pe=-1为子PID读出未捕获，非失败；
+Rep…全名未证实；pages=0xac664 free=0x3a2仅记录不断言；停机三标记
+照片未拍，normal_controller_stop_verified=false。完整系统启动、
+可写根、持久化仍待后续。
+
+下一候选决策点：ptrace(PT_DENY_ATTACH)放行策略（自保护调用）、
+写入封锁粒度、内存余量跟踪。实机推进方向：放开首条策略性阻塞后
+观察launchd后续服务矩阵与首个用户态写入需求。
