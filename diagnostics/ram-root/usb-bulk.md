@@ -2429,3 +2429,40 @@ elapsed_seconds与分段速率（对标v43的567.977秒）、ram_readback_verifi
 =true、HALTED/路由恢复/USBRAM QUIESCE: Success照片。预期≈35-40
 MB/s、总时长约230-300秒；若仍≈16.5 MB/s则瓶颈判定有误，回溯DWC3
 事件/TRB路径。本候选不进XNU即可完成传输验收。
+
+
+### v44 attempt-01 照片：同PID brk #1，IOWatchdog查找失败的强定位线索（2026-10-25）
+
+用户IMG_6995原件SHA256=159e52a66c030b5433c25fff9eff4f11d2bf566ecf905c60a7638da3e4decab9，
+原件/PNG/转写/photo-observation/PHOTO-REPORT归档attempt-01。镜像仍
+495ab2d81e7c767a2d1989567b67101fed1a13c79088e49945f6b3a7b260ddd0；
+17项退出0、当前检查脚本和探针源码与镜像绑定再次通过。
+
+直接观察：main=PASS，root切OS只读，cache2/carrier1/flags8，map1
+err0 rv0，sigblobs53/blocks201083/pagechecks17473；svc193095、
+unix85602、exec158、drop156178。fault12 pid135 esr=f2000001
+pc=1011e6b0c far=101252000；最终watchdogd[135] SIGNAL/5关键退出
+panic。ESR明确为EL0 BRK_AARCH64、imm16=1；与死亡PID一致。全局
+fault12不表示watchdogd崩溃12次，BRK的FAR不当有效访存地址解释。
+同PID的xpcproxy→watchdogd与SETEXEC相容，未采flags，不推断孙PID，
+不将PID135后续事件自动归给旧xpcproxy或排除死因。free1344页仅记录。
+
+重新绑定OS源窗口SHA256，只读提取原watchdogd（ded4c688…13a01），
+自行卸载临时镜像。原__text中唯一4K页对齐brk#1候选为0x10000ab0c，
+照片PC对应候选slide0x11dc000；其前__os_crash消息为
+connect_to_kext() unexpectedly failed - unable to lookup watchdog KEXT service。
+原plist匹配IOProviderClass=IOWatchdog。既有原始指令模型4输入通过：
+非VM无服务到该brk，VM无服务exit，打开错误到另一brk，连接成功返回。
+外部IOKit/sysctl均为桩，不是实机服务返回。最强候选为原生IOWatchdog
+服务查找失败；运行时映像基址/UUID、TID/退出关联与实际lookup返回
+仍未采集，不把唯一候选写成完整根因证明，不反推v43帧。
+
+修订早先取证判据：锁忙会丢fault，全局最后记录也可覆盖，故无fault
+不能排除brk，有fault也须关联死亡现场。原生critical-exit机制不排除
+本地平台/移植原因。下一步核验IOWatchdog注册/匹配/启动与原生接口，
+补运行时基址/致命退出关联；不以关闭panic或伪造成功作为修复。
+
+full-transfer.json最终elapsed=595.345秒（先前555.0不是最终全流程
+耗时），双对象RAM回读仍通过。三停机标记未拍，normal_controller_
+stop_verified=false；完整系统启动/持久化未验证。本轮仅只读分析和
+归档，无新候选、无设备操作。
