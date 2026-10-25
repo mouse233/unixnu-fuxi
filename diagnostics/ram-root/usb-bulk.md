@@ -2154,3 +2154,17 @@ KMEM剩余VA下界662548480。17项检查全部真实退出0，当前源码和
 无分区写入，normal_controller_stop_verified=false。候选待fastboot
 及新attempt照片：tmpfs加载/封存、缓存映射、launchd main、子进程
 实际执行和完整系统启动均未验证，不预判后续PMGR依赖已经修复。
+
+
+### v41 attempt-01 发起（2026-10-25）
+
+用户确认fastboot可测试。重读最新日志和v41 REVIEW，互斥检查无活动
+设备任务；fcde91e可见，helper确认product=fuxi、unlocked=yes，当前
+slot=a（只查询，未修改）。最终镜像d9111f8b934df910a67bf6787a83b618988aa4cef3cd77eee2de985ab4f31468
+与17项套件/当前检查脚本/探针源码以及UEFI/loader源码绑定再次通过。
+新建独立attempt-01，完整脚本重新校验两个源窗口后仅fastboot boot。
+Sending/Booting均OKAY（4.209s/1.939s，returncode=0）。接收器发现和
+双对象RAM传输/回读流程继续；尚无XNU/cache/main实机结论。
+已归档原始boot.log、device-test及镜像绑定检查报告，无分区写入，
+normal_controller_stop_verified=false。不将kernel_handoff配置位当
+作进入XNU证据，不因fastboot列表消失而重复boot。
