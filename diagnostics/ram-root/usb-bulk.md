@@ -2081,3 +2081,33 @@ normal_controller_stop_verified仍false。待接收器停机三标记照片，
 再手选fuxi RAM diagnostic: system-mount，归档RAM_CACHE的原始
 返回/ready、RAM_PROGRESS快照和最终panic。传输完成不证明已进入
 XNU或缓存映射/launchd main通过，不预填实机结论。
+
+
+### v40 attempt-01 最终照片：cache准备完成，dyld无缓存、main前终止（2026-10-25）
+
+用户IMG_6989原件/PNG/转写/photo-observation.json/PHOTO-REPORT归档。
+照片直接显示stage=8 main=pending；root=switched OS-volume apfs
+readonly rootfs=1；cache=2 dyld_flags=8；pid1 svc70 unix54 exec0 drop0；
+x16=521。最终initproc failed to start，namespace6 subcode1，
+Library not loaded: /usr/lib/libSystem.B.dylib；Reason: no such file,
+no dyld cache。末尾syscall号与本候选头核对：4/6/48/521分别为
+write/close/sigprocmask/abort_with_payload。exec0是后续exec/spawn
+观察计数，不能解释为初始exec没发生。
+
+阶段与编译源码共同推得：原/mnt2在切根后/Developer/mnt2身份检查、
+实际原生cache卷rootauth=0、OS原始dyld哈希、env copyout与flags/
+commpage更新均已完成；cache2不证明缓存映射成功。SVC派发已经
+发生，LC_MAIN+4未命中，未观察子进程。照片不保留目录open/openat
+或shared_region映射的具体返回，故不能把本次错误直接写成EPERM。
+
+后续源码核查发现上一轮预检漏项：实际vm_unix对象带载体卷拒绝
+错误串，NCONFIG_CSR=0且XNU_OWNER_CACHE_CARRIER=0；非根卷缓存
+必须与/private/preboot/Cryptexes解析出的mount同一卷。scdir_enforce=0
+不关闭这道独立检查。v40的env路径没有建立该原生载体身份；旧
+check-owner-cache-preflight-checkpoints.py亦记录过同检查EPERM，
+但旧离线结果不是本次errno实测。下一步须保留目录/映射原返回、
+满足原生布局，不关闭检查或改返回宣称修复。
+
+16项检查/镜像/当前检查脚本绑定重新核验全部匹配后写结论。
+停机三标记未拍，normal_controller_stop_verified仍false。未到main、
+未证明缓存映射或完整用户态启动；本次仅照片归档/源码核查，未操作设备。
