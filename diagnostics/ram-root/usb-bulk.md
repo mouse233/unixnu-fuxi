@@ -2689,3 +2689,32 @@ FUXIUFS 数值块照片（GPT 结果、userdata 0x2f7840..0x3afc3fa 对照、
 首块 magic f673c25f 7086bec0 对照、SHA256、stop readback）；接收器
 枚举成功只证明诊断入口正常返回，不等于读取结论正确。实机结论仍为
 进行中，四项 M1 证据待数值块照片回填。
+
+
+### Windows / WSL2 迁移恢复与 Linux 主机检查适配（2026-10-25）
+
+从 unixnu-handoff-20261025.tar.7z 恢复到 Ubuntu WSL2 的
+/home/mouse/work/UniXNU；原 Windows 目录保留压缩包和入口报告，旧 WSL
+UEFI 检出未改。六仓库快照、十个未跟踪文件与 58 个输出记录目录恢复，
+五个非空补丁先检查再应用并通过反向检查；初次逐文件核对 3062 个文件、
+2573743015 字节一致，v47 UEFI/DarwinBoot 共 30 项绑定匹配。原始记录和
+快照另存，未激活旧认证或跨架构 venv。先恢复 449f06f，再快进 a0fa052
+纳入打包后两条 M1 日志；独立 TWRP 检出保留包内阶段 M0 e64deffc。
+
+改动层为主机检查器：check-usb-ram.py 的测试适配层在 Linux 使用
+-shared/-fPIC 与 OpenSSL SHA256；macOS 保留 CommonCrypto/-dynamiclib。
+生产 RamBulk 和 sender 不改。保留初次 Linux 失败日志；SMMU audit、
+route、生产 C/Python 收发测试现均退出 0；watchdog 33 例/4 突变拒绝
+通过。上游 Linux 主机依赖检查通过，UDIF 6 例在固定 LZFSE 源构建后
+全部通过，无跳过。新结果在根 migration/20261025，不覆盖历史候选报告。
+
+上游 16e592ab 已有 Linux XNU 工具链路径，不再要求 macOS/Xcode；
+恢复的实验构建器尚无该支持，普通 Clang 18 也不含所需 XNU builtins。
+完整定制工具链未安装，未执行完整 XNU 重建。实验 RAM-root/user-entry/
+main-entry 扩展不在上游同名脚本中，后续移植须保留宏与编译对象保护，
+不能直接覆盖。详见 windows-wsl-migration.md 和根迁移审查报告。
+
+交接包无候选 .img、work/cache、完整 IPSW、boot-tests 等必要输入；本轮
+未重跑完整镜像/编译对象门禁，未操作手机，不新增实机结论。v47 待上机、
+v46 watchdog 准备失败的历史边界保持不变。容器恢复独立记录宿主 amd64
+工具与 AARCH64 固件目标，不沿用旧 ARM64 venv。

@@ -8,6 +8,7 @@ import io
 import json
 import struct
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -20,8 +21,20 @@ sender = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(sender)
 source = a.uefi.resolve() / 'Platforms/Xiaomi/fuxiPkg/Drivers/FuxiUsbRamDxe'
 adapter = r'''
+#if defined(__linux__)
+#define _GNU_SOURCE
+#endif
 #include "RamBulk.h"
+#if defined(__APPLE__)
 #include <CommonCrypto/CommonDigest.h>
+#else
+#include <openssl/sha.h>
+#define CC_SHA256_CTX SHA256_CTX
+#define CC_LONG unsigned int
+#define CC_SHA256_Init SHA256_Init
+#define CC_SHA256_Update SHA256_Update
+#define CC_SHA256_Final SHA256_Final
+#endif
 #include <sys/mman.h>
 #include <stdlib.h>
 static int fail_alloc;
@@ -50,10 +63,13 @@ cases = []
 with tempfile.TemporaryDirectory(prefix='ram-bulk-test-') as directory:
     work = Path(directory)
     (work / 'host.c').write_text(adapter)
-    lib = work / 'receiver.dylib'
+    darwin = sys.platform == 'darwin'
+    lib = work / ('receiver.dylib' if darwin else 'receiver.so')
+    shared_flags = ['-dynamiclib'] if darwin else ['-shared', '-fPIC']
+    crypto_flags = [] if darwin else ['-lcrypto']
     subprocess.run(['clang', '-std=c11', '-Wall', '-Wextra', '-Werror', '-Wno-deprecated-declarations',
-                    '-dynamiclib', '-I', str(source), str(source / 'RamBulk.c'), str(work / 'host.c'),
-                    '-o', str(lib)], check=True)
+                    *shared_flags, '-I', str(source), str(source / 'RamBulk.c'), str(work / 'host.c'),
+                    '-o', str(lib), *crypto_flags], check=True)
     c = ctypes.CDLL(str(lib))
     c.session_new.restype = ctypes.c_void_p
     c.session_free.argtypes = [ctypes.c_void_p]
