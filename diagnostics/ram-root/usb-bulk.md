@@ -2657,3 +2657,35 @@ fcde91e 前置，未执行 fastboot boot。实机预期对照：GPT CRC 通过�
 userdata 0x2f7840..0x3afc3fa、首块 magic f673c25f 7086bec0（XNU
 2026-10-23 记录）、停机 readback doorbell=0。实机结论待照片；
 主机检查通过不等于实机通过。
+
+
+### TWRP /data → UEFI 移植分支：M1 实机迭代与 PRDT 字节序修复（2026-10-25）
+
+feat/twrp-data-uefi 提交 c8ff2e23。上机迭代四轮，只 fastboot boot、
+无分区写入、无载荷传输；每轮互斥检查与 fcde91e/product/unlocked 核对。
+
+第一轮（9535d644）：屏幕照片显示加载 FuxiNativeUfsDxe.efi 后无任何
+输出即复位。第二轮加 FUXIUFS stage 阶段标记（e1751e37）：照片定位
+到 capacity 后复位——第一条带数据阶段的命令。根因：PRDT 表项被写成
+大端；UFS PRDT 是小端原生存储（只有 UPIU 字段为大端），控制器按翻转
+地址 DMA 触发 SMMU 故障、整机复位。修复为与 XNU 一致的小端存储，
+主机测试同步断言小端 PRDT。
+
+第三/四轮（21771c3b/89b40386，另加双通道数值输出 FnuLog 与
+FUXI_USB_EP0_TRACE=0 静默逐包 EP0 跟踪）：诊断全程跑完、接收器枚举
+成功。照片证据：USBRAM S19 ConfigureEnableEndpoints returned Success、
+USB ROUTE VERIFIED; first DMA permitted、主机 SET CONFIGURATION 完成
+（1209:0001）、USB CONTEXT existing bank=5。UFS 诊断与 USB 路由试用
+在同一 SMMU 共存：UFS 从次顶 bank 规划，USB 按既有策略落在 ABL 留下
+的 context bank 5，顶 bank 未被动用。该诊断入口在 receiver-only 候选
+于 DXE 调度即执行（APRIORI 在接收器之前），接收器 180 秒窗口后驻留
+CpuDeadLoop，永不进入 ReadyToBoot——M0 的 ReadyToBoot 触发点在
+receiver-only 形态下不会执行。
+
+最终候选 89b40386c0663a5c714973e97b0ef018ee874a2a619f26079ab02722651d
+c1b9（1871872 字节，FD bfd51c19…），六项主机检查（smmu-audit/route/
+usb-ram/dwc3-ep0/dwc3-stop/image）全部退出 0 并绑定交付。尚未采集到
+FUXIUFS 数值块照片（GPT 结果、userdata 0x2f7840..0x3afc3fa 对照、
+首块 magic f673c25f 7086bec0 对照、SHA256、stop readback）；接收器
+枚举成功只证明诊断入口正常返回，不等于读取结论正确。实机结论仍为
+进行中，四项 M1 证据待数值块照片回填。
