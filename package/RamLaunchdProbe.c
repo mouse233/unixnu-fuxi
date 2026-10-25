@@ -14,12 +14,22 @@
 #include <mach/mach_time.h>
 #include <mach/arm/thread_status.h>
 #include "RamRootProbePins.h"
+#ifndef RAM_ROOT_PROGRESS_SECONDS
+#define RAM_ROOT_PROGRESS_SECONDS 90
+#endif
+#ifndef RAM_ROOT_NATIVE_HASH_CACHE
+#define RAM_ROOT_NATIVE_HASH_CACHE 0
+#endif
+#if RAM_ROOT_NATIVE_HASH_CACHE
+extern unsigned long cs_native4k_full_blocks, cs_native4k_page_checks, cs_native4k_ready_blobs;
+#endif
 
 extern volatile unsigned fuxi_ram_root_stage;
 extern volatile unsigned fuxi_ram_system_user_entry;
 /* Owned by RamRootProbe.c; set after a verified native root switch. */
 extern volatile unsigned fuxi_ram_native_root_entry;
 extern volatile unsigned fuxi_ram_cache_stage;
+extern volatile unsigned fuxi_ram_cache_carrier;
 extern volatile unsigned long long fuxi_ram_cache_dyld_flags;
 /* This Mach-private declaration is hidden from the BSD compile-record headers. */
 extern kern_return_t machine_thread_set_state(thread_t, thread_flavor_t, thread_state_t, mach_msg_type_number_t);
@@ -50,6 +60,9 @@ struct ram_spawn {
     uint64_t token, pid_address; thread_t thread; char path[64];
 };
 static struct ram_event events[8];
+/* Sticky cache evidence survives the later console writes and fatal exit. */
+static struct ram_event cache_open, cache_map;
+static unsigned cache_open_count, cache_map_count;
 static struct ram_spawn spawns[8];
 static char last_path[96], last_stat[64], last_write[48];
 static int last_pid, last_stat_pid, last_write_pid;
@@ -60,27 +73,26 @@ static void progress_snapshot(void)
 {
     size_t used = (size_t)snprintf(fuxi_ram_progress_text, sizeof(fuxi_ram_progress_text),
         "RAM_PROGRESS stage=%u main=%s\n%s\n"
-        "cache=%u dyld_flags=%llx\npid=%d svc=%u unix=%u exec=%u drop=%u\nlastpc=%llx x16=%d\n",
+        "cache=%u carrier=%u dyld_flags=%llx\npid=%d svc=%u unix=%u exec=%u drop=%u\nlastpc=%llx x16=%d\n"
+        "cache-open=%u err=%d fd=%d map=%u err=%d rv=%d\n",
         fuxi_ram_root_stage, fuxi_ram_root_stage == 10 ? "PASS" : "pending",
         fuxi_ram_native_root_entry ? "root=switched OS-volume apfs readonly rootfs=1" :
             "md0 APFS readonly; original hashes OK",
-        fuxi_ram_cache_stage, fuxi_ram_cache_dyld_flags,
-        last_pid, svc_count, unix_count, spawn_total, dropped_events, last_pc, recent_calls[(svc_count - 1) & 7]);
-    unsigned first = unix_count > 6 ? unix_count - 6 : 0;
+        fuxi_ram_cache_stage, fuxi_ram_cache_carrier, fuxi_ram_cache_dyld_flags,
+        last_pid, svc_count, unix_count, spawn_total, dropped_events, last_pc, recent_calls[(svc_count - 1) & 7],
+        cache_open_count, cache_open_count ? cache_open.error : -9999, cache_open_count ? cache_open.result : -9999,
+        cache_map_count, cache_map_count ? cache_map.error : -9999, cache_map_count ? cache_map.result : -9999);
+#if RAM_ROOT_NATIVE_HASH_CACHE
+    if (used < sizeof(fuxi_ram_progress_text))
+        used += (size_t)snprintf(fuxi_ram_progress_text + used, sizeof(fuxi_ram_progress_text) - used,
+            "sigblobs=%lu blocks=%lu pagechecks=%lu\n", cs_native4k_ready_blobs,
+            cs_native4k_full_blocks, cs_native4k_page_checks);
+#endif
+    unsigned first = unix_count > 4 ? unix_count - 4 : 0;
     for (unsigned i = first; i < unix_count && used < sizeof(fuxi_ram_progress_text); i++) {
         struct ram_event *event = &events[i & 7];
         used += (size_t)snprintf(fuxi_ram_progress_text + used, sizeof(fuxi_ram_progress_text) - used,
             "u%u pid=%d code=%u err=%d rval=%d a0=%llx\n", i + 1, event->pid, event->code, event->error, event->result, event->arg);
-    }
-    if (spawn_total && used < sizeof(fuxi_ram_progress_text)) {
-        used += (size_t)snprintf(fuxi_ram_progress_text + used, sizeof(fuxi_ram_progress_text) - used, "exec/spawn:\n");
-        unsigned n = spawn_total < 8 ? spawn_total : 8;
-        for (unsigned i = spawn_total - n; i < spawn_total && used < sizeof(fuxi_ram_progress_text); i++) {
-            struct ram_spawn *spawn = &spawns[i & 7];
-            used += (size_t)snprintf(fuxi_ram_progress_text + used, sizeof(fuxi_ram_progress_text) - used,
-                " %d c=%u e=%d rv=%d child=%d pe=%d %.32s\n", spawn->pid, spawn->code,
-                spawn->error, spawn->result, spawn->child, spawn->pid_error, spawn->path);
-        }
     }
     if (used < sizeof(fuxi_ram_progress_text) && last_path[0])
         used += (size_t)snprintf(fuxi_ram_progress_text + used, sizeof(fuxi_ram_progress_text) - used, "path=%.56s\n", last_path);
@@ -90,6 +102,17 @@ static void progress_snapshot(void)
     if (used < sizeof(fuxi_ram_progress_text) && last_write[0])
         used += (size_t)snprintf(fuxi_ram_progress_text + used, sizeof(fuxi_ram_progress_text) - used,
             "write=%.36s pid=%d\n", last_write, last_write_pid);
+    if (spawn_total && used < sizeof(fuxi_ram_progress_text)) {
+        used += (size_t)snprintf(fuxi_ram_progress_text + used, sizeof(fuxi_ram_progress_text) - used, "exec/spawn:\n");
+        unsigned n = spawn_total < 2 ? spawn_total : 2;
+        for (unsigned i = 0; i < n && used < sizeof(fuxi_ram_progress_text); i++) {
+            struct ram_spawn *spawn = &spawns[(spawn_total - 1 - i) & 7];
+            used += (size_t)snprintf(fuxi_ram_progress_text + used, sizeof(fuxi_ram_progress_text) - used,
+                " %d c=%u e=%d rv=%d child=%d pe=%d %.32s\n", spawn->pid, spawn->code,
+                spawn->error, spawn->result, spawn->child, spawn->pid_error, spawn->path);
+        }
+    }
+
 }
 static int progress_lock(void)
 {
@@ -115,7 +138,7 @@ static void deadline_expired(thread_call_param_t one, thread_call_param_t two)
 {
     (void)one; (void)two;
 #if RAM_ROOT_PROGRESS
-    panic("RAM_PROGRESS bounded run ended (90s or SVC limit)\nstage=%u exec=%u\npath=%.56s",
+    panic("RAM_PROGRESS bounded run ended (deadline or SVC limit)\nstage=%u exec=%u\npath=%.56s",
         fuxi_ram_root_stage, spawn_total, last_path);
 #else
     panic("RAM_MAIN timeout before checkpoint\nstage=%u svc=%u lastpc=%llx\nrecent=%d,%d,%d,%d,%d,%d,%d,%d\nprocess creation blocked",
@@ -190,7 +213,7 @@ void fuxi_ram_main_arm(thread_t target)
     if (result != KERN_SUCCESS) panic("RAM_MAIN cannot arm EL0 hardware breakpoint: %d", result);
     deadline_call = thread_call_allocate(deadline_expired, NULL);
     if (!deadline_call) panic("RAM_MAIN cannot allocate diagnostic deadline");
-    clock_interval_to_deadline(RAM_ROOT_PROGRESS ? 90 : 30, NSEC_PER_SEC, &deadline);
+    clock_interval_to_deadline(RAM_ROOT_PROGRESS ? RAM_ROOT_PROGRESS_SECONDS : 30, NSEC_PER_SEC, &deadline);
     thread_call_enter_delayed(deadline_call, deadline);
 #if RAM_ROOT_PROGRESS
     if (progress_lock()) progress_unlock();
@@ -224,7 +247,8 @@ uint64_t fuxi_ram_progress_unix(unsigned code, uint64_t arg0, uint64_t arg1)
 #if RAM_ROOT_PROGRESS
     char path[sizeof(last_path)] = {0};
     size_t copied = 0;
-    uint64_t path_address = (code == SYS_posix_spawn || code == SYS_mount || code == SYS___mac_mount) ? arg1 :
+    uint64_t path_address = (code == SYS_posix_spawn || code == SYS_mount || code == SYS___mac_mount ||
+                            code == SYS_openat || code == SYS_openat_nocancel) ? arg1 :
         (code == SYS_execve || code == SYS___mac_execve || code == SYS_open || code == SYS_open_nocancel ||
          code == SYS_unmount) ? arg0 : 0;
     uint64_t stat_address = (code == SYS_stat64 || code == SYS_lstat64 || code == SYS_stat || code == SYS_lstat) ? arg0 : 0;
@@ -248,6 +272,15 @@ uint64_t fuxi_ram_progress_unix(unsigned code, uint64_t arg0, uint64_t arg1)
         struct ram_event *event = &events[unix_count++ & 7];
         *event = (struct ram_event){ .code = code, .error = -9999, .result = -9999,
             .arg = arg0, .token = token, .thread = current_thread(), .pid = pid };
+        if ((code == SYS_open || code == SYS_open_nocancel || code == SYS_openat || code == SYS_openat_nocancel) &&
+            (strnstr(path, "dyld_shared_cache", sizeof(path)) || strnstr(path, "com.apple.dyld", sizeof(path)))) {
+            cache_open = *event;
+            cache_open_count++;
+        }
+        if (code == SYS_shared_region_map_and_slide_2_np) {
+            cache_map = *event;
+            cache_map_count++;
+        }
         if (path_address) {
             memcpy(last_path, path, sizeof(last_path));
             last_pid = pid;
@@ -307,6 +340,14 @@ void fuxi_ram_progress_unix_result(uint64_t token, unsigned code, int error, int
     }
     if (progress_lock()) {
         /* The token also rejects a dropped/reused entry and ring eviction. */
+        struct ram_event *sticky[] = { &cache_open, &cache_map };
+        for (unsigned i = 0; i < 2; i++) {
+            if (sticky[i]->token == token && sticky[i]->thread == current_thread() &&
+                sticky[i]->code == code && sticky[i]->error == -9999) {
+                sticky[i]->error = error;
+                sticky[i]->result = result;
+            }
+        }
         for (unsigned n = 0; n < 8 && n < unix_count; n++) {
             struct ram_event *event = &events[(unix_count - 1 - n) & 7];
             if (event->token == token && event->thread == current_thread() && event->code == code && event->error == -9999) {

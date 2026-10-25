@@ -1,4 +1,4 @@
-# SVC 与共享缓存预检：v39 审计修复、v40（2026-10-25）
+# SVC 与共享缓存预检：v39 审计修复、v40/v41（2026-10-25）
 
 原报告“静态分析已到终点、v40 静态完备、owner 先例证明可行”撤回。
 原始会话及 usb-bulk.md 历史条目保留；v39 镜像保留作历史对照，
@@ -76,9 +76,28 @@ RamSystemCache.c 接收 pivot 前捕获的原 /mnt2 mount 身份，切根后
  Python 3.12 环境并需要沙箱外 JIT 权限；沙箱首次失败已保留，随后
 在相同镜像完成完整成功重跑。
 
-## 仍待实机
+## v40 实机与 v41 补齐项
 
-v40 尚未上机。实际路径查找/rootauth、内核/AMFI 接受缓存映射、PID1
-到 LC_MAIN、只读根运行和子进程实际执行，须按新 attempt 照片判断。
+v40 attempt-01 已完整传输并经照片确认切至 OS 根，cache=2、flags=8，
+但 PID1 在 main 前报 no dyld cache。准备通过不等于缓存成功映射。
+照片未保留最初的目录打开/签名/映射 errno，不能倒推出实测 EPERM。
+原始照片和转写见 v40 REVIEW 与 attempt-01/PHOTO-REPORT.md。
+
+新查出的两项独立静态门槛均已在 v41 处理：实际 ubc_subr.o 原先关闭
+XNU_NATIVE_CS_HASH_CACHE，使 4K 内核在 CodeDirectory 页大小门拒绝
+16K 签名块；实际非 CSR 的 vm_unix.o 还要求次级卷缓存与
+/private/preboot/Cryptexes 解析结果同 mount，scdir_enforce=0 不关闭它。
+这是源码和编译对象结论，不是 v40 照片已采得的 errno。
+
+v41 通过同一原始 kernelcache 的 tmpfs 和普通 mount/symlink 接口，
+在 RAM 中建立并封存 /private/preboot/Cryptexes -> /Developer/mnt2。
+原始载体检查继续解析真实 APFS mount；OS/SystemOS 不写入。并启用
+已有完整16K块认证后派生4K页哈希的内核实现，保留原签名、原字节和
+AMFI。新增载体/签名门禁、sticky cache open/map 诊断，期限300秒。
+17项检查退出0。设计、故障用例与模型范围见
+[cache-carrier-fix.md](cache-carrier-fix.md)，交付见独立 v41 REVIEW。
+
+v41 实际 tmpfs 加载/封存、缓存映射、PID1 到 LC_MAIN 及子进程执行
+仍须新 attempt 照片验证；当前未检测到 fastboot，未启动新测试。
 历史离线 PMGR 错误是后续线索，不预判 fuxi 必然复现，也不声称当前
 模型已解决。发现新的可离线分析项应继续处理，不再笼统宣布静态终点。

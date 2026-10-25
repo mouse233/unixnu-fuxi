@@ -2111,3 +2111,46 @@ check-owner-cache-preflight-checkpoints.py亦记录过同检查EPERM，
 16项检查/镜像/当前检查脚本绑定重新核验全部匹配后写结论。
 停机三标记未拍，normal_controller_stop_verified仍false。未到main、
 未证明缓存映射或完整用户态启动；本次仅照片归档/源码核查，未操作设备。
+
+
+### v41：满足原生缓存载体检查，启用完整16K块验证（2026-10-25）
+
+针对v40照片main前no dyld cache，独立APFS clone候选，父v40镜像
+哈希未变。补齐两项静态遗漏：v40 ubc_subr.o的native hash cache
+关闭，使4K内核的CodeDirectory页大小门拒绝16K签名块；非CSR的
+vm_unix.o还要求缓存与/private/preboot/Cryptexes同mount。这是
+源码/编译对象证据，v40照片没有最初open/签名/映射的实测errno。
+
+改动位于XNU、原始tmpfs预链接配置与构建/检查/打包层。PID1 exec
+前用同一21H461原始tmpfs和普通mount/symlink，在/private/preboot
+建立Cryptexes -> /Developer/mnt2，然后原生只读封存；重新解析确认
+是已认证的真实cache APFS mount/VROOT。RAM quota=1MiB、32节点，
+readonly/nosuid/nodev/noexec。原载体检查源码与v40同哈希，不关闭
+策略、不改身份返回、不写只读APFS或分区，任一步错误原状态终止。
+
+启用已有CONFIG_XNU_NATIVE_CS_HASH_CACHE=y，先验证完整原始16K
+签名块，再从同缓冲区派生4K哈希，只读保护成功才发布。缓存/签名/
+CDHash/trust/原始dyld与AMFI/APFS执行字节不改。新增cache open/map
+最后一次原返回sticky记录、carrier及签名进展计数，未观察仍-9999；
+首次约3.3GB签名预读期限300秒，SVC上限131072、既有写入封锁保留。
+
+最终主机XNU、Docker固件和FUXIPAYL打包完成。镜像203190272字节，
+SHA256 d9111f8b934df910a67bf6787a83b618988aa4cef3cd77eee2de985ab4f31468；
+prelink 9193914ee024830dc7b0a3b68f25f7f91bb109a6d963db0ee888668127258e2d；
+最低非空段0xfffffff00427c000，交付载荷与skew重新推导同余仍0x7c000，
+KMEM剩余VA下界662548480。17项检查全部真实退出0，当前源码和
+检查脚本哈希与suite/镜像再次绑定通过。root/main C90例，switch43例
+及3突变；cache C43例及4突变；CacheFinder原指令5输入；新增实际
+内核签名代码24例及2突变、原页大小门8组合、原载体分支5例、原tmpfs
+指令5例。tmpfs新挂载模型停在copyin，不是完整节点分配或硬件挂载。
+
+按真实SHNGROOT清单重算两个窗口，只读审计53缓存文件/201083完整
+签名块及4K对齐/子块损坏拒绝；原始OS dyld哈希匹配。脚本自行卸载
+临时窗口，cleanup_complete=true。这些不是CMS信任链或真实映射
+验收。构建失败/模型失败和中间版本日志保留，不覆盖最终成功记录。
+完整交付与命令见v41 REVIEW，规范设计cache-carrier-fix.md。
+
+互斥检查无活动设备任务，fastboot列表为空，未发起v41 boot/重传。
+无分区写入，normal_controller_stop_verified=false。候选待fastboot
+及新attempt照片：tmpfs加载/封存、缓存映射、launchd main、子进程
+实际执行和完整系统启动均未验证，不预判后续PMGR依赖已经修复。

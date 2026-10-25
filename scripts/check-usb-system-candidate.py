@@ -86,6 +86,7 @@ def main():
         checks.append(('root-switch', 'check-ram-system-root-switch.py', shared + switch_mode))
     if cache:
         checks.append(('system-cache', 'check-ram-system-cache.py', shared + ['--dyld', str(args.dyld.resolve())]))
+        checks.append(('cache-admission', 'check-ram-cache-admission.py', shared))
     run_id = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ')
     logs = out / 'check-runs' / run_id
     logs.mkdir(parents=True, exist_ok=False)

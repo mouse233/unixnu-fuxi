@@ -81,8 +81,10 @@ static int thread_call_enter_delayed(thread_call_t call,uint64_t deadline) {
     if(!call || deadline!=30000000000ULL) abort();return 0;
 }
 '''
+deadline = json.loads((OUT / 'pins.json').read_text()).get('progress_deadline_seconds', 90) if (OUT / 'pins.json').exists() else 90
+native_hash = json.loads((OUT / 'pins.json').read_text()).get('native_cs_hash_cache', False) if (OUT / 'pins.json').exists() else False
 if args.progress:
-    api = api.replace('seconds!=30', 'seconds!=90').replace('30000000000ULL', '90000000000ULL')
+    api = api.replace('seconds!=30', 'seconds!=' + str(deadline)).replace('30000000000ULL', str(deadline * 1000000000) + 'ULL')
     api += r'''
 static int copyinstr(uint64_t address, char *out, size_t bytes, size_t *copied) {
     const char *in=(const char *)(uintptr_t)address;
@@ -110,6 +112,8 @@ if args.restore_trust:
     api += '\nunsigned fuxi_ram_restore_trust_loaded=267;\n'
     pins += '#define RAM_ROOT_RESTORE_TRUST 1\n'
 pins += '#define RAM_ROOT_PROGRESS ' + str(int(args.progress)) + '\n'
+pins += '#define RAM_ROOT_PROGRESS_SECONDS %d\n#define RAM_ROOT_NATIVE_HASH_CACHE %d\n' % (deadline, int(native_hash))
+if native_hash: api += '\nunsigned long cs_native4k_full_blocks,cs_native4k_page_checks,cs_native4k_ready_blobs;\n'
 assert '#define RAM_ROOT_ALLOW_MAIN_ENTRY 1' in pins
 bodies = []
 for name in ['RamRootProbe.c', 'RamLaunchdProbe.c']:
@@ -297,6 +301,14 @@ if args.progress:
     for(unsigned i=0;i<20;i++) {token=fuxi_ram_progress_unix(20,i,0);fuxi_ram_progress_unix_result(token,20,0,i);}
     REQUIRE(strlen(fuxi_ram_progress_text)<sizeof(fuxi_ram_progress_text));
     REQUIRE(!strstr(fuxi_ram_progress_text,"u1 code="));cases++;
+    token=fuxi_ram_progress_unix(SYS_shared_region_map_and_slide_2_np,53,0);
+    fuxi_ram_progress_unix_result(token,SYS_shared_region_map_and_slide_2_np,1,0);
+    REQUIRE(cache_map_count==1 && cache_map.error==1);cases++;
+    token=fuxi_ram_progress_unix(SYS_openat,0,(uintptr_t)"dyld_shared_cache_arm64.01");
+    fuxi_ram_progress_unix_result(token,SYS_openat,0,7);
+    for(unsigned i=0;i<12;i++) {token=fuxi_ram_progress_unix(20,0,0);fuxi_ram_progress_unix_result(token,20,0,0);}
+    REQUIRE(cache_open_count==1 && cache_open.error==0 && cache_open.result==7 && cache_map.error==1);cases++;
+    REQUIRE(strstr(fuxi_ram_progress_text,"map=1 err=1 rv=0"));cases++;
     unsigned saved=unix_count;dropped_events=0;trace_lock=1;fuxi_ram_progress_unix(20,0,0);
     REQUIRE(unix_count==saved && dropped_events==1);trace_lock=0;cases++;
     pid=2;fuxi_ram_main_unix(20);fuxi_ram_main_svc(0x2000,0,0x56000080,20);pid=1;cases++;

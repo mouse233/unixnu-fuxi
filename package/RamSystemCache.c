@@ -1,5 +1,5 @@
-/* Use the already authenticated RAM SystemCryptex after the native pivot.
- * No filesystem writes, second mount, trust changes or user-code patches. */
+/* Use the authenticated RAM SystemCryptex after the native pivot. Only the
+ * bounded tmpfs namespace is written; original APFS volumes stay read-only. */
 #include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
@@ -9,6 +9,7 @@
 #include <sys/vnode.h>
 #include <sys/vnode_internal.h>
 #include <sys/proc.h>
+#include <sys/sysproto.h>
 #include <kern/thread.h>
 #include <libkern/crypto/sha2.h>
 #include <pexpert/pexpert.h>
@@ -16,13 +17,17 @@
 
 extern volatile unsigned fuxi_ram_native_root_entry, fuxi_ram_root_stage, fuxi_ram_system_stage;
 extern volatile unsigned fuxi_ram_cache_stage;
+extern volatile unsigned fuxi_ram_cache_carrier;
 extern volatile unsigned long long fuxi_ram_cache_dyld_flags;
 extern uint64_t dyld_flags;
 extern void commpage_update_dyld_flags(uint64_t);
+extern int OSKextLoadKextWithIdentifier(const char *);
 static mount_t cache_mount;
 static const char cache_root[] = "/Developer/mnt2";
 static const char cache_directory[] = "/Developer/mnt2/System/Library/Caches/com.apple.dyld";
 static const char environment[] = "DYLD_SHARED_CACHE_DIR=/Developer/mnt2/System/Library/Caches/com.apple.dyld";
+static const char preboot_path[] = "/private/preboot";
+static const char carrier_path[] = "/private/preboot/Cryptexes";
 void fuxi_ram_system_cache_bind(mount_t);
 void fuxi_ram_system_cache_prepare(proc_t, user_addr_t, user_addr_t *);
 
@@ -81,6 +86,61 @@ static void verify_dyld(void)
     if (memcmp(digest, ram_system_dyld_sha256, sizeof(digest))) panic("RAM_CACHE dyld SHA256 mismatch");
 }
 
+/* The unmodified non-CSR shared-region policy follows this path and compares
+ * actual mount identity. Make that identity reachable through a sealed RAM
+ * namespace, instead of changing the policy or mutating an APFS volume. */
+static void prepare_carrier(proc_t process, user_addr_t scratch)
+{
+    vnode_t node = checked_node(preboot_path, vnode_mount(rootvnode), VDIR);
+    if (vnode_isvroot(node)) panic("RAM_CACHE preboot already mounted");
+    vnode_put(node);
+    int error = vnode_lookup(carrier_path, 0, &node, vfs_context_kernel());
+    if (!error) { vnode_put(node); panic("RAM_CACHE carrier already exists"); }
+    if (error != ENOENT) panic("RAM_CACHE carrier preflight errno=%d", error);
+
+    int load = OSKextLoadKextWithIdentifier("com.apple.filesystems.tmpfs");
+    if (load) panic("RAM_CACHE tmpfs load failed: status=%x", load);
+    /* Original 21H461 tmpfs_mount copies exactly 24 bytes: page quota,
+     * node quota, option byte/padding. 256 native 4K pages = 1 MiB. */
+    struct { uint64_t pages, nodes; uint32_t options, reserved; } data = {256, 32, 0, 0};
+    _Static_assert(sizeof(data) == 24, "original tmpfs mount ABI");
+    struct mount_args request = { .type = scratch + 0x100, .path = scratch + 0x120,
+        .flags = MNT_NOSUID | MNT_NODEV | MNT_NOEXEC | MNT_DONTBROWSE, .data = scratch + 0x180 };
+    int32_t result = 0;
+    if ((error = copyout("tmpfs", request.type, 6)) ||
+        (error = copyout(preboot_path, request.path, sizeof(preboot_path))) ||
+        (error = copyout(&data, request.data, sizeof(data))))
+        panic("RAM_CACHE tmpfs args failed: errno=%d", error);
+    error = mount(process, &request, &result);
+    if (error) panic("RAM_CACHE tmpfs mount failed: errno=%d", error);
+    error = vnode_lookup(preboot_path, 0, &node, vfs_context_kernel());
+    if (error) panic("RAM_CACHE tmpfs lookup failed: errno=%d", error);
+    mount_t space = vnode_mount(node);
+    if (!space || space == cache_mount || space == vnode_mount(rootvnode) ||
+        strcmp(vfs_statfs(space)->f_fstypename, "tmpfs") || !vnode_isvroot(node))
+        panic("RAM_CACHE tmpfs mount identity failed");
+    vnode_put(node);
+    struct symlink_args link = { .path = scratch + 0x200, .link = scratch + 0x280 };
+    if ((error = copyout(cache_root, link.path, sizeof(cache_root))) ||
+        (error = copyout(carrier_path, link.link, sizeof(carrier_path))))
+        panic("RAM_CACHE carrier args failed: errno=%d", error);
+    error = symlink(process, &link, &result);
+    if (error) panic("RAM_CACHE carrier symlink failed: errno=%d", error);
+    request.flags |= MNT_UPDATE | MNT_RDONLY;
+    request.data = USER_ADDR_NULL; /* tmpfs update does not consume initial arguments. */
+    error = mount(process, &request, &result);
+    if (error) panic("RAM_CACHE tmpfs seal failed: errno=%d", error);
+    node = checked_node(preboot_path, space, VDIR);
+    unsigned required = MNT_RDONLY | MNT_NOSUID | MNT_NODEV | MNT_NOEXEC;
+    if ((vfs_flags(space) & required) != required) panic("RAM_CACHE tmpfs seal flags failed");
+    vnode_put(node);
+    node = checked_node(carrier_path, cache_mount, VDIR);
+    if (!vnode_isvroot(node)) panic("RAM_CACHE carrier is not cache volume root");
+    vnode_put(node);
+    fuxi_ram_cache_carrier = 1;
+    printf("RAM_CACHE carrier ready: %s -> %s; tmpfs readonly quota=1MiB\n", carrier_path, cache_root);
+}
+
 /* Called by load_init_program with its private one-page scratch mapping, before
  * exec builds the replacement thread. Low bytes remain reserved for argv. */
 void fuxi_ram_system_cache_prepare(proc_t process, user_addr_t scratch, user_addr_t *envp)
@@ -94,6 +154,7 @@ void fuxi_ram_system_cache_prepare(proc_t process, user_addr_t scratch, user_add
         panic("RAM_CACHE mount flags changed");
     vnode_put(node);
     verify_dyld();
+    prepare_carrier(process, scratch);
     user64_addr_t vector[2] = {scratch + 0x400, USER_ADDR_NULL};
     int error = copyout(environment, vector[0], sizeof(environment));
     if (!error) error = copyout(vector, scratch + 0x500, sizeof(vector));

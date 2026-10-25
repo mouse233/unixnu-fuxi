@@ -93,6 +93,11 @@ header = '#define RAM_ROOT_IMAGE_BYTES UINT64_C(184549376)\n#define RAM_ROOT_FIL
 header += '#define RAM_ROOT_ALLOW_USER_ENTRY ' + str(int(args.user_entry)) + '\n'
 header += '#define RAM_ROOT_ALLOW_MAIN_ENTRY ' + str(int(args.main_entry)) + '\n'
 header += '#define RAM_ROOT_PROGRESS ' + str(int(args.progress)) + '\n'
+deadline = pins.get('progress_deadline_seconds', 90)
+if deadline not in (90, 300) or (deadline == 300 and not (args.system_cache and pins.get('native_cs_hash_cache'))):
+    raise SystemExit('Extended deadline requires verified system cache integrity mode')
+header += '#define RAM_ROOT_PROGRESS_SECONDS %d\n' % deadline
+header += '#define RAM_ROOT_NATIVE_HASH_CACHE %d\n' % int(pins.get('native_cs_hash_cache', False))
 header += '#define RAM_ROOT_RESTORE_TRUST ' + str(int(bool(args.restore_trust_cache))) + '\n'
 if args.main_entry:
     header += '#define RAM_ROOT_MAIN_OFFSET UINT64_C(85896)\n'

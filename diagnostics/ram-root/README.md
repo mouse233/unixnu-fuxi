@@ -408,8 +408,20 @@ diagnostic hooks, never original dyld/AMFI bytes or trust decisions.
 CacheFinder instructions; `check-ram-cache-files.py` checks cache mapping
 alignment and CodeDirectory block hashes from a read-only host mount.
 
+v41 also establishes the original non-CSR carrier identity through a sealed
+1 MiB RAM tmpfs: `/private/preboot/Cryptexes` follows `/Developer/mnt2` to the
+same real APFS mount. The original tmpfs component comes from the pinned
+kernelcache; both APFS volumes remain read-only. It enables the existing native
+hash cache that verifies complete original 16K signing blocks before deriving
+and publishing read-only 4K hashes. `check-ram-cache-admission.py` exercises the
+actual signature and carrier branches, verifies compiled feature flags, and
+models original tmpfs admission/update instructions. The v41 diagnostic deadline
+is 300 seconds with the same 131072 SVC bound. Sticky cache open/map results and
+signature counters survive later console writes. See `cache-carrier-fix.md` for
+model scope and runtime boundaries; the complete candidate suite has 17 checks.
+
 Spawn snapshots distinguish raw `rv` from `child` read from the PID output
 pointer. Successful `posix_spawn` has `e=0 rv=0`; `child>0 pe=0` is the observed
 PID output, not proof that this child reached EL0. Missing/dropped observations
-stay unknown. See `svc-dispatch-preflight.md` and the v40 REVIEW for exact
+stay unknown. See `svc-dispatch-preflight.md` and the v40/v41 REVIEW files for exact
 evidence and remaining runtime boundaries.

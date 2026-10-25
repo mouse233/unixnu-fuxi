@@ -105,6 +105,8 @@ API = r'''
 #include <string.h>
 #include <stdarg.h>
 #include <setjmp.h>
+#include <errno.h>
+#include <assert.h>
 #include <sys/types.h>
 #include <CommonCrypto/CommonDigest.h>
 #define SHA256_CTX CC_SHA256_CTX
@@ -113,6 +115,11 @@ API = r'''
 #define SHA256_Update(c,b,n) CC_SHA256_Update(c,b,(CC_LONG)(n))
 #define MNT_RDONLY 1
 #define MNT_ROOTFS 0x4000
+#define MNT_NOSUID 8
+#define MNT_NODEV 16
+#define MNT_NOEXEC 4
+#define MNT_DONTBROWSE 0x100000
+#define MNT_UPDATE 0x10000
 #define FSIOC_KERNEL_ROOTAUTH 0x80046833U
 #define UIO_READ 0
 #define UIO_SYSSPACE 1
@@ -128,8 +135,14 @@ typedef struct node *vnode_t;
 #define NULLVP ((vnode_t)0)
 static struct mount root_mount={MNT_ROOTFS|MNT_RDONLY,{"apfs"}}, other_mount={MNT_RDONLY,{"apfs"}};
 static struct node root_node={&root_mount,VDIR}, cache_node={&other_mount,VDIR}, directory_node={&other_mount,VDIR}, dyld_node={&root_mount,VREG};
+static struct mount space_mount={0,{"tmpfs"}};
+static struct node preboot_node={&root_mount,VDIR};
+static int mounted,linked,load_error,mount_error,link_error,seal_error,bad_carrier,preexisting;
+static int copyout_count,copyout_fail_call;
+struct mount_args {user_addr_t type,path;int flags;user_addr_t data;};
+struct symlink_args {user_addr_t path,link;};
 static vnode_t rootvnode=&root_node;
-volatile unsigned fuxi_ram_native_root_entry=1,fuxi_ram_root_stage=7,fuxi_ram_system_stage=6,fuxi_ram_cache_stage;
+volatile unsigned fuxi_ram_native_root_entry=1,fuxi_ram_root_stage=7,fuxi_ram_system_stage=6,fuxi_ram_cache_stage,fuxi_ram_cache_carrier;
 volatile unsigned long long fuxi_ram_cache_dyld_flags;
 uint64_t dyld_flags,comm_flags;
 static int selector=1,auth_error,lookup_error,read_error,copyout_error,pid=1,bad_hash,bad_size,auth_calls;
@@ -142,7 +155,7 @@ static mount_t vnode_mount(vnode_t n) {return n->mount;}
 static unsigned vfs_flags(mount_t m) {return m->flags;}
 #define vfs_statfs(m) (&(m)->stat)
 static enum vtype vnode_vtype(vnode_t n) {return n->type;}
-static int vnode_isvroot(vnode_t n) {return n==&cache_node;}
+static int vnode_isvroot(vnode_t n) {return n==&cache_node || (n==&preboot_node && mounted);}
 static void vnode_put(vnode_t n) {if(!n) abort();}
 static void *vfs_context_kernel(void) {return (void*)1;}
 static void *vfs_context_ucred(void *c) {return c;}
@@ -151,7 +164,12 @@ static int vnode_lookup(const char *p,int f,vnode_t *n,void *c) {
     if(f || !c) abort();if(lookup_error) return lookup_error;
     if(!strcmp(p,"/Developer/mnt2")) *n=&cache_node;
     else if(!strcmp(p,"/Developer/mnt2/System/Library/Caches/com.apple.dyld")) *n=&directory_node;
-    else if(!strcmp(p,"/usr/lib/dyld")) *n=&dyld_node;else abort();return 0;
+    else if(!strcmp(p,"/usr/lib/dyld")) *n=&dyld_node;
+    else if(!strcmp(p,"/private/preboot")) *n=&preboot_node;
+    else if(!strcmp(p,"/private/preboot/Cryptexes")) {
+        if(!linked && !preexisting) return ENOENT;
+        *n=bad_carrier==2?&preboot_node:bad_carrier?&root_node:&cache_node;
+    } else abort();return 0;
 }
 static int VNOP_IOCTL(vnode_t n,unsigned long cmd,void *data,int f,void *c) {
     if(n!=&cache_node || cmd!=FSIOC_KERNEL_ROOTAUTH || data || f || !c) abort();auth_calls++;return auth_error;
@@ -163,8 +181,29 @@ static int vn_rdwr(int d,vnode_t n,caddr_t b,int bytes,off_t at,int space,int fl
     if(d!=UIO_READ || n!=&dyld_node || space!=UIO_SYSSPACE || flags || !cred || !p || at+bytes>RAM_SYSTEM_DYLD_BYTES) abort();
     if(read_error) return read_error;memcpy(b,original_dyld+at,(size_t)bytes);if(bad_hash && !at) b[0]^=1;*resid=0;return 0;
 }
-static int copyout(const void *in,user_addr_t out,size_t n) {if(copyout_error) return copyout_error;memcpy((void*)(uintptr_t)out,in,n);return 0;}
+static int copyout(const void *in,user_addr_t out,size_t n) {copyout_count++;if(copyout_error && (!copyout_fail_call || copyout_count==copyout_fail_call)) return copyout_error;memcpy((void*)(uintptr_t)out,in,n);return 0;}
 void commpage_update_dyld_flags(uint64_t f) {comm_flags=f;}
+int OSKextLoadKextWithIdentifier(const char *id) {if(strcmp(id,"com.apple.filesystems.tmpfs")) abort();return load_error;}
+static int mount(proc_t p,struct mount_args *r,int32_t *result) {
+    if(!p || !result || strcmp((void*)(uintptr_t)r->type,"tmpfs") || strcmp((void*)(uintptr_t)r->path,"/private/preboot")) abort();
+    if(r->flags&MNT_UPDATE) {
+        if(!mounted || !linked || r->data) abort();if(seal_error) return seal_error;
+        space_mount.flags=r->flags&~MNT_UPDATE;return 0;
+    }
+    if(mount_error) return mount_error;
+    uint64_t *data=(void*)(uintptr_t)r->data;
+    if(mounted || data[0]!=256 || data[1]!=32 || data[2]) abort();
+    mounted=1;space_mount.flags=r->flags;preboot_node.mount=&space_mount;return 0;
+}
+static int symlink(proc_t p,struct symlink_args *r,int32_t *result) {
+    if(!p || !result || !mounted || (space_mount.flags&MNT_RDONLY) ||
+       strcmp((void*)(uintptr_t)r->path,"/Developer/mnt2") || strcmp((void*)(uintptr_t)r->link,"/private/preboot/Cryptexes")) abort();
+    if(link_error) return link_error;linked=1;return 0;
+}
+static void reset_layout(void) {
+    mounted=linked=0;preboot_node.mount=&root_mount;space_mount.flags=0;
+    copyout_count=0;fuxi_ram_cache_carrier=0;
+}
 '''
 
 TESTS = r'''
@@ -193,14 +232,27 @@ int main(int argc,char **argv) {
     bad_size=1;REFUSE("dyld size",fuxi_ram_system_cache_prepare((void*)1,(uintptr_t)scratch,&envp));bad_size=0;
     read_error=5;REFUSE("dyld read",fuxi_ram_system_cache_prepare((void*)1,(uintptr_t)scratch,&envp));read_error=0;
     bad_hash=1;REFUSE("SHA256 mismatch",fuxi_ram_system_cache_prepare((void*)1,(uintptr_t)scratch,&envp));bad_hash=0;
-    copyout_error=14;REFUSE("env copyout",fuxi_ram_system_cache_prepare((void*)1,(uintptr_t)scratch,&envp));copyout_error=0;
+    load_error=7;REFUSE("tmpfs load failed",fuxi_ram_system_cache_prepare((void*)1,(uintptr_t)scratch,&envp));load_error=0;
+    mount_error=19;REFUSE("tmpfs mount failed",fuxi_ram_system_cache_prepare((void*)1,(uintptr_t)scratch,&envp));mount_error=0;
+    link_error=30;REFUSE("symlink failed",fuxi_ram_system_cache_prepare((void*)1,(uintptr_t)scratch,&envp));link_error=0;reset_layout();
+    seal_error=22;REFUSE("tmpfs seal failed",fuxi_ram_system_cache_prepare((void*)1,(uintptr_t)scratch,&envp));seal_error=0;reset_layout();
+    preexisting=1;REFUSE("carrier already exists",fuxi_ram_system_cache_prepare((void*)1,(uintptr_t)scratch,&envp));preexisting=0;
+    bad_carrier=1;REFUSE("node identity",fuxi_ram_system_cache_prepare((void*)1,(uintptr_t)scratch,&envp));bad_carrier=0;reset_layout();
+    for(int i=1;i<=7;i++) {
+        reset_layout();copyout_error=14;copyout_fail_call=i;
+        REFUSE("errno=14",fuxi_ram_system_cache_prepare((void*)1,(uintptr_t)scratch,&envp));
+        REQUIRE(!envp && !dyld_flags && !comm_flags);cases++;
+        copyout_error=copyout_fail_call=0;
+    }
+    reset_layout();
     REQUIRE(!envp && !dyld_flags && !comm_flags);cases++;
     dyld_flags=0x100;fuxi_ram_system_cache_prepare((void*)1,(uintptr_t)scratch,&envp);
     REQUIRE(envp==(uintptr_t)scratch+0x500 && fuxi_ram_cache_stage==2);
     user64_addr_t *v=(void*)(scratch+0x500);REQUIRE(v[0]==(uintptr_t)scratch+0x400 && v[1]==0);
     REQUIRE(!strcmp((void*)(uintptr_t)v[0],"DYLD_SHARED_CACHE_DIR=/Developer/mnt2/System/Library/Caches/com.apple.dyld"));
     REQUIRE(dyld_flags==0x108 && comm_flags==0x108 && fuxi_ram_cache_dyld_flags==0x108);
-    for(unsigned i=0;i<0x400;i++) REQUIRE(!scratch[i]);cases++;
+    for(unsigned i=0;i<0x100;i++) REQUIRE(!scratch[i]);cases++;
+    REQUIRE(fuxi_ram_cache_carrier==1 && (space_mount.flags&MNT_RDONLY));cases++;
     REFUSE("init context",fuxi_ram_system_cache_prepare((void*)1,(uintptr_t)scratch,&envp));
     printf("PASS: %d real-C cache bind/env/hash/startup refusal cases\n",cases);
     free(scratch);free(original_dyld);return 0;
@@ -236,13 +288,14 @@ def main():
         assert positive.returncode == 0, positive.stdout + positive.stderr
         mutations = [body.replace('if (auth) panic', 'if (0) panic'),
                      body.replace('dyld_flags |= UINT64_C(8);', 'dyld_flags |= UINT64_C(0);'),
-                     body.replace('memcmp(digest, ram_system_dyld_sha256, sizeof(digest))', '0 * memcmp(digest, ram_system_dyld_sha256, sizeof(digest))')]
+                     body.replace('memcmp(digest, ram_system_dyld_sha256, sizeof(digest))', '0 * memcmp(digest, ram_system_dyld_sha256, sizeof(digest))'),
+                     body.replace('if (error) panic("RAM_CACHE tmpfs seal failed:', 'if (0) panic("RAM_CACHE tmpfs seal failed:')]
         for mutant in mutations:
             assert mutant != body
             assert run(mutant).returncode != 0, 'cache protection mutation survived'
     models = dyld_model(a.dyld)
     evidence = dict(real_c=positive.stdout.strip(), source_sha256=sha(source), original_dyld_sha256=DYLD_SHA,
-                    mutation_checks=3, sanitizers=['address', 'undefined'], original_cachefinder_cases=models,
+                    mutation_checks=len(mutations), sanitizers=['address', 'undefined'], original_cachefinder_cases=models,
                     cache_directory=CACHE_DIR, hardware_result='pending')
     if not a.model_only:
         build = out / 'work/tree/build/ram-root-probe'
@@ -252,7 +305,11 @@ def main():
         assert record['archive_sha256'] == sha(build/'libRamRootProbe.a') and record['pins'] == candidate_pins
         assert candidate_pins['system_dyld_sha256'] == DYLD_SHA and candidate_pins['system_dyld_bytes'] == len(raw)
         assert '#define RAM_SYSTEM_CACHE 1' in (build/'RamSystemProbePins.h').read_text()
-        for obj, names in [(build/'RamSystemCache.o', ['_fuxi_ram_system_cache_prepare', '_commpage_update_dyld_flags', '_VNOP_IOCTL']),
+        assert candidate_pins['cache_carrier_namespace'] is True and candidate_pins['native_cs_hash_cache'] is True
+        assert candidate_pins['progress_deadline_seconds'] == 300
+        header = (build/'RamRootProbePins.h').read_text()
+        assert '#define RAM_ROOT_PROGRESS_SECONDS 300' in header and '#define RAM_ROOT_NATIVE_HASH_CACHE 1' in header
+        for obj, names in [(build/'RamSystemCache.o', ['_fuxi_ram_system_cache_prepare', '_commpage_update_dyld_flags', '_VNOP_IOCTL', '_mount', '_symlink', '_OSKextLoadKextWithIdentifier']),
                            (build/'RamSystemRootSwitch.o', ['_fuxi_ram_system_cache_bind']),
                            (out/'work/tree/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/bsd/DEVELOPMENT/kern_exec.o', ['_fuxi_ram_system_cache_prepare'])]:
             symbols = subprocess.check_output([llvm_tool('llvm-nm'), str(obj)], text=True)
