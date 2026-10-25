@@ -23,6 +23,9 @@
 #ifndef RAM_ROOT_FOLLOW_DENY_ATTACH
 #define RAM_ROOT_FOLLOW_DENY_ATTACH 0
 #endif
+#ifndef RAM_ROOT_PROGRESS_SVC_LIMIT
+#define RAM_ROOT_PROGRESS_SVC_LIMIT 131072U
+#endif
 /* bsd/sys/ptrace.h request number; only this one request is ever allowed. */
 #define RAM_ROOT_PT_DENY_ATTACH 31
 #if RAM_ROOT_NATIVE_HASH_CACHE
@@ -236,7 +239,7 @@ void fuxi_ram_main_svc(uint64_t pc, uint32_t cpsr, uint32_t esr, uint64_t syscal
 #if RAM_ROOT_PROGRESS
     if (progress_lock()) progress_unlock();
 #endif
-    if (count > (RAM_ROOT_PROGRESS ? 131072U : 2048U)) deadline_expired(NULL, NULL);
+    if (count > (RAM_ROOT_PROGRESS ? RAM_ROOT_PROGRESS_SVC_LIMIT : 2048U)) deadline_expired(NULL, NULL);
     /* Keep the debug register armed. A user request cannot silently remove the checkpoint. */
     if (fuxi_ram_root_stage == 8 && current_thread() == observed_thread) {
         arm_debug_state64_t *debug = find_debug_state64(observed_thread);

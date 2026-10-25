@@ -2295,3 +2295,24 @@ libSystem标准初始化。pagechecks 7426→15767。launchd（pid=1）实际
 下一候选决策点：扩大观测窗口（SVC上限/期限）看守护进程矩阵收敛
 或下一个自然停点（EROFS/内存/时钟依赖）；时钟未设置（1970时间戳）
 与内存余量（free 631页）跟踪。
+
+
+### v43：扩大 follow 观测窗口（2026-10-25）
+
+针对v42在131072 SVC观测上限处收窗时用户态仍在推进，独立clone候选，
+仅改观测参数：pins progress_deadline_seconds 300→900、新增
+progress_svc_limit=1048576（缺省131072保持旧行为）；探针SVC上限由
+生成头RAM_ROOT_PROGRESS_SVC_LIMIT驱动。300/900期限均要求system
+cache完整性模式；提高SVC上限要求progress档案。封锁集、例外、快照
+格式与采集逻辑不变；free页与1970时间戳按片继续记录。设计见
+progress-window-widen.md。
+
+最终镜像203190272字节，SHA256 3f0d9910f2f90b1483037f9ec5bc98bf5174d681303d2f778d0439e1370ec5b4；
+kernel.macho 8e777d6a3514fd394e9fc449077a52bd59a3fb6164f1502e227511d5bc5d0906。
+OEM=FUXIPAYL，构建与finalize均退出0。17项检查
+run_id=20261025T051932.729404Z全部退出0并绑定本镜像；guards 93例
+（SVC上限路径以1048576触发），cache检查断言期限/SVC pin与生成头一致。
+
+实机待attempt-01照片：越过v42停点形态后的exec/unix增量、spawn路径
+多样性、write缓冲、free页趋势、新自然停点或预期封锁。900秒期限内
+可多拍中间画面。本候选无实机结论，normal_controller_stop_verified=false。

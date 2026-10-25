@@ -96,9 +96,15 @@ header += '#define RAM_ROOT_ALLOW_USER_ENTRY ' + str(int(args.user_entry)) + '\n
 header += '#define RAM_ROOT_ALLOW_MAIN_ENTRY ' + str(int(args.main_entry)) + '\n'
 header += '#define RAM_ROOT_PROGRESS ' + str(int(args.progress)) + '\n'
 deadline = pins.get('progress_deadline_seconds', 90)
-if deadline not in (90, 300) or (deadline == 300 and not (args.system_cache and pins.get('native_cs_hash_cache'))):
+if deadline not in (90, 300, 900) or (deadline in (300, 900) and not (args.system_cache and pins.get('native_cs_hash_cache'))):
     raise SystemExit('Extended deadline requires verified system cache integrity mode')
+svc_limit = pins.get('progress_svc_limit', 131072)
+if svc_limit not in (131072, 1048576):
+    raise SystemExit('Unsupported progress SVC observation limit')
+if svc_limit != 131072 and not args.progress:
+    raise SystemExit('Raised SVC observation limit requires the progress archive')
 header += '#define RAM_ROOT_PROGRESS_SECONDS %d\n' % deadline
+header += '#define RAM_ROOT_PROGRESS_SVC_LIMIT %dU\n' % svc_limit
 header += '#define RAM_ROOT_NATIVE_HASH_CACHE %d\n' % int(pins.get('native_cs_hash_cache', False))
 header += '#define RAM_ROOT_FOLLOW_DENY_ATTACH %d\n' % int(bool(pins.get('follow_ptrace_deny_attach', False)))
 header += '#define RAM_ROOT_RESTORE_TRUST ' + str(int(bool(args.restore_trust_cache))) + '\n'

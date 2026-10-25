@@ -82,6 +82,7 @@ static int thread_call_enter_delayed(thread_call_t call,uint64_t deadline) {
 }
 '''
 deadline = json.loads((OUT / 'pins.json').read_text()).get('progress_deadline_seconds', 90) if (OUT / 'pins.json').exists() else 90
+svc_limit = json.loads((OUT / 'pins.json').read_text()).get('progress_svc_limit', 131072) if (OUT / 'pins.json').exists() else 131072
 native_hash = json.loads((OUT / 'pins.json').read_text()).get('native_cs_hash_cache', False) if (OUT / 'pins.json').exists() else False
 deny_attach = json.loads((OUT / 'pins.json').read_text()).get('follow_ptrace_deny_attach', False) if (OUT / 'pins.json').exists() else False
 if args.progress:
@@ -114,6 +115,7 @@ if args.restore_trust:
     pins += '#define RAM_ROOT_RESTORE_TRUST 1\n'
 pins += '#define RAM_ROOT_PROGRESS ' + str(int(args.progress)) + '\n'
 pins += '#define RAM_ROOT_PROGRESS_SECONDS %d\n#define RAM_ROOT_NATIVE_HASH_CACHE %d\n' % (deadline, int(native_hash))
+pins += '#define RAM_ROOT_PROGRESS_SVC_LIMIT %dU\n' % svc_limit
 pins += '#define RAM_ROOT_FOLLOW_DENY_ATTACH %d\n' % int(deny_attach)
 if native_hash: api += '\nunsigned long cs_native4k_full_blocks,cs_native4k_page_checks,cs_native4k_ready_blobs;\n'
 assert '#define RAM_ROOT_ALLOW_MAIN_ENTRY 1' in pins
@@ -215,7 +217,7 @@ if args.native_root:
 if args.restore_trust:
     tests = tests.replace('    fuxi_ram_root_probe_before_mount(mdevlookup(0));REQUIRE(fuxi_ram_root_stage==3);', '    fuxi_ram_restore_trust_loaded=0;REFUSE("restore trust module was not loaded",fuxi_ram_root_probe_before_mount(mdevlookup(0)));fuxi_ram_restore_trust_loaded=267;\n    fuxi_ram_root_probe_before_mount(mdevlookup(0));REQUIRE(fuxi_ram_root_stage==3);')
 if args.progress:
-    tests = tests.replace('selector=3;', 'selector=4;').replace('svc_count=2048;', 'svc_count=131072;').replace('timeout before checkpoint', 'bounded run ended')
+    tests = tests.replace('selector=3;', 'selector=4;').replace('svc_count=2048;', 'svc_count=%d;' % svc_limit).replace('timeout before checkpoint', 'bounded run ended')
     tests = tests.replace('unsigned blocked[]={SYS_fork,SYS_vfork,SYS_execve,SYS_posix_spawn,SYS___mac_execve,SYS_mount,SYS_unmount,SYS___mac_mount,SYS_fmount,SYS_reboot,SYS_ptrace};',
                           'unsigned blocked_protected[]={SYS_mount,SYS_unmount,SYS___mac_mount,SYS_fmount,SYS_reboot,SYS_ptrace};')
     tests = tests.replace('for(unsigned i=0;i<sizeof(blocked)/sizeof(blocked[0]);i++) REFUSE("blocked syscall",fuxi_ram_main_unix(blocked[i]));',

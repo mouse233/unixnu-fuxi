@@ -306,9 +306,12 @@ def main():
         assert candidate_pins['system_dyld_sha256'] == DYLD_SHA and candidate_pins['system_dyld_bytes'] == len(raw)
         assert '#define RAM_SYSTEM_CACHE 1' in (build/'RamSystemProbePins.h').read_text()
         assert candidate_pins['cache_carrier_namespace'] is True and candidate_pins['native_cs_hash_cache'] is True
-        assert candidate_pins['progress_deadline_seconds'] == 300
+        assert candidate_pins['progress_deadline_seconds'] in (300, 900)
+        assert candidate_pins['progress_svc_limit'] in (131072, 1048576)
         header = (build/'RamRootProbePins.h').read_text()
-        assert '#define RAM_ROOT_PROGRESS_SECONDS 300' in header and '#define RAM_ROOT_NATIVE_HASH_CACHE 1' in header
+        assert '#define RAM_ROOT_PROGRESS_SECONDS %d' % candidate_pins['progress_deadline_seconds'] in header
+        assert '#define RAM_ROOT_PROGRESS_SVC_LIMIT %dU' % candidate_pins['progress_svc_limit'] in header
+        assert '#define RAM_ROOT_NATIVE_HASH_CACHE 1' in header
         for obj, names in [(build/'RamSystemCache.o', ['_fuxi_ram_system_cache_prepare', '_commpage_update_dyld_flags', '_VNOP_IOCTL', '_mount', '_symlink', '_OSKextLoadKextWithIdentifier']),
                            (build/'RamSystemRootSwitch.o', ['_fuxi_ram_system_cache_bind']),
                            (out/'work/tree/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/bsd/DEVELOPMENT/kern_exec.o', ['_fuxi_ram_system_cache_prepare'])]:
