@@ -18,7 +18,9 @@ from pathlib import Path
 
 MAGIC = b'UNXRAM01'
 HEADER = struct.Struct('<8sHHIQII32s')
-CHUNK = 65536
+CHUNK_MIN = 64 * 1024
+CHUNK_MAX = 1024 * 1024
+CHUNK = CHUNK_MAX
 HELLO, BEGIN, DATA, END, ABORT = range(1, 6)
 KINDS = {'test': 0, 'os': 1, 'systemos': 2}
 
@@ -126,14 +128,16 @@ class Client:
 
     def send(self, stream, size, digest, obj, progress=None):
         maximum, _ = self.command(HELLO)
-        if maximum != CHUNK:
+        # The receiver owns the chunk size; HELLO's value is authoritative.
+        if not CHUNK_MIN <= maximum <= CHUNK_MAX or maximum % 512:
             raise RuntimeError(f'unsupported receiver chunk size {maximum}')
+        chunk = maximum
         accepted, _ = self.command(BEGIN, obj, payload=struct.pack('<Q', size) + digest)
         if accepted != 0:
             raise RuntimeError('BEGIN returned a nonzero offset')
         offset = 0
         while offset < size:
-            block = stream.read(min(CHUNK, size - offset))
+            block = stream.read(min(chunk, size - offset))
             if not block:
                 raise RuntimeError('source became shorter during transfer')
             accepted, _ = self.command(DATA, obj, offset, block)

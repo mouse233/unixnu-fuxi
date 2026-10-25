@@ -2399,3 +2399,33 @@ normal_controller_stop_verified=false。待接收器结束后拍HALTED/
 路由恢复/USBRAM QUIESCE: Success，手选system-mount。终帧判据：
 RAM_PROGRESS的fault=行（watchdogd复现SIGTRAP时给出pc/far/esr）
 与panic行；无fault=而行死于SIGTRAP则为brk外来源的否证。
+
+### v45：USB RAM 传输吞吐提升，chunk 64 KiB → 1 MiB（2026-10-25）
+
+针对v43 attempt-01实测16.5 MB/s（9,380,595,200字节/567.977秒；OS段
+≈15.7、SystemOS段≈18.3 MB/s）远低于USB2高速实用上限（~40 MB/s），
+判定瓶颈为停等协议每chunk固定成本（每64 KiB三相传输编排+事件处理+
+轮询停顿约2.7ms，而64 KiB高速批量线时间仅约1.1ms），而非PHY。
+
+改动层：UEFI接收器RamBulk.h RB_CHUNK 65536→1048576（HELLO广播值，
+协议语义、封锁集、END回读校验不变）；主机usb-ram-send.py改用HELLO
+协商值（限64 KiB..1 MiB且512对齐，与旧固件双向互操作）；驱动README
+补记。DWC3单TRB远低于DWC3_MAX_TRANSFER_SIZE。父候选v43——v44制备时
+目录处于被清理的中间态（candidate.json/最终镜像/check-suite缺失，
+无构建进程），避免撞车；v45内核为fresh-patch自HEAD a89eaa1构建，
+内容等价v44系列（含EL0 brk取证钩子），与共享sleh符号策略一致。
+
+最终镜像203190272字节，SHA256
+82fcba8bc1a748438673a32b645d63d9a2fe274e752713e49db21043edd11b77；
+kernel.macho 1ee04673…（裸）/4bf75b6f…（打包）；FuxiUsbRamDxe.efi
+529d3104…，与v43副本6b29ca68…不同，证明头文件改动触发重编、无
+陈旧二进制。host-tests.json由套件receiver步重新生成（绑定新
+RamBulk.c/h与sender哈希）；smmu/route/ep0/stop沿用v23记录（绑定源
+未变，check-fuxi-usb-ram-image.py复检通过）。17项检查
+run_id=20261025T063710.276659Z全部退出0并绑定本镜像。
+
+实机待attempt-01：制备时手机不在USB总线。验收点：双对象全量传输
+elapsed_seconds与分段速率（对标v43的567.977秒）、ram_readback_verified
+=true、HALTED/路由恢复/USBRAM QUIESCE: Success照片。预期≈35-40
+MB/s、总时长约230-300秒；若仍≈16.5 MB/s则瓶颈判定有误，回溯DWC3
+事件/TRB路径。本候选不进XNU即可完成传输验收。
