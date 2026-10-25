@@ -2577,3 +2577,13 @@ fuxi XNU原始GPT/首块读取可参考，但不是UEFI结果。
 M2 metadata文件→M3安全/元数据解密→M4已知文件明文SHA256→M5完整
 对象加载各阶段和停止条件。下一实现点为M1，重核本机MMIO/SID/DMA/
 队列停机，不能直接打开整个vendor栈或复用USB SID路由。
+
+
+### v46 attempt-01 照片回填：准备阶段失败（2026-10-25）
+
+IMG_6997.HEIC已归档attempt-01。屏幕明确RAM_WATCHDOG prepare failed: errno=6
+@RamSystemCache.c:163；按交付调用链在初始PID1 exec前失败。加载、attach、
+start、最终匹配共用ENXIO，照片不含阶段，不能凭6定位分支。未验收到
+服务注册/匹配/启动、客户端或心跳。18项主机检查与交付/源码绑定复核
+通过，实机结论仍为失败。未拍停机三标记，normal_controller_stop_verified=false。
+后续须拆分失败阶段并核验异步发布/即时匹配竞态；不跳过原失败保护。
