@@ -2250,3 +2250,22 @@ REVIEW命令attempt-01：若越过PT_DENY_ATTACH后RAM_FOLLOW再现
 syscall=26需核对a0（31=例外未生效的绑定问题；其他request号属预期
 拒绝），关注EROFS类失败与下一停点。normal_controller_stop_verified
 仍false，完整系统启动不预判。
+
+
+### v42 attempt-01 临时启动与双对象传输完成（2026-10-25）
+
+互斥检查无活动任务，fcde91e可见，完整脚本核验serial/product/
+unlocked后仅fastboot boot（Sending 4.233s/Booting 2.139s，OKAY）。
+OS 6,077,580,800字节、SystemOS 3,303,014,400字节全量传输，两对象
+ram_readback_verified=true，回读SHA256分别匹配源
+e5634d04a8ac35f024845f583394e0a35deb26a04cb0c00286a8674e25a9a4f2
+及b4908cde41d23e6bc05e6af51a2c9eeb00cf0f863a6a1（与v41同源同值）。
+镜像仍1c4ad272f052b9be6c44e7dc2e309affd0316a2118cf96da548cf86c466d2cb0；
+post-transfer-binding确认17项套件绑定、探针源码与镜像一致。
+boot.log与full-transfer归档attempt-01；无分区写入。
+
+normal_controller_stop_verified=false。待接收器180秒无通信结束后
+拍HALTED/路由恢复/USBRAM QUIESCE: Success，手选system-mount，拍
+RAM_CACHE/RAM_PROGRESS与最终画面。若RAM_FOLLOW再现syscall=26核对
+a0：31=例外未生效；其他request号属预期拒绝。kernel_handoff=true
+仍只是配置位。
