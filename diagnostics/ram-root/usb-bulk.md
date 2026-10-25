@@ -2168,3 +2168,23 @@ Sending/Booting均OKAY（4.209s/1.939s，returncode=0）。接收器发现和
 已归档原始boot.log、device-test及镜像绑定检查报告，无分区写入，
 normal_controller_stop_verified=false。不将kernel_handoff配置位当
 作进入XNU证据，不因fastboot列表消失而重复boot。
+
+
+### v41 attempt-01 双对象 RAM 传输与回读校验完成（2026-10-25）
+
+完整脚本退出0，557.490秒完成。OS 6,077,580,800字节、SystemOS
+3,303,014,400字节全部确认，两个对象ram_readback_verified=true，
+RAM回读SHA256分别匹配源e5634d04a8ac35f024845f583394e0a35deb26a04cb0c00286a8674e25a9a4f2
+及b4908cde41d23e6bc05e6af51a2c9eeb00cf0f863a6a18b1600c96a3fd70414f。
+镜像仍d9111f8b934df910a67bf6787a83b618988aa4cef3cd77eee2de985ab4f31468；
+17项检查与当前检查脚本、探针源码及镜像绑定再次核验通过。完整
+full-transfer、boot.log、device-test、transfer-console、host-checks和
+post-transfer-binding均归档到本次attempt-01。
+
+无分区写入。full_os_object_transfer_verified=true仅证明RAM传输；
+normal_controller_stop_verified=false。待接收器180秒无通信后结束
+接收，拍HALTED/路由恢复/USBRAM QUIESCE: Success；再手选
+fuxi RAM diagnostic: system-mount，拍完整RAM_CACHE/RAM_PROGRESS
+和最终panic。carrier/cache准备、签名验证、实际映射、LC_MAIN与
+子进程执行均待照片；kernel_handoff=true仍只是配置位，不是进入
+XNU证据。未因fastboot消失而重启或重复传输。
