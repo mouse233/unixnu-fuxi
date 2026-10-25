@@ -32,11 +32,16 @@ native = {n: va for va, names in exports(raw, original).items() for n in names}
 assert [ptr(vptr+i*8) for i in (168,169,170)] == [native['___cxa_pure_virtual']]*3
 assert ptr(vptr+171*8) == 0
 assert ptr(vptr+87*8) == 0xfffffff00663eb6c and ptr(vptr+140*8) == 0xfffffff00663ee14
+assert ptr(vptr+84*8) == native['__ZN9IOService15registerServiceEj']
 # Exact original heartbeat fields/updates, before accepting the private offsets.
 for va, word in [(0xfffffff00663f134,0x52800028), (0xfffffff00663f138,0x3902ae68),
                  (0xfffffff00663f144,0x91032262), (0xfffffff00663f160,0xf9005e68),
                  (0xfffffff00663f20c,0x3902a27f), (0xfffffff00663f298,0x3902a288),
                  (0xfffffff00663f29c,0x91032282)]:
+    assert struct.unpack('<I', read(va,4))[0] == word, hex(va)
+# Original start dispatches registerService(options=0) through virtual slot 84.
+for va, word in [(0xfffffff00663e7f0,0xf9415108), (0xfffffff00663e7f8,0x52800001),
+                 (0xfffffff00663e7fc,0xd63f0100)]:
     assert struct.unpack('<I', read(va,4))[0] == word, hex(va)
 reference = a.reference.read_bytes(); ref = macho(reference)
 plan = json.loads(a.reference.with_suffix('.json').read_text())
@@ -103,7 +108,7 @@ for segment in image['segments']:
 slots=[relocations.get(table+16+i*8) for i in range(171)]
 assert all(slots) and table+16+171*8 not in relocations
 for i,name in enumerate(slots):
-    if i in (0,1,7,14,86,87,140,168,169,170): assert '11RamWatchdog' in name,(i,name)
+    if i in (0,1,7,14,84,86,87,140,168,169,170): assert '11RamWatchdog' in name,(i,name)
     else: assert native.get(name)==ptr(vptr+i*8),(i,name,hex(ptr(vptr+i*8)))
 bindings={
  '__ZN10IOWatchdogC2EPK11OSMetaClass':0xfffffff00663e400,

@@ -277,9 +277,9 @@ def main():
     pins += '#define RAM_SYSTEM_WATCHDOG %d\n' % int(watchdog)
     api, tests = API, TESTS
     if watchdog:
-        api += '\nstatic int watchdog_error; int fuxi_ram_watchdog_prepare(void) { return watchdog_error; }\n'
+        api += '\nstatic int watchdog_error; const char *fuxi_ram_watchdog_step="load"; int fuxi_ram_watchdog_detail=(int)0xdc00800d; int fuxi_ram_watchdog_prepare(void) { return watchdog_error; }\n'
         tests = tests.replace('dyld_flags=0x100;', '''watchdog_error=19;
-    REFUSE("RAM_WATCHDOG prepare failed: errno=19",fuxi_ram_system_cache_prepare((void*)1,(uintptr_t)scratch,&envp));
+    REFUSE("RAM_WATCHDOG load errno=19 raw=dc00800d",fuxi_ram_system_cache_prepare((void*)1,(uintptr_t)scratch,&envp));
     REQUIRE(!envp && !dyld_flags && !comm_flags);cases++;
     watchdog_error=0;reset_layout();dyld_flags=0x100;''')
     with tempfile.TemporaryDirectory(prefix='ram-system-cache-') as work:

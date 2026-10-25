@@ -32,6 +32,8 @@ void fuxi_ram_system_cache_bind(mount_t);
 void fuxi_ram_system_cache_prepare(proc_t, user_addr_t, user_addr_t *);
 #if RAM_SYSTEM_WATCHDOG
 extern int fuxi_ram_watchdog_prepare(void);
+extern const char *fuxi_ram_watchdog_step;
+extern int fuxi_ram_watchdog_detail;
 #endif
 
 static vnode_t checked_node(const char *path, mount_t expected, enum vtype type)
@@ -160,7 +162,8 @@ void fuxi_ram_system_cache_prepare(proc_t process, user_addr_t scratch, user_add
     prepare_carrier(process, scratch);
 #if RAM_SYSTEM_WATCHDOG
     int watchdog_error = fuxi_ram_watchdog_prepare();
-    if (watchdog_error) panic("RAM_WATCHDOG prepare failed: errno=%d", watchdog_error);
+    if (watchdog_error) panic("RAM_WATCHDOG %s errno=%d raw=%x", fuxi_ram_watchdog_step,
+        watchdog_error, (unsigned)fuxi_ram_watchdog_detail);
 #endif
     user64_addr_t vector[2] = {scratch + 0x400, USER_ADDR_NULL};
     int error = copyout(environment, vector[0], sizeof(environment));

@@ -20,6 +20,8 @@ bool fuxi_original_watchdog_start(IOWatchdog *, IOService *, unsigned, unsigned)
 // stage, accepted clients, polls, original heartbeat sequence, enabled, deadline,
 // backend enable count, backend disable count. RAM only, never a disk log.
 volatile uint64_t fuxi_ram_watchdog_state[8];
+const char *fuxi_ram_watchdog_step = "arguments";
+int fuxi_ram_watchdog_detail;
 int fuxi_ram_watchdog_prepare(void);
 }
 
@@ -57,6 +59,11 @@ class RamWatchdog : public IOWatchdog {
         thread_call_enter_delayed(timer, next);
     }
 public:
+    void registerService(IOOptionBits options = 0) override {
+        // The original start calls this virtual with options=0. Its asynchronous
+        // default does not guarantee the MatchedState required by our lookup.
+        IOService::registerService((options & ~IOOptionBits(kIOServiceAsynchronous)) | kIOServiceSynchronous);
+    }
     bool prepareTimer() {
         timer = thread_call_allocate(expired, this);
         return timer != nullptr;
@@ -125,30 +132,54 @@ static int countServices(IOService *expected) {
     return owns ? count : -ENXIO;
 }
 extern "C" int fuxi_ram_watchdog_prepare(void) {
+    fuxi_ram_watchdog_step = "arguments";
+    fuxi_ram_watchdog_detail = 0;
     unsigned enabled = 0;
     if (!PE_parse_boot_argn("ram-system-watchdog", &enabled, sizeof(enabled)) || enabled != 1 || watchdog)
         return EINVAL;
-    if (OSKextLoadKextWithIdentifier("com.apple.driver.AppleARMWatchdogTimer")) return ENXIO;
+    fuxi_ram_watchdog_step = "load";
+    fuxi_ram_watchdog_detail = OSKextLoadKextWithIdentifier("com.apple.driver.AppleARMWatchdogTimer");
+    if (fuxi_ram_watchdog_detail) return ENXIO;
     fuxi_ram_watchdog_state[0] = 1;
+    fuxi_ram_watchdog_step = "metaclass";
     const OSMetaClass *base = lookup("IOWatchdog"), *client = lookup("IOWatchdogUserClient");
     if (!base || base != &IOWatchdog::gMetaClass || base->getClassSize() != 0xf8 ||
         !client || client->getClassSize() != 0xe8) return ENOEXEC;
+    fuxi_ram_watchdog_step = "preexisting";
     int before = countServices(nullptr);
+    fuxi_ram_watchdog_detail = before;
     if (before != 0) return before < 0 ? -before : EEXIST;
+    fuxi_ram_watchdog_step = "pre-mod";
     void *handle = OSMetaClass::preModLoad(g_kernel_kmod_info.name);
     if (!handle) return ENOMEM;
     fuxi_watchdog_static_init();
-    if (OSMetaClass::postModLoad(handle)) return ENOEXEC;
+    fuxi_ram_watchdog_step = "post-mod";
+    fuxi_ram_watchdog_detail = OSMetaClass::postModLoad(handle);
+    if (fuxi_ram_watchdog_detail) return ENOEXEC;
+    fuxi_ram_watchdog_step = "provider";
     IOService *provider = IOService::getResourceService();
+    if (!provider) return ENXIO;
+    fuxi_ram_watchdog_step = "allocate";
     watchdog = new RamWatchdog;
-    if (!watchdog || !provider || !watchdog->init() || !watchdog->prepareTimer()) return ENOMEM;
+    if (!watchdog) return ENOMEM;
+    fuxi_ram_watchdog_step = "init";
+    if (!watchdog->init()) return ENOMEM;
+    fuxi_ram_watchdog_step = "timer";
+    if (!watchdog->prepareTimer()) return ENOMEM;
     watchdog->setProperty("UniXNUWatchdogBackend", "software-original-deadline");
     watchdog->setProperty("HardwareWatchdogImplemented", false);
+    fuxi_ram_watchdog_step = "attach";
     if (!watchdog->attach(provider)) return ENXIO;
+    fuxi_ram_watchdog_step = "start";
     if (!watchdog->start(provider)) return ENXIO;
     fuxi_ram_watchdog_state[0] = 2;
-    if (countServices(watchdog) != 1) return ENXIO;
+    fuxi_ram_watchdog_step = "match";
+    fuxi_ram_watchdog_detail = countServices(watchdog);
+    if (fuxi_ram_watchdog_detail != 1)
+        return fuxi_ram_watchdog_detail < 0 ? -fuxi_ram_watchdog_detail :
+            fuxi_ram_watchdog_detail > 1 ? EEXIST : ENXIO;
     fuxi_ram_watchdog_state[0] = 3;
+    fuxi_ram_watchdog_step = "ready";
     IOLog("RAM_WATCHDOG registered matched started: original IOWatchdog/client; software deadline backend\n");
     return 0;
 }

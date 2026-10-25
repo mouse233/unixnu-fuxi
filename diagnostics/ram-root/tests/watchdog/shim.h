@@ -7,6 +7,8 @@
 #include <vector>
 #include <stdexcept>
 using UInt32=unsigned;using task_t=void*;using kern_return_t=int;using IOReturn=int;
+using IOOptionBits=unsigned;
+constexpr unsigned kIOServiceSynchronous=0x2,kIOServiceAsynchronous=0x8;
 constexpr int kIOReturnSuccess=0,kIOReturnNotPrivileged=0xe00002c1,kIOReturnBadArgument=0xe00002c2;
 constexpr unsigned NSEC_PER_SEC=1000000000;
 struct Panic:std::runtime_error{using std::runtime_error::runtime_error;};
@@ -35,12 +37,15 @@ class OSObject {public:virtual ~OSObject()=default;virtual void release(){delete
 class OSSymbol:public OSObject {public:std::string text;explicit OSSymbol(const char *t):text(t){}static const OSSymbol *withCString(const char*t){return new OSSymbol(t);}};
 static bool badBase,badClient,preFail,postFail,iteratorInvalid,initFail,attachFail,startFail,privileged=true;
 static int loadError,bootArg=1,originalOpenCalls;
+static bool deferredMatching=true,publishFail,foreignMatch,duplicateMatch;
+static unsigned syncRegistrations,asyncRegistrations;
 class OSMetaClass {unsigned size;public:explicit OSMetaClass(unsigned n):size(n){}unsigned getClassSize()const{return size;}static const OSMetaClass *getMetaClassWithName(const OSSymbol*);static void *preModLoad(const char*){return preFail?nullptr:(void*)1;}static int postModLoad(void*p){assert(p);return postFail?1:0;}};
 class OSDictionary:public OSObject{};
 class IOUserClient:public OSObject{};
 static IOUserClient originalClient;
 class IOService;
 static std::vector<IOService*> services;
+static std::vector<IOService*> pendingServices;
 class OSIterator:public OSObject {unsigned at=0;public:OSObject *getNextObject();bool isValid(){return !iteratorInvalid;}};
 class IOService:public OSObject {
  char opaque[128]{};
@@ -51,12 +56,18 @@ public:
  virtual void free(){delete this;}
  virtual IOReturn newUserClient(task_t,void*,UInt32,OSDictionary*,IOUserClient**){return -1;}
  bool attach(IOService*){return !attachFail;}
- void registerService(){services.push_back(this);}
+ virtual void registerService(IOOptionBits options=0){
+  if(publishFail)return;
+  if(options&kIOServiceSynchronous){assert(!(options&kIOServiceAsynchronous));syncRegistrations++;}
+  else {asyncRegistrations++;if(deferredMatching){pendingServices.push_back(this);return;}}
+  services.push_back(foreignMatch?getResourceService():this);
+  if(duplicateMatch)services.push_back(getResourceService());
+ }
  void setProperty(const char*,const char*){}
  void setProperty(const char*,bool){}
  static IOService *getResourceService(){static IOService resource;return &resource;}
  static OSDictionary *serviceMatching(const char *name){assert(!strcmp(name,"IOWatchdog"));return new OSDictionary;}
- static OSIterator *getMatchingServices(OSDictionary*){return new OSIterator;}
+ static OSIterator *getMatchingServices(OSDictionary*){return services.empty()&&!iteratorInvalid?nullptr:new OSIterator;}
 };
 static_assert(sizeof(IOService)==136);
 OSObject *OSIterator::getNextObject(){return at<services.size()?services[at++]:nullptr;}
@@ -84,5 +95,5 @@ static void setField(IOWatchdog *w,unsigned offset,uint64_t v){memcpy((char*)w+o
 extern "C" bool fuxi_original_watchdog_start(IOWatchdog *w,IOService *provider,unsigned unused,unsigned flags){
  assert(!unused&&!flags&&provider);if(startFail)return false;
  IOSimpleLock *lock=&originalLock;memcpy((char*)w+0xa0,&lock,sizeof(lock));*((char*)w+0xa8)=1;
- setField(w,0xb8,0);setField(w,0xc8,now+600ULL*NSEC_PER_SEC);w->enableBackend();w->registerService();return true;
+ setField(w,0xb8,0);setField(w,0xc8,now+600ULL*NSEC_PER_SEC);w->registerService();w->enableBackend();return true;
 }

@@ -2587,3 +2587,35 @@ start、最终匹配共用ENXIO，照片不含阶段，不能凭6定位分支。
 服务注册/匹配/启动、客户端或心跳。18项主机检查与交付/源码绑定复核
 通过，实机结论仍为失败。未拍停机三标记，normal_controller_stop_verified=false。
 后续须拆分失败阶段并核验异步发布/即时匹配竞态；不跳过原失败保护。
+
+
+### v47：修复异步服务匹配竞态，保留准备失败分支（2026-10-25）
+
+父v46独立APFS clone，保留v45的1MiB分块。XNU设备包/构建检查与组合
+打包改动，UEFI源码、原始AppleWatchdog/client执行字节不改。
+v46照片errno6不能唯一定位失败分支。独立源码/原始指令核验发现：
+原start虚槽84以options0异步registerService；即时枚举仅接受MatchedState。
+用v46交付源码及延迟匹配IOKit桩复现成功断言失败。v47覆盖注册槽84，
+委托原IOService清Asynchronous并设置Synchronous；保留原start及唯一/
+自身实例验证，不跳过保护。该竞态证据不等于v46照片分支已定因。
+
+新增step/detail保留load原OSReturn、匹配计数等；失败屏幕显示
+RAM_WATCHDOG <step> errno=<d> raw=<x>，继续阻止PID1 exec。
+原root/entitlement/type/独占客户端、启停、心跳和软件deadline不改；
+仍不宣称SM8550硬件WDT。详见watchdog-service.md与v47 REVIEW。
+
+镜像203190272字节SHA256
+a95d8052863380289bd16a99813beb927b1dfb82c15b424e808f697c9a50f78b；
+prelink 52076544字节SHA256
+ceafad072116db1018a40ccb3e289ac63c5e87c7efb9335f58739451e8098299。
+FUXIPAYL、最低段0xfffffff00427c000/skew0x7c000、KMEM余量662548480
+重新验证。构建第二轮/容器固件打包真实退出0，首轮沙箱sysctl失败日志保留。
+完整18项检查run_id=20261025T074819.554188Z全部真实退出0，当前源码/
+检查器/fixtures/对象/归档/镜像绑定复核；C++33例/4突变（含异步回归）、
+原始客户端指令9例、缓存C45/5突变和CacheFinder5例，外部KPI显式桩。
+
+本轮只读设备互斥检查无活动任务、fastboot列表为空。用户明确答复
+“稍后测试”，没有新boot/传输/attempt。实机注册/匹配/启动、客户端、
+心跳和完整系统启动均待验收，normal_controller_stop_verified=false。
+下次用户准备fastboot后用v47 REVIEW命令与独立attempt-01；不重用v46
+照片或主机成功作为服务已实机通过的证据。父v46交付镜像哈希保持不变。

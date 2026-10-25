@@ -14,10 +14,11 @@ with tempfile.TemporaryDirectory(prefix='fuxi-watchdog-test-') as temporary:
   subprocess.run(['clang++','-std=c++17','-fsanitize=address,undefined','-Wall','-Wextra','-Wno-unused-parameter','-Wno-unused-private-field',str(work/'test.cpp'),'-o',str(work/'test')],check=True,capture_output=True,text=True)
   return subprocess.run([str(work/'test')],capture_output=True,text=True)
  good=run(body);assert good.returncode==0,good.stdout+good.stderr
- mutants=[body.replace('now >= deadline','false'),body.replace('return result;','return kIOReturnSuccess;'),body.replace('if (before != 0)','if (false)')]
+ mutants=[body.replace('now >= deadline','false'),body.replace('return result;','return kIOReturnSuccess;'),body.replace('if (before != 0)','if (false)'),
+          body.replace('IOService::registerService((options & ~IOOptionBits(kIOServiceAsynchronous)) | kIOServiceSynchronous);','IOService::registerService(options);')]
  for b in mutants:
   assert b!=body;bad=run(b);assert bad.returncode!=0,'mutation survived'
-report=dict(source_sha256=sha(source),passed=good.stdout.strip(),mutation_rejections=3,hardware_watchdog_implemented=False,hardware_result='pending')
+report=dict(source_sha256=sha(source),passed=good.stdout.strip(),mutation_rejections=4,hardware_watchdog_implemented=False,hardware_result='pending')
 if not a.model_only:
  from ram_watchdog_original import check_original
  report['original_instruction_cases']=check_original(ROOT,out)
@@ -37,6 +38,10 @@ if not a.model_only:
  report['original_model_sha256']=sha(ROOT/'scripts/ram_watchdog_original.py')
  report['build_script_sha256']=sha(ROOT/'scripts/build-ram-watchdog.py')
  assert sha(out/'work/tree/scripts/build-ram-watchdog.py')==report['build_script_sha256']
+ header=(out/'work/tree/.cache/xnu-work/iokit/IOKit/IOService.h').read_text()
+ assert 'kIOServiceSynchronous   = 0x00000002' in header and 'kIOServiceAsynchronous  = 0x00000008' in header
+ assert 'kIOServiceSynchronous=0x2,kIOServiceAsynchronous=0x8' in shim
+ report['fixture_sha256']={f.name:sha(f) for f in (fixtures/'shim.h',fixtures/'test.cpp')}
  report.update(boot_sha256=sha(out/'Mu-fuxi-usb-ram.img'),abi=r,archive_sha256=sha(build/'libRamRootProbe.a'))
 (out/'watchdog-tests.json').write_text(json.dumps(report,indent=2)+'\n')
-print(good.stdout.strip());print('PASS 3 behavior mutation rejections; original client kept, real software expiry')
+print(good.stdout.strip());print('PASS 4 behavior mutation rejections including delayed matching; original client kept, real software expiry')

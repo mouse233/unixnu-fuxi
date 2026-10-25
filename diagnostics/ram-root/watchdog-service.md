@@ -96,3 +96,33 @@ entitlement为com.apple.private.iowatchdog.user-access。
 权限和客户端打开，beats推进才证明真实心跳。越过旧lookup brk后还
 可能遇到其他平台/文件系统依赖，不以取消关键退出panic代替修复。
 最终哈希、完整退出码和新attempt见v46 REVIEW及usb-bulk追加日志。
+
+## v47：同步匹配与准备失败分支
+
+v46实机照片IMG_6997在PID1 exec前显示prepare errno=6。加载、attach、
+start及最终匹配共用ENXIO，因此照片不足以确定具体分支；不得写成已
+连接客户端、心跳已启动或原模块加载失败。原图和绑定在v46 attempt-01。
+
+源码独立确认一个竞态：原始start在0xfffffff00663e7f0取虚槽84，
+e7f8传options=0，e7fc执行该registerService。IOService::startMatching
+在非同步路径启动_IOServiceJob；getMatchingServices只枚举已经设置
+kIOServiceMatchedState的实例。v46未等待就枚举，存在空结果窗口。
+用v46交付源码（SHA602e49a9…4bfc7）及原测试，替换成明确延迟可见的
+IOKit桩后，原“成功”断言失败；报告v47/v46-delayed-match-regression.json。
+这证明实现存在竞态，不证明这一次手机错误必定命中匹配分支。
+
+v47覆盖原继承的虚槽84，委托IOService::registerService时清除显式
+Asynchronous并加入Synchronous。原始start仍实际调用此虚槽，不重复
+发布；匹配完成后仍枚举并要求唯一、自身及有效迭代器。171槽门禁明确
+允许84号覆盖，并验证原始调用指令和原生IOService注册槽的身份。
+
+准备步骤与原始结果另外保存到step/detail。panic显示
+`RAM_WATCHDOG <step> errno=<d> raw=<x>`，可区分load/metaclass/
+preexisting/pre-mod/post-mod/provider/allocate/init/timer/attach/start/match。
+load保留原始OSReturn，match保留带符号枚举结果；任何失败仍阻止exec。
+原始权限、客户端、启停、deadline和超时处理均不改变。
+
+生产C++测试增至33例，覆盖异步延迟、同步可见、发布拒绝、错误实例、
+重复实例及诊断分支；4项行为突变含恢复异步注册，必须拒绝。缓存C45例
+检查具体步骤和raw状态传播；外部IOKit桩的边界不变。完整交付、18项
+检查与实机结果以v47 REVIEW和后续追加记录为准。

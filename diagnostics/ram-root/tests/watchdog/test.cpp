@@ -2,6 +2,8 @@ extern "C" void fuxi_watchdog_static_init(void) {}
 static unsigned cases;
 static void reset(){
  if(watchdog){watchdog->free();watchdog=nullptr;}services.clear();
+ pendingServices.clear();deferredMatching=true;publishFail=foreignMatch=duplicateMatch=false;
+ syncRegistrations=asyncRegistrations=0;
  badBase=badClient=preFail=postFail=iteratorInvalid=initFail=attachFail=startFail=timerFail=false;
  privileged=true;loadError=0;bootArg=1;now=NSEC_PER_SEC;originalLock.held=false;interrupts=true;
  memset((void*)fuxi_ram_watchdog_state,0,sizeof(fuxi_ram_watchdog_state));
@@ -9,18 +11,24 @@ static void reset(){
 static void poll(){assert(lastTimer&&lastTimer->active);auto *t=lastTimer;t->active=false;t->fn(t->parameter,nullptr);}
 int main(){
  reset();bootArg=0;assert(fuxi_ram_watchdog_prepare()==EINVAL);cases++;
- reset();loadError=1;assert(fuxi_ram_watchdog_prepare()==ENXIO);cases++;
+ reset();loadError=(int)0xdc00800d;assert(fuxi_ram_watchdog_prepare()==ENXIO);
+ assert(!strcmp(fuxi_ram_watchdog_step,"load")&&fuxi_ram_watchdog_detail==loadError);cases++;
  reset();badBase=true;assert(fuxi_ram_watchdog_prepare()==ENOEXEC);cases++;
  reset();badClient=true;assert(fuxi_ram_watchdog_prepare()==ENOEXEC);cases++;
- reset();services.push_back(IOService::getResourceService());assert(fuxi_ram_watchdog_prepare()==EEXIST);cases++;
+ reset();services.push_back(IOService::getResourceService());assert(fuxi_ram_watchdog_prepare()==EEXIST&&!watchdog&&!strcmp(fuxi_ram_watchdog_step,"preexisting"));cases++;
  reset();iteratorInvalid=true;assert(fuxi_ram_watchdog_prepare()==EAGAIN);cases++;
  reset();preFail=true;assert(fuxi_ram_watchdog_prepare()==ENOMEM);cases++;
  reset();postFail=true;assert(fuxi_ram_watchdog_prepare()==ENOEXEC);cases++;
  reset();initFail=true;assert(fuxi_ram_watchdog_prepare()==ENOMEM);cases++;
  reset();timerFail=true;assert(fuxi_ram_watchdog_prepare()==ENOMEM);cases++;
- reset();attachFail=true;assert(fuxi_ram_watchdog_prepare()==ENXIO);cases++;
- reset();startFail=true;assert(fuxi_ram_watchdog_prepare()==ENXIO);cases++;
+ reset();attachFail=true;assert(fuxi_ram_watchdog_prepare()==ENXIO&&!strcmp(fuxi_ram_watchdog_step,"attach"));cases++;
+ reset();startFail=true;assert(fuxi_ram_watchdog_prepare()==ENXIO&&!strcmp(fuxi_ram_watchdog_step,"start"));cases++;
+ reset();publishFail=true;assert(fuxi_ram_watchdog_prepare()==ENXIO&&!strcmp(fuxi_ram_watchdog_step,"match")&&fuxi_ram_watchdog_detail==0);cases++;
+ reset();foreignMatch=true;assert(fuxi_ram_watchdog_prepare()==ENXIO&&fuxi_ram_watchdog_detail==-ENXIO);cases++;
+ reset();duplicateMatch=true;assert(fuxi_ram_watchdog_prepare()==EEXIST&&fuxi_ram_watchdog_detail==2);cases++;
  reset();assert(!fuxi_ram_watchdog_prepare());assert(fuxi_ram_watchdog_state[0]==3&&countServices(watchdog)==1);cases++;
+ assert(syncRegistrations==1&&!asyncRegistrations&&pendingServices.empty());cases++;
+ assert(!strcmp(fuxi_ram_watchdog_step,"ready")&&fuxi_ram_watchdog_detail==1);cases++;
  assert(fuxi_ram_watchdog_prepare()==EINVAL);cases++;
  IOUserClient *client=nullptr;privileged=false;assert(watchdog->newUserClient(nullptr,nullptr,1,nullptr,&client)==kIOReturnNotPrivileged&&!client);cases++;
  privileged=true;assert(watchdog->newUserClient(nullptr,nullptr,2,nullptr,&client)==kIOReturnBadArgument&&!client);cases++;
@@ -34,5 +42,9 @@ int main(){
  reset();assert(!fuxi_ram_watchdog_prepare());setField(watchdog,0xc8,0);caught=false;try{poll();}catch(const Panic&){caught=true;}assert(caught);cases++;
  reset();assert(!fuxi_ram_watchdog_prepare());watchdog->stop(IOService::getResourceService());assert(!lastTimer->active&&fuxi_ram_watchdog_state[7]==1);cases++;
  reset();assert(!lastTimer);cases++;
+ reset();deferredMatching=false;assert(!fuxi_ram_watchdog_prepare()&&syncRegistrations==1);cases++;
+ reset();assert(!fuxi_ram_watchdog_prepare());services.clear();watchdog->registerService(kIOServiceAsynchronous);
+ assert(syncRegistrations==2&&!asyncRegistrations&&pendingServices.empty()&&countServices(watchdog)==1);cases++;
+ reset();
  printf("PASS %u actual C++ watchdog lifecycle/deadline/refusal cases; original APIs explicitly mocked\n",cases);
 }
