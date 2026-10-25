@@ -87,6 +87,8 @@ def main():
     if cache:
         checks.append(('system-cache', 'check-ram-system-cache.py', shared + ['--dyld', str(args.dyld.resolve())]))
         checks.append(('cache-admission', 'check-ram-cache-admission.py', shared))
+        if json.loads((out/'pins.json').read_text()).get('system_watchdog'):
+            checks.append(('watchdog', 'check-ram-watchdog.py', ['--output', str(out)]))
     run_id = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ')
     logs = out / 'check-runs' / run_id
     logs.mkdir(parents=True, exist_ok=False)

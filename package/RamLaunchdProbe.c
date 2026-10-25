@@ -28,6 +28,9 @@
 #endif
 /* bsd/sys/ptrace.h request number; only this one request is ever allowed. */
 #define RAM_ROOT_PT_DENY_ATTACH 31
+#if RAM_ROOT_SYSTEM_WATCHDOG
+extern volatile uint64_t fuxi_ram_watchdog_state[8];
+#endif
 #if RAM_ROOT_NATIVE_HASH_CACHE
 extern unsigned long cs_native4k_full_blocks, cs_native4k_page_checks, cs_native4k_ready_blobs;
 #endif
@@ -104,7 +107,14 @@ static void progress_snapshot(void)
     if (used < sizeof(fuxi_ram_progress_text) && fault_count)
         used += (size_t)snprintf(fuxi_ram_progress_text + used, sizeof(fuxi_ram_progress_text) - used,
             "fault=%u pid=%d esr=%x pc=%llx far=%llx\n", fault_count, fault_pid, fault_esr, fault_pc, fault_far);
-    unsigned first = unix_count > 4 ? unix_count - 4 : 0;
+#if RAM_ROOT_SYSTEM_WATCHDOG
+    if (used < sizeof(fuxi_ram_progress_text))
+        used += (size_t)snprintf(fuxi_ram_progress_text + used, sizeof(fuxi_ram_progress_text) - used,
+            "wdt=%llu clients=%llu polls=%llu beats=%llu enabled=%llu\n",
+            fuxi_ram_watchdog_state[0], fuxi_ram_watchdog_state[1], fuxi_ram_watchdog_state[2],
+            fuxi_ram_watchdog_state[3], fuxi_ram_watchdog_state[4]);
+#endif
+    unsigned first = unix_count > 3 ? unix_count - 3 : 0;
     for (unsigned i = first; i < unix_count && used < sizeof(fuxi_ram_progress_text); i++) {
         struct ram_event *event = &events[i & 7];
         used += (size_t)snprintf(fuxi_ram_progress_text + used, sizeof(fuxi_ram_progress_text) - used,

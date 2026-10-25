@@ -273,13 +273,22 @@ def main():
     source = ROOT / 'package/RamSystemCache.c'
     body = '\n'.join(line for line in source.read_text().splitlines() if not line.startswith('#include'))
     pins = '#define RAM_SYSTEM_DYLD_BYTES 937056\nstatic const uint8_t ram_system_dyld_sha256[32] = {' + ','.join(hex(x) for x in hashlib.sha256(raw).digest()) + '};\n'
+    watchdog = json.loads((out/'pins.json').read_text()).get('system_watchdog', False)
+    pins += '#define RAM_SYSTEM_WATCHDOG %d\n' % int(watchdog)
+    api, tests = API, TESTS
+    if watchdog:
+        api += '\nstatic int watchdog_error; int fuxi_ram_watchdog_prepare(void) { return watchdog_error; }\n'
+        tests = tests.replace('dyld_flags=0x100;', '''watchdog_error=19;
+    REFUSE("RAM_WATCHDOG prepare failed: errno=19",fuxi_ram_system_cache_prepare((void*)1,(uintptr_t)scratch,&envp));
+    REQUIRE(!envp && !dyld_flags && !comm_flags);cases++;
+    watchdog_error=0;reset_layout();dyld_flags=0x100;''')
     with tempfile.TemporaryDirectory(prefix='ram-system-cache-') as work:
         work = Path(work)
         test = work / 'test.c'
         command = ['clang', '-Wall', '-Wextra', '-Werror', '-Wno-deprecated-declarations',
                    '-fsanitize=address,undefined', str(test), '-o', str(work / 'test')]
         def run(code):
-            test.write_text('#include <stdint.h>\n' + pins + API + code + TESTS)
+            test.write_text('#include <stdint.h>\n' + pins + api + code + tests)
             compiled = subprocess.run(command, capture_output=True, text=True)
             if compiled.returncode:
                 raise RuntimeError(compiled.stdout + compiled.stderr)
@@ -290,6 +299,8 @@ def main():
                      body.replace('dyld_flags |= UINT64_C(8);', 'dyld_flags |= UINT64_C(0);'),
                      body.replace('memcmp(digest, ram_system_dyld_sha256, sizeof(digest))', '0 * memcmp(digest, ram_system_dyld_sha256, sizeof(digest))'),
                      body.replace('if (error) panic("RAM_CACHE tmpfs seal failed:', 'if (0) panic("RAM_CACHE tmpfs seal failed:')]
+        if watchdog:
+            mutations.append(body.replace('if (watchdog_error) panic', 'if (0) panic'))
         for mutant in mutations:
             assert mutant != body
             assert run(mutant).returncode != 0, 'cache protection mutation survived'

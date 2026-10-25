@@ -2492,3 +2492,51 @@ payload线时间/头尾往返/间隙，据此定host侧（异步/流式提交）
 normal_controller_stop_verified=false（未拍三标记；接收器传输完成
 后已发布对象回菜单）。FuxiUsbRamDxe.efi 529d3104…≠v43副本，
 新固件确在运行。
+
+
+### v46：基于v45，原始IOWatchdog服务链与软件计时后端（2026-10-25）
+
+独立APFS clone父v45，父镜像哈希未变，保留1MiB HELLO分块。核验
+原AppleARMWatchdogTimer personality仅匹配AppleARMIODevice /
+wdt,s5l8960x，fuxi未提供此Apple设备，故预链接不等于服务启动；
+不伪造Apple MMIO设备。原模块提供IOWatchdog基类及完整原客户端。
+
+改动层：XNU设备包、构建/检查、组合打包；原始Apple程序/AMFI/trust/
+关键退出策略均不改。PID1 exec前加载原模块并验证metaclass/大小，
+晚注册真实RamWatchdog子类，attach原生IOResources、调用原初始化，
+再真实serviceMatching确认唯一且为自身，成功置wdt3。原root、
+com.apple.private.iowatchdog.user-access、type1及独占策略/10项
+派发保留。软件后端每秒在原锁/中断保护下只读原始heartbeat sequence/
+deadline与enabled，到期真实panic，不改原始心跳/成功返回。
+
+这是明确标识的软件计时后端，检测内核仍运行时的用户态心跳超时，
+不是SM8550硬件WDT，不能覆盖CPU/调度器全挂死；不写硬件寄存器或
+分区、不关watchdogd、不伪装VM、不取消关键退出panic。设计与验证
+边界见watchdog-service.md，独立v46 REVIEW含重现与全部失败日志。
+
+最终镜像203190272字节，SHA256
+37255ef9caa87dd631581b6886cf176e0321790aedccc98e824d6f042f38b895；
+prelink ccef2bfddf614ad89b1f7be9a5ac36fdb76edd103202bac2fea5f394bbff3834，
+52072448字节；FUXIPAYL，skew按交付载荷重推导仍0x7c000，KMEM剩余
+VA下界662548480。原kernelcache绑定，171槽/248字节基类/232字节
+客户端、心跳指令和5项原始绑定均验证，原模块执行字节未改。
+
+完整18项检查run_id=20261025T072234.829932Z全部真实退出0并绑定
+交付；root/main C96、switch43、cache C45/5突变；新后端真实C++26例
+与3行为突变，另跑原始client/heartbeat指令9例（含root/entitlement/
+占用/type拒绝与正常打开/原客户端start/启停/pet）。外部KPI为明确
+桩，不冒充手机服务验收。首轮构建绑定清单、首轮旧归档白名单以及
+原始模型桩不全的失败日志保留；最终完整重跑成功。
+
+用户确认fastboot并要求后台启动。互斥无活动任务、fcde91e可见，
+helper核对product/unlocked/镜像后仅fastboot boot；Sending4.188s、
+Booting1.641s均OKAY。独立attempt-01双对象传输及设备RAM回读SHA256
+均通过，完整脚本退出0、514.342秒；OS6077580800字节哈希e5634d04…
+与SystemOS3303014400字节b4908cde…均同源匹配。原始报告、绑定和
+本次脚本归档attempt-01，无分区写入，无重复boot/重传。
+
+normal_controller_stop_verified=false，待三停机标记照片后手选
+system-mount。wdt=3只证明服务注册/匹配/启动，clients增量证明原
+客户端打开，beats增量证明真实心跳；越过旧lookup brk不等于完整
+系统启动。v46尚无运行照片，服务实际验收/完整系统/持久化待证；
+保留fault全局覆盖与锁丢失边界，无fault不能排除brk。

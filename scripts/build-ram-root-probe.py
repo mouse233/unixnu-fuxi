@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import struct
 import subprocess
+import sys
 from ram_probe_policy import validate_stage_policy
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -107,6 +108,7 @@ header += '#define RAM_ROOT_PROGRESS_SECONDS %d\n' % deadline
 header += '#define RAM_ROOT_PROGRESS_SVC_LIMIT %dU\n' % svc_limit
 header += '#define RAM_ROOT_NATIVE_HASH_CACHE %d\n' % int(pins.get('native_cs_hash_cache', False))
 header += '#define RAM_ROOT_FOLLOW_DENY_ATTACH %d\n' % int(bool(pins.get('follow_ptrace_deny_attach', False)))
+header += '#define RAM_ROOT_SYSTEM_WATCHDOG %d\n' % int(bool(pins.get('system_watchdog', False)))
 header += '#define RAM_ROOT_RESTORE_TRUST ' + str(int(bool(args.restore_trust_cache))) + '\n'
 if args.main_entry:
     header += '#define RAM_ROOT_MAIN_OFFSET UINT64_C(85896)\n'
@@ -124,6 +126,7 @@ if args.system_user_entry or args.system_root_switch:
     system_digest = bytes.fromhex(pins['system_file_sha256'])
     system_header += 'static const uint8_t ram_system_launchd_sha256[32] = {' + ','.join(hex(x) for x in system_digest) + '};\n'
 system_header += '#define RAM_SYSTEM_CACHE ' + str(int(args.system_cache)) + '\n'
+system_header += '#define RAM_SYSTEM_WATCHDOG %d\n' % int(bool(pins.get('system_watchdog', False)))
 if args.system_cache:
     system_header += '#define RAM_SYSTEM_DYLD_BYTES UINT64_C(%d)\n' % pins['system_dyld_bytes']
     system_header += 'static const uint8_t ram_system_dyld_sha256[32] = {' + ','.join(hex(x) for x in bytes.fromhex(pins['system_dyld_sha256'])) + '};\n'
@@ -186,6 +189,16 @@ if args.system_cache:
     (out / 'cache-compile.log').write_text(result.stdout + result.stderr)
     if result.returncode: raise SystemExit(result.stdout + result.stderr)
     objects.append(cache_object)
+if pins.get('system_watchdog', False):
+    if not args.system_cache:
+        raise SystemExit('Watchdog backend requires the native system-cache entry')
+    candidate_dir = args.pins.resolve().parent
+    parent = json.loads((candidate_dir/'parent.json').read_text())
+    subprocess.run([sys.executable, str(ROOT/'scripts/build-ram-watchdog.py'),
+                    '--reference', str(Path(parent['path'])/'work/kernel/kernel.macho'),
+                    '--kernelcache', str(candidate_dir/'cache/ipsw/21H461/kernelcache.decompressed'),
+                    '--output', str(out)], check=True)
+    objects += [out/'RamWatchdog.late.o', out/'original-bindings.o']
 if args.main_entry:
     main_source = ROOT / 'kits/sheng/RamLaunchdProbe.c'
     main_object = out / 'RamLaunchdProbe.o'

@@ -117,6 +117,9 @@ pins += '#define RAM_ROOT_PROGRESS ' + str(int(args.progress)) + '\n'
 pins += '#define RAM_ROOT_PROGRESS_SECONDS %d\n#define RAM_ROOT_NATIVE_HASH_CACHE %d\n' % (deadline, int(native_hash))
 pins += '#define RAM_ROOT_PROGRESS_SVC_LIMIT %dU\n' % svc_limit
 pins += '#define RAM_ROOT_FOLLOW_DENY_ATTACH %d\n' % int(deny_attach)
+watchdog = json.loads((OUT / 'pins.json').read_text()).get('system_watchdog', False) if (OUT / 'pins.json').exists() else False
+pins += '#define RAM_ROOT_SYSTEM_WATCHDOG %d\n' % int(watchdog)
+if watchdog: api += '\nvolatile uint64_t fuxi_ram_watchdog_state[8];\n'
 if native_hash: api += '\nunsigned long cs_native4k_full_blocks,cs_native4k_page_checks,cs_native4k_ready_blobs;\n'
 assert '#define RAM_ROOT_ALLOW_MAIN_ENTRY 1' in pins
 bodies = []

@@ -365,6 +365,9 @@ def main():
     members = subprocess.check_output(['xcrun','ar','t',str(build/'libRamRootProbe.a')],text=True).splitlines()
     expected_members = ['__.SYMDEF SORTED','RamRootProbe.o','RamSystemProbe.o','RamSystemRootSwitch.o']
     if cache: expected_members.append('RamSystemCache.o')
+    if record['pins'].get('system_watchdog'):
+        assert cache and args.mode == 'progress'
+        expected_members += ['RamWatchdog.late.o','original-bindings.o']
     if args.mode == 'progress': expected_members.append('RamLaunchdProbe.o')
     assert members==expected_members
     symbols = subprocess.check_output([llvm_tool('llvm-nm'),str(build/'RamSystemRootSwitch.o')],text=True)
