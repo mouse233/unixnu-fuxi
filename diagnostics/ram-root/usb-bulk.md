@@ -2064,3 +2064,20 @@ stop_verified仍false。不预判历史PMGR依赖必然复现或已经修复，�
 均 OKAY（4.269s/1.489s，returncode=0）。接收器发现和双对象 RAM
 传输/回读校验继续；没有分区写入。尚无 XNU/cache/progress 实机
 结论，normal_controller_stop_verified 仍 false。
+
+
+### v40 attempt-01 双对象 RAM 传输与校验完成（2026-10-25）
+
+完整脚本退出0，584.740秒完成：OS 6,077,580,800字节、SystemOS
+3,303,014,400字节，两对象acknowledged_bytes完整，实际设备RAM回读
+SHA256分别为e5634d04a8ac35f024845f583394e0a35deb26a04cb0c00286a8674e25a9a4f2
+和b4908cde41d23e6bc05e6af51a2c9eeb00cf0f863a6a18b1600c96a3fd70414f，
+均与源匹配；full_os_object_transfer_verified=true，无分区写入。
+交付镜像仍1718540b450ba9b49d6eb6c4191fa5befb390a9f99dad3410413a2a010415a0e，
+16项检查及当前检查脚本哈希绑定重新核验匹配。原始full-transfer、
+boot.log、device-test和check-suite归档到attempt-01。
+
+normal_controller_stop_verified仍false。待接收器停机三标记照片，
+再手选fuxi RAM diagnostic: system-mount，归档RAM_CACHE的原始
+返回/ready、RAM_PROGRESS快照和最终panic。传输完成不证明已进入
+XNU或缓存映射/launchd main通过，不预填实机结论。
