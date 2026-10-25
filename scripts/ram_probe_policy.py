@@ -65,10 +65,12 @@ def inspect_system_probe(out):
     require(len(entries) == 1, 'need exactly one RAM probe archive')
     entry = entries[0]
     user, main, progress = (flag in entry for flag in ('--user-entry', '--main-entry', '--progress'))
+    native = '--system-root-switch' in entry
+    require(pins.get('system_root_switch', False) is native, 'native root pins mismatch')
     observer = '--launch-constraints-observer' in entry
     require(pins.get('observe_launch_constraints', False) is observer, 'launch observation pins mismatch')
-    require(user and '--system-objects' in entry and '--system-user-entry' in entry and not progress,
-            'system entry must use its bounded archive profile')
+    require(user and '--system-objects' in entry and '--system-user-entry' in entry and (not progress or native),
+            'system entry requires bounded secondary or native-root follow profile')
     require(Path(entry[entry.index('--pins') + 1]).resolve() == out / 'pins.json', 'probe pins belong to another candidate')
     stage = validate_stage_policy(pins, user, main, progress)
     config = (out / 'config').read_text().splitlines()
@@ -82,7 +84,7 @@ def inspect_system_probe(out):
     args = board['payload']['kernel_args']
     require([x for x in args if x.startswith('ram-launch-observe=')] == (['ram-launch-observe=1'] if observer else []),
             'launch observer boot argument mismatch')
-    require([x for x in args if x.startswith('ram-root-probe=')] == ['ram-root-probe=' + ('3' if main else '2')],
+    require([x for x in args if x.startswith('ram-root-probe=')] == ['ram-root-probe=' + ('4' if progress else '3' if main else '2')],
             'root probe selector disagrees with archive')
     require(args.count('rd=md0') == 1, 'system entry must report md0 as its root')
     build = out / 'work/tree/build/ram-root-probe'
@@ -121,5 +123,21 @@ def inspect_system_probe(out):
     for name in ('_fuxi_ram_system_user_init_path', '_fuxi_ram_user_exec_begin'):
         require(any(line.split()[-1:] == [name] and ' U ' not in line for line in kernel_symbols.splitlines()),
                 'delivered kernel lacks defined ' + name)
-    return dict(evidence, stage='system-' + stage, root='md0', exec_path='/mnt1/sbin/launchd', launch_observer=observer,
+    if native:
+        require(report.get('system_root_switch') is True, 'compiled native switch mode missing')
+        source = device / 'package/RamSystemRootSwitch.c'
+        require(sha(source) == report['switch_source_sha256'] == sha(out / 'work/tree/kits/sheng/RamSystemRootSwitch.c'),
+                'native root switch source binding mismatch')
+    if main:
+        objects = out / 'work/tree/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837'
+        for relative, names in [('osfmk/DEVELOPMENT/sleh.o', ['_fuxi_ram_main_svc', '_fuxi_ram_main_break']),
+                                ('bsd/DEVELOPMENT/systemcalls.o', ['_fuxi_ram_progress_unix', '_fuxi_ram_progress_unix_result'])]:
+            obj = objects / relative
+            arguments = json.loads(obj.with_suffix('.o.json').read_text().strip().rstrip(','))['arguments']
+            require(arguments.count('XNU_RAM_MAIN_PROBE=1') + arguments.count('-DXNU_RAM_MAIN_PROBE=1') == 1,
+                    'missing compiled main macro: ' + relative)
+            symbols = subprocess.check_output([llvm_tool('llvm-nm'), str(obj)], text=True)
+            require(all(name in symbols for name in names), 'missing compiled main calls: ' + relative)
+    return dict(evidence, stage='system-' + stage, root='switched OS-volume' if native else 'md0',
+                exec_path='/sbin/launchd' if native else '/mnt1/sbin/launchd', launch_observer=observer,
                 probe_archive_sha256=report['archive_sha256'], contract_verified=True)

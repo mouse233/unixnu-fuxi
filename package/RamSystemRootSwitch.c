@@ -20,6 +20,12 @@
 #ifndef RAM_SYSTEM_ALLOW_USER_ENTRY
 #define RAM_SYSTEM_ALLOW_USER_ENTRY 0
 #endif
+#ifndef RAM_SYSTEM_CACHE
+#define RAM_SYSTEM_CACHE 0
+#endif
+#if RAM_SYSTEM_CACHE
+extern void fuxi_ram_system_cache_bind(mount_t);
+#endif
 
 extern volatile unsigned fuxi_ram_root_stage, fuxi_ram_system_stage, fuxi_ram_system_user_entry;
 extern dev_t rootdev;
@@ -170,6 +176,9 @@ void fuxi_ram_system_root_switch(unsigned profile)
     fuxi_ram_switch_auth = autherr;
     fuxi_ram_switch_flags = auth_flags;
     fuxi_ram_native_root_entry = 1;
+#if RAM_SYSTEM_CACHE
+    fuxi_ram_system_cache_bind(mounts[1]);
+#endif
     fuxi_ram_system_stage = 7;
     printf("RAM_SYSTEM native root entry armed: root=/sbin/launchd on switched OS volume "
         "rootfs=1 auth=%d flags=%llx unchanged=%d\n", autherr, auth_flags, unchanged);

@@ -1997,3 +1997,59 @@ envp机制（当前树load_init_program_at_path已带envp），cryptex授权
 静态终点：DSC文件级映射校验、dyld对该env的行为、launchd只读根
 运行行为、523守护进程spawn时序、高频SVC竞争——只能真机回答。
 v39上机命令不变（镜像哈希见REVIEW）。
+
+
+### v39 会话审计更正与 v40 修复交付（2026-10-25）
+
+保留上文历史，撤回“静态分析已到终点/v40 静态完备”的判断。审计
+发现：spawn 返回仍按 PID/code 匹配会把同进程不同线程的 A/B 结果
+交换；posix_spawn 子 PID 经用户指针输出，成功 rv=0，旧 e=0 r=pid
+判据错误；profile4 被套件当成非 main 跳过 policy/guards；重复检查
+覆盖日志；旧 owner 缓存路径还存在 ignition 关闭目录 fd 的 EBADF
+先例，不能仅凭 envp/路径对齐宣称闭合。
+
+新独立 usb-system-mount-v40 从 v39 创建，旧镜像不覆盖。XNU 探针与
+检查/构建层修复：syscall 入口返回 64 位 token，经真实内核入口/
+返回补丁携带；记录按 token+thread+code 关联，掉入口/覆盖槽位不
+回填旧调用；结果初始化未知。spawn 分开显示 e/rv/child/pe，成功
+原始返回为 e=0 rv=0；child 是锁外读取的 PID 输出观察，缺失/失败
+为 -1，不把用户共享指针的观察值当不可变内核 PID 或已执行证明。
+profile4 必跑 --system-entry --native-root --progress guards/policy，
+核验 init/sleh/systemcalls 对象；每轮 check-runs 独立保留失败与成功，
+新候选清除父检查历史。
+
+缓存实现 --system-cache：原生 pivot 后复用 /Developer/mnt2 原
+cryptex 挂载，与 pivot 前原 /mnt2 mount 身份核对，只读 APFS、
+原生 rootauth 必须实际返回 0，失败以原 errno panic。不重复挂载，
+不创建只读目录。PID1 exec 前核对 mount/上下文和原始 OS dyld
+SHA256，注入 DYLD_SHARED_CACHE_DIR=/Developer/mnt2/System/Library/
+Caches/com.apple.dyld；dyld_flags|=8 并更新真实 commpage，避开已知
+ignition 描述符清理分支，保留其他 flags。OS 根 auth80 仍为原有记录。
+原始 dyld/AMFI/APFS/IOStorage、信任缓存和认证返回均不修改。
+
+主机 XNU→Docker 固件→FUXIPAYL 组合镜像完成。镜像203190272字节，
+SHA256 1718540b450ba9b49d6eb6c4191fa5befb390a9f99dad3410413a2a010415a0e；
+prelink a0c6d89db2f408d7421832dfad54a7f44843eb763775fb7bf9d2be1798103122；
+skew 由交付载荷重新推导同余通过，仍0x7c000；KMEM剩余VA下界
+662548480。16项主机检查全部真实退出0；root/main实际C 87例（含
+同PID多线程、环覆盖、丢入口、PID读取失败）；switch 43例+3突变；
+cache C 23例+3突变；ASan/UBSan零报告。未修改原始 CacheFinder
+构造/析构指令，Unicorn跑5输入：bit3置位不进ignite、fd0至析构
+才关闭；桩提供外部调用，不声称完整dyld/AMFI仿真。
+
+额外可重复静态检查：prepare-ram-cache-audit.py 读取真实SHNGROOT，
+两对象重算SHA256与清单及已传输输入匹配，只读挂载，确认OS dyld
+937056字节与模型原件同哈希f8df3c58fae6e409…；53个缓存文件、201083
+完整签名块哈希匹配，4K映射对齐与四个子块破坏拒绝通过。此为文件
+哈希和格式证据，不是CMS信任链或实际内核映射通过。脚本已自行
+卸载其临时镜像。完整报告/命令/失败日志在v40 REVIEW，规范分析
+svc-dispatch-preflight.md已更正；v39 REVIEW已标旧判据不可用。
+
+首次内核构建因沙箱拒sysctl停止，首次套件在Unicorn/JIT处被沙箱
+以-4终止；原失败日志独立保留，相同交付镜像沙箱外全套重跑通过。
+
+内核补丁提交dd0b80c。交付后检查无设备占用任务，但fastboot列表
+为空，未发起boot/重启/传输。v40实机、真实cache lookup/rootauth/
+AMFI映射/LC_MAIN/子进程执行均待新attempt证据；normal_controller_
+stop_verified仍false。不预判历史PMGR依赖必然复现或已经修复，不把
+主机验证写成实机或完整系统启动成功。

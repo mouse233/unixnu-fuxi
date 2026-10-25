@@ -21,7 +21,11 @@ parser.add_argument('--system-user-entry', action='store_true', help='After the 
 parser.add_argument('--launch-constraints-observer', action='store_true', help='Observe existing AMFI vnode/flags/ioctl calls without changing policy')
 parser.add_argument('--system-root-preflight', action='store_true', help='Issue native root authentication on mounted RAM volumes and stop without switching root or starting userland')
 parser.add_argument('--system-root-switch', action='store_true', help='Pivot md0 to the OS volume with native vfs_switch_root; mount-only builds stop after verification, user-entry builds arm the bounded native-root init')
+parser.add_argument('--system-cache', action='store_true', help='Use the verified RAM cryptex and original no-ignition dyld startup')
 args = parser.parse_args()
+if args.system_cache and not (args.system_root_switch and args.system_user_entry and args.progress):
+    parser.error('--system-cache requires native root switch and progress')
+
 if args.system_root_preflight and args.system_root_switch:
     parser.error('--system-root-preflight and --system-root-switch are exclusive archive modes')
 if args.system_root_preflight and (not args.system_objects or args.system_user_entry or args.main_entry or args.progress or args.launch_constraints_observer):
@@ -41,6 +45,8 @@ if args.progress and not args.main_entry:
 if args.main_entry and not args.user_entry:
     parser.error('--main-entry requires --user-entry')
 pins = json.loads(args.pins.read_text())
+if pins.get('system_cache', False) is not args.system_cache:
+    raise SystemExit('System cache pins disagree with archive mode')
 validate_stage_policy(pins, args.user_entry, args.main_entry, args.progress)
 if pins.get('observe_launch_constraints', False) is not args.launch_constraints_observer:
     raise SystemExit('Launch observation pins disagree with the archive mode')
@@ -103,6 +109,10 @@ if args.system_user_entry or args.system_root_switch:
     system_header += '#define RAM_SYSTEM_LAUNCHD_BYTES UINT64_C(%d)\n' % pins['system_file_bytes']
     system_digest = bytes.fromhex(pins['system_file_sha256'])
     system_header += 'static const uint8_t ram_system_launchd_sha256[32] = {' + ','.join(hex(x) for x in system_digest) + '};\n'
+system_header += '#define RAM_SYSTEM_CACHE ' + str(int(args.system_cache)) + '\n'
+if args.system_cache:
+    system_header += '#define RAM_SYSTEM_DYLD_BYTES UINT64_C(%d)\n' % pins['system_dyld_bytes']
+    system_header += 'static const uint8_t ram_system_dyld_sha256[32] = {' + ','.join(hex(x) for x in bytes.fromhex(pins['system_dyld_sha256'])) + '};\n'
 (out / 'RamSystemProbePins.h').write_text(system_header)
 record = json.loads((ROOT / 'build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/bsd/DEVELOPMENT/kern_exec.o.json').read_text().strip().rstrip(','))
 source = ROOT / 'kits/sheng/RamRootProbe.c'
@@ -153,6 +163,15 @@ if args.system_root_switch:
     (out / 'switch-compile.log').write_text(result.stdout + result.stderr)
     if result.returncode: raise SystemExit(result.stdout + result.stderr)
     objects.append(switch_object)
+if args.system_cache:
+    cache_source = ROOT / 'kits/sheng/RamSystemCache.c'
+    cache_object = out / 'RamSystemCache.o'
+    cache_command = [str(cache_source) if value == str(source) else str(cache_object) if value == str(obj) else value for value in command]
+    result = subprocess.run(cache_command, cwd=record['directory'], capture_output=True, text=True)
+    (out / 'cache-compile-command.json').write_text(json.dumps(cache_command, indent=2) + '\n')
+    (out / 'cache-compile.log').write_text(result.stdout + result.stderr)
+    if result.returncode: raise SystemExit(result.stdout + result.stderr)
+    objects.append(cache_object)
 if args.main_entry:
     main_source = ROOT / 'kits/sheng/RamLaunchdProbe.c'
     main_object = out / 'RamLaunchdProbe.o'
@@ -206,7 +225,8 @@ subprocess.run(['xcrun', 'ar', 'rcs', archive, *objects], check=True)
     observation_source_sha256=hashlib.sha256(observation_source.read_bytes()).hexdigest() if args.launch_constraints_observer else None,
     system_root_preflight=args.system_root_preflight,
     preflight_source_sha256=hashlib.sha256(preflight_source.read_bytes()).hexdigest() if args.system_root_preflight else None,
-    system_root_switch=args.system_root_switch,
+    system_root_switch=args.system_root_switch, system_cache=args.system_cache,
+    cache_source_sha256=hashlib.sha256(cache_source.read_bytes()).hexdigest() if args.system_cache else None,
     switch_source_sha256=hashlib.sha256(switch_source.read_bytes()).hexdigest() if args.system_root_switch else None,
     restore_trust=bool(args.restore_trust_cache),
     restore_trust_sha256=hashlib.sha256(restore).hexdigest() if args.restore_trust_cache else None,

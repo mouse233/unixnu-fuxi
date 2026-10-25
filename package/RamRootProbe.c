@@ -46,6 +46,8 @@ volatile unsigned fuxi_ram_system_user_entry;
 volatile unsigned fuxi_ram_native_root_entry;
 volatile int fuxi_ram_switch_auth = -1;
 volatile unsigned long long fuxi_ram_switch_flags = 0;
+volatile unsigned fuxi_ram_cache_stage;
+volatile unsigned long long fuxi_ram_cache_dyld_flags;
 #if RAM_ROOT_ALLOW_USER_ENTRY
 static unsigned exec_path_verified;
 #endif

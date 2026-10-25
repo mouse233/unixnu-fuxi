@@ -19,6 +19,8 @@ extern volatile unsigned fuxi_ram_root_stage;
 extern volatile unsigned fuxi_ram_system_user_entry;
 /* Owned by RamRootProbe.c; set after a verified native root switch. */
 extern volatile unsigned fuxi_ram_native_root_entry;
+extern volatile unsigned fuxi_ram_cache_stage;
+extern volatile unsigned long long fuxi_ram_cache_dyld_flags;
 /* This Mach-private declaration is hidden from the BSD compile-record headers. */
 extern kern_return_t machine_thread_set_state(thread_t, thread_flavor_t, thread_state_t, mach_msg_type_number_t);
 static const char ram_main_argv0[] = "/sbin/launchd";
@@ -27,8 +29,8 @@ void fuxi_ram_main_arm(thread_t target);
 void fuxi_ram_main_svc(uint64_t, uint32_t, uint32_t, uint64_t);
 void fuxi_ram_main_unix(unsigned);
 void fuxi_ram_main_break(uint64_t, uint32_t, uint32_t);
-void fuxi_ram_progress_unix(unsigned, uint64_t, uint64_t);
-void fuxi_ram_progress_unix_result(unsigned, int, int);
+uint64_t fuxi_ram_progress_unix(unsigned, uint64_t, uint64_t);
+void fuxi_ram_progress_unix_result(uint64_t, unsigned, int, int);
 static thread_t observed_thread;
 static uint64_t launchd_header, launchd_main, checkpoint_pc;
 static volatile unsigned svc_count;
@@ -41,8 +43,12 @@ static thread_call_t deadline_call;
 char fuxi_ram_progress_text[1024];
 #if RAM_ROOT_PROGRESS
 static volatile unsigned trace_lock, dropped_events, unix_count, spawn_total;
-struct ram_event { unsigned code; int error, result, pid; uint64_t arg; thread_t thread; };
-struct ram_spawn { unsigned code; int error, result, pid; char path[64]; };
+static uint64_t trace_sequence;
+struct ram_event { unsigned code; int error, result, pid; uint64_t arg, token; thread_t thread; };
+struct ram_spawn {
+    unsigned code; int error, result, pid, child, pid_error;
+    uint64_t token, pid_address; thread_t thread; char path[64];
+};
 static struct ram_event events[8];
 static struct ram_spawn spawns[8];
 static char last_path[96], last_stat[64], last_write[48];
@@ -54,10 +60,11 @@ static void progress_snapshot(void)
 {
     size_t used = (size_t)snprintf(fuxi_ram_progress_text, sizeof(fuxi_ram_progress_text),
         "RAM_PROGRESS stage=%u main=%s\n%s\n"
-        "pid=%d svc=%u unix=%u exec=%u drop=%u\nlastpc=%llx x16=%d\n",
+        "cache=%u dyld_flags=%llx\npid=%d svc=%u unix=%u exec=%u drop=%u\nlastpc=%llx x16=%d\n",
         fuxi_ram_root_stage, fuxi_ram_root_stage == 10 ? "PASS" : "pending",
         fuxi_ram_native_root_entry ? "root=switched OS-volume apfs readonly rootfs=1" :
             "md0 APFS readonly; original hashes OK",
+        fuxi_ram_cache_stage, fuxi_ram_cache_dyld_flags,
         last_pid, svc_count, unix_count, spawn_total, dropped_events, last_pc, recent_calls[(svc_count - 1) & 7]);
     unsigned first = unix_count > 6 ? unix_count - 6 : 0;
     for (unsigned i = first; i < unix_count && used < sizeof(fuxi_ram_progress_text); i++) {
@@ -71,7 +78,8 @@ static void progress_snapshot(void)
         for (unsigned i = spawn_total - n; i < spawn_total && used < sizeof(fuxi_ram_progress_text); i++) {
             struct ram_spawn *spawn = &spawns[i & 7];
             used += (size_t)snprintf(fuxi_ram_progress_text + used, sizeof(fuxi_ram_progress_text) - used,
-                " %d code=%u e=%d r=%d %.40s\n", spawn->pid, spawn->code, spawn->error, spawn->result, spawn->path);
+                " %d c=%u e=%d rv=%d child=%d pe=%d %.32s\n", spawn->pid, spawn->code,
+                spawn->error, spawn->result, spawn->child, spawn->pid_error, spawn->path);
         }
     }
     if (used < sizeof(fuxi_ram_progress_text) && last_path[0])
@@ -209,9 +217,10 @@ void fuxi_ram_main_svc(uint64_t pc, uint32_t cpsr, uint32_t esr, uint64_t syscal
     }
 }
 
-void fuxi_ram_progress_unix(unsigned code, uint64_t arg0, uint64_t arg1)
+uint64_t fuxi_ram_progress_unix(unsigned code, uint64_t arg0, uint64_t arg1)
 {
     require_observed_thread();
+    uint64_t token = 0;
 #if RAM_ROOT_PROGRESS
     char path[sizeof(last_path)] = {0};
     size_t copied = 0;
@@ -234,8 +243,11 @@ void fuxi_ram_progress_unix(unsigned code, uint64_t arg0, uint64_t arg1)
     progress_printable(text);
     int pid = proc_getpid(current_proc());
     if (progress_lock()) {
+        token = ++trace_sequence;
+        if (!token) panic("RAM_PROGRESS trace token exhausted");
         struct ram_event *event = &events[unix_count++ & 7];
-        *event = (struct ram_event){ .code = code, .error = -9999, .arg = arg0, .thread = current_thread(), .pid = pid };
+        *event = (struct ram_event){ .code = code, .error = -9999, .result = -9999,
+            .arg = arg0, .token = token, .thread = current_thread(), .pid = pid };
         if (path_address) {
             memcpy(last_path, path, sizeof(last_path));
             last_pid = pid;
@@ -250,9 +262,9 @@ void fuxi_ram_progress_unix(unsigned code, uint64_t arg0, uint64_t arg1)
         }
         if (code == SYS_posix_spawn || code == SYS_execve || code == SYS___mac_execve) {
             struct ram_spawn *spawn = &spawns[spawn_total++ & 7];
-            spawn->code = code;
-            spawn->error = -9999;
-            spawn->pid = pid;
+            *spawn = (struct ram_spawn){ .code = code, .error = -9999, .result = -9999,
+                .pid = pid, .child = -1, .pid_error = -1, .token = token,
+                .pid_address = code == SYS_posix_spawn ? arg0 : 0, .thread = current_thread() };
             memcpy(spawn->path, path, sizeof(spawn->path));
         }
         progress_unlock();
@@ -261,43 +273,62 @@ void fuxi_ram_progress_unix(unsigned code, uint64_t arg0, uint64_t arg1)
      * filesystems stay blocked and none of their drivers is linked. */
     if (code == SYS_mount) {
         char type[8] = {0};
-        if (!copyinstr(arg0, type, sizeof(type), &copied) && !strcmp(type, "tmpfs")) return;
+        if (!copyinstr(arg0, type, sizeof(type), &copied) && !strcmp(type, "tmpfs")) return token;
     }
 #else
     (void)arg0; (void)arg1;
 #endif
     /* code has already resolved the indirect syscall(0, ...) form in XNU. */
     fuxi_ram_main_unix(code);
+    return token;
 }
 
-void fuxi_ram_progress_unix_result(unsigned code, int error, int result)
+void fuxi_ram_progress_unix_result(uint64_t token, unsigned code, int error, int result)
 {
     require_observed_thread();
 #if RAM_ROOT_PROGRESS
+    if (!token) return; /* Entry was dropped: never complete somebody else's call. */
+    uint64_t pid_address = 0;
+    int child = -1, pid_error = -1;
+    if (code == SYS_posix_spawn && !error && !result) {
+        if (!progress_lock()) return;
+        for (unsigned n = 0; n < 8 && n < spawn_total; n++) {
+            struct ram_spawn *spawn = &spawns[(spawn_total - 1 - n) & 7];
+            if (spawn->token == token && spawn->thread == current_thread() &&
+                spawn->code == code && spawn->error == -9999) {
+                pid_address = spawn->pid_address;
+                break;
+            }
+        }
+        /* copyin can fault: never hold the best-effort trace lock across it. */
+        __sync_lock_release(&trace_lock);
+        if (pid_address) pid_error = copyin(pid_address, &child, sizeof(child));
+        if (pid_error || child <= 0) child = -1;
+    }
     if (progress_lock()) {
-        /* Other threads and processes can interleave. Match their in-flight
-         * event by thread. */
+        /* The token also rejects a dropped/reused entry and ring eviction. */
         for (unsigned n = 0; n < 8 && n < unix_count; n++) {
             struct ram_event *event = &events[(unix_count - 1 - n) & 7];
-            if (event->thread == current_thread() && event->code == code && event->error == -9999) {
+            if (event->token == token && event->thread == current_thread() && event->code == code && event->error == -9999) {
                 event->error = error;
                 event->result = result;
                 break;
             }
         }
-        int pid = proc_getpid(current_proc());
         for (unsigned n = 0; n < 8 && n < spawn_total; n++) {
             struct ram_spawn *spawn = &spawns[(spawn_total - 1 - n) & 7];
-            if (spawn->pid == pid && spawn->code == code && spawn->error == -9999) {
+            if (spawn->token == token && spawn->thread == current_thread() && spawn->code == code && spawn->error == -9999) {
                 spawn->error = error;
                 spawn->result = result;
+                spawn->child = child;
+                spawn->pid_error = pid_error;
                 break;
             }
         }
         progress_unlock();
     }
 #else
-    (void)code; (void)error; (void)result;
+    (void)token; (void)code; (void)error; (void)result;
 #endif
 }
 

@@ -314,6 +314,10 @@ def main():
     archives = [shlex.split(s) for s in board['kernel']['archives'] if shlex.split(s)[0]=='build-ram-root-probe.py']
     assert len(archives)==1
     entry = archives[0]
+    cache = pins.get('system_cache', False)
+    if cache:
+        assert args.mode == 'progress' and '--system-cache' in entry
+        entry = [x for x in entry if x != '--system-cache']
     if args.mode == 'mount':
         assert set(entry[1:]) == {'--user-entry','--system-objects','--system-root-switch','--pins',str(out/'pins.json')}
     elif args.mode == 'user-entry':
@@ -360,6 +364,7 @@ def main():
     assert '_fuxi_ram_system_root_switch' in disassembly
     members = subprocess.check_output(['xcrun','ar','t',str(build/'libRamRootProbe.a')],text=True).splitlines()
     expected_members = ['__.SYMDEF SORTED','RamRootProbe.o','RamSystemProbe.o','RamSystemRootSwitch.o']
+    if cache: expected_members.append('RamSystemCache.o')
     if args.mode == 'progress': expected_members.append('RamLaunchdProbe.o')
     assert members==expected_members
     symbols = subprocess.check_output([llvm_tool('llvm-nm'),str(build/'RamSystemRootSwitch.o')],text=True)

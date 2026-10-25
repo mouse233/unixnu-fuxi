@@ -42,6 +42,7 @@ def configure(parent, out):
     for path in [*out.glob('*.log'), *out.glob('*tests.json')]:
         path.unlink()
     shutil.rmtree(out / 'logs', ignore_errors=True)
+    shutil.rmtree(out / 'check-runs', ignore_errors=True)
     (out / 'logs').mkdir()
     for name in ('device-test.json', 'verification.json', 'payload-verification.json',
                  'kmem-tests.json', 'mount-spi-tests.json', 'mount-trace-tests.json',
@@ -51,6 +52,9 @@ def configure(parent, out):
                  'state.json', 'restore-mountpoints.json', 'source-state.json',
                  'Mu-fuxi-usb-ram.img', 'Mu-fuxi-usb-ram.json', 'candidate.json', 'boot.json',
                  'sources.json', 'loader-sources.json', 'guard-tests.log', 'check-suite.json'):
+        (out / name).unlink(missing_ok=True)
+    for name in ('dyld-cache-audit.json', 'cache-volume-audit.json', 'host-cache-mount.json',
+                 'hdiutil-info-before-cleanup.plist'):
         (out / name).unlink(missing_ok=True)
     for name in ('board-effective.json', 'pins.json'):
         path = out / name

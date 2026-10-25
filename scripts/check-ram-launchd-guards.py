@@ -15,9 +15,11 @@ parser.add_argument('--syscall-header', type=Path, required=True, help='Generate
 parser.add_argument('--progress', action='store_true', help='Exercise combined run, including continuation and RAM trace')
 parser.add_argument('--restore-trust', action='store_true', help='Require successful original restore module load before md0')
 parser.add_argument('--system-entry', action='store_true', help='Exercise the /mnt1 init source and argv, with md0 still the root')
+parser.add_argument('--native-root', action='store_true', help='Exercise /sbin/launchd after the verified native root switch')
 parser.add_argument('--output', type=Path, help='Write this run into its candidate directory')
 args = parser.parse_args()
-if args.system_entry and args.progress: parser.error('system entry excludes progress')
+if args.native_root and not args.system_entry: parser.error('--native-root requires --system-entry')
+if args.system_entry and args.progress and not args.native_root: parser.error('secondary system entry excludes progress')
 if args.restore_trust and not args.progress: parser.error('--restore-trust requires --progress')
 ROOT = Path(__file__).resolve().parents[1]
 OUT = args.output or ROOT / ('out/ram-progress-guard-tests' if args.progress else 'out/ram-main-guard-tests')
@@ -27,6 +29,8 @@ api = next(ast.literal_eval(node.value) for node in old_test.body if isinstance(
            and any(isinstance(target, ast.Name) and target.id == 'api' for target in node.targets))
 api = api.replace('static int pid=1,', 'static int target_pid=1;\nstatic int pid=1,').replace('if(!proc) abort();return pid;', 'if(!proc) abort();return proc==&target_pid?target_pid:pid;')
 api += r'''
+#define MNT_ROOTFS 0x4000
+static vnode_t rootvnode = &root_node;
 typedef void *task_t;
 typedef void *vm_map_t;
 typedef void *proc_t;
@@ -182,7 +186,7 @@ int main(int argc,char **argv) {
 }
 '''
 
-if args.system_entry:
+if args.system_entry and not args.native_root:
     tests = tests.replace('REQUIRE(fuxi_ram_root_stage==7);',
                           'REQUIRE(fuxi_ram_root_stage==7);fuxi_ram_system_user_entry=1;')
     tests = tests.replace('"/sbin/launchd"', '"/mnt1/sbin/launchd"')
@@ -197,6 +201,11 @@ if args.system_entry:
     tests = tests.replace('    REQUIRE(fuxi_ram_root_stage==10 && !memcmp(image,launchd,561856));',
         '    REQUIRE(fuxi_ram_root_stage==10 && !memcmp(image,launchd,561856));\n'
         '    REQUIRE(strstr(message,"root=md0") && strstr(message,"exec=/mnt1/sbin/launchd"));')
+if args.native_root:
+    tests = tests.replace('    fuxi_ram_user_exec_begin("/sbin/launchd",1);',
+        '    fuxi_ram_native_root_entry=1;\n'
+        '    REFUSE("native root identity",fuxi_ram_user_exec_begin("/sbin/launchd",1));\n'
+        '    root_mount.flags|=MNT_ROOTFS;fuxi_ram_user_exec_begin("/sbin/launchd",1);')
 if args.restore_trust:
     tests = tests.replace('    fuxi_ram_root_probe_before_mount(mdevlookup(0));REQUIRE(fuxi_ram_root_stage==3);', '    fuxi_ram_restore_trust_loaded=0;REFUSE("restore trust module was not loaded",fuxi_ram_root_probe_before_mount(mdevlookup(0)));fuxi_ram_restore_trust_loaded=267;\n    fuxi_ram_root_probe_before_mount(mdevlookup(0));REQUIRE(fuxi_ram_root_stage==3);')
 if args.progress:
@@ -210,8 +219,8 @@ if args.progress:
     start = tests.index('    REFUSE("RAM_LAUNCHD_MAIN PASS"')
     end = tests.index('    printf("PASS:', start)
     tests = tests[:start] + r'''
-    fuxi_ram_progress_unix(SYS_mprotect,0x1234,0);
-    fuxi_ram_progress_unix_result(SYS_mprotect,0,7);
+    uint64_t token=fuxi_ram_progress_unix(SYS_mprotect,0x1234,0);
+    fuxi_ram_progress_unix_result(token,SYS_mprotect,0,7);
     REQUIRE(strstr(fuxi_ram_progress_text,"code=74 err=0 rval=7 a0=1234"));cases++;
     set_state_error=5;REFUSE("cannot clear",fuxi_ram_main_break(checkpoint_pc,0,0xc2000022));
     set_state_error=0;fuxi_ram_root_stage=8;
@@ -223,19 +232,53 @@ if args.progress:
     host_thread=(void *)2;
     fuxi_ram_main_svc(0x2000,0,0x56000080,20);
     fuxi_ram_main_unix(20);
-    fuxi_ram_progress_unix(SYS_mprotect,0x2222,0);
+    uint64_t token2=fuxi_ram_progress_unix(SYS_mprotect,0x2222,0);
     host_thread=(void *)3;
-    fuxi_ram_progress_unix(SYS_mprotect,0x3333,0);
+    uint64_t token3=fuxi_ram_progress_unix(SYS_mprotect,0x3333,0);
     host_thread=(void *)2;
-    fuxi_ram_progress_unix_result(SYS_mprotect,13,2);
+    fuxi_ram_progress_unix_result(token2,SYS_mprotect,13,2);
     REQUIRE(events[1].arg==0x2222 && events[1].error==13 && events[2].error==-9999);cases++;
     host_thread=(void *)3;
-    fuxi_ram_progress_unix_result(SYS_mprotect,0,3);REQUIRE(events[2].result==3);cases++;
+    fuxi_ram_progress_unix_result(token3,SYS_mprotect,0,3);REQUIRE(events[2].result==3);cases++;
     const char *path="/usr/local/bin/restored_external";
-    fuxi_ram_progress_unix(SYS_posix_spawn,0,(uintptr_t)path);
+    int child_pid=42;
+    token=fuxi_ram_progress_unix(SYS_posix_spawn,(uintptr_t)&child_pid,(uintptr_t)path);
     REQUIRE(spawn_total==1 && strstr(fuxi_ram_progress_text,path));cases++;
-    fuxi_ram_progress_unix_result(SYS_posix_spawn,0,42);
-    REQUIRE(spawns[0].error==0 && spawns[0].result==42);cases++;
+    fuxi_ram_progress_unix_result(token,SYS_posix_spawn,0,0);
+    REQUIRE(spawns[0].error==0 && spawns[0].result==0 && spawns[0].child==42 && spawns[0].pid_error==0);cases++;
+    /* Same-PID threads finish in entry order: PID-only matching swapped A/B. */
+    host_thread=(void *)2;
+    token2=fuxi_ram_progress_unix(SYS_posix_spawn,0,(uintptr_t)"/sbin/A");
+    host_thread=(void *)3;
+    token3=fuxi_ram_progress_unix(SYS_posix_spawn,(uintptr_t)&child_pid,(uintptr_t)"/sbin/B");
+    host_thread=(void *)2;fuxi_ram_progress_unix_result(token2,SYS_posix_spawn,13,13);
+    REQUIRE(spawns[1].error==13 && spawns[2].error==-9999);cases++;
+    host_thread=(void *)3;fuxi_ram_progress_unix_result(token3,SYS_posix_spawn,0,0);
+    REQUIRE(spawns[2].error==0 && spawns[2].child==42 && spawns[1].child==-1);cases++;
+    /* A dropped entry must not finish an older in-flight call on this thread. */
+    token=fuxi_ram_progress_unix(SYS_posix_spawn,0,(uintptr_t)"/pending");
+    trace_lock=1;uint64_t lost=fuxi_ram_progress_unix(SYS_posix_spawn,0,(uintptr_t)"/dropped");trace_lock=0;
+    REQUIRE(lost==0);fuxi_ram_progress_unix_result(lost,SYS_posix_spawn,0,0);
+    REQUIRE(spawns[3].error==-9999);cases++;
+    fuxi_ram_progress_unix_result(token,SYS_posix_spawn,2,2);REQUIRE(spawns[3].error==2);cases++;
+    /* Ring wrap including slots 4..7; stale results cannot complete a new entry. */
+    for(unsigned i=0;i<12;i++) {
+        token=fuxi_ram_progress_unix(SYS_posix_spawn,(uintptr_t)&child_pid,(uintptr_t)path);
+        fuxi_ram_progress_unix_result(token,SYS_posix_spawn,0,0);
+        REQUIRE(spawns[(spawn_total-1)&7].child==42);cases++;
+    }
+    token=fuxi_ram_progress_unix(SYS_posix_spawn,0,(uintptr_t)"/evicted");
+    for(unsigned i=0;i<8;i++) (void)fuxi_ram_progress_unix(SYS_posix_spawn,0,(uintptr_t)"/new");
+    fuxi_ram_progress_unix_result(token,SYS_posix_spawn,0,0);
+    REQUIRE(spawns[(spawn_total-1)&7].error==-9999);cases++;
+    token=fuxi_ram_progress_unix(SYS_posix_spawn,1,(uintptr_t)path);copy_error=14;
+    fuxi_ram_progress_unix_result(token,SYS_posix_spawn,0,0);copy_error=0;
+    REQUIRE(spawns[(spawn_total-1)&7].child==-1 && spawns[(spawn_total-1)&7].pid_error==14);cases++;
+    token=fuxi_ram_progress_unix(SYS_posix_spawn,0,(uintptr_t)path);
+    fuxi_ram_progress_unix_result(token,SYS_posix_spawn,0,0);
+    REQUIRE(spawns[(spawn_total-1)&7].child==-1 && spawns[(spawn_total-1)&7].pid_error==-1);cases++;
+    if (fuxi_ram_native_root_entry) {REQUIRE(strstr(fuxi_ram_progress_text,"root=switched OS-volume"));cases++;}
+
     const char *missing="/private/var/db/missing";
     fuxi_ram_progress_unix(SYS_stat64,(uintptr_t)missing,0);
     REQUIRE(strstr(fuxi_ram_progress_text,"stat=/private/var/db/missing"));cases++;
@@ -251,10 +294,10 @@ if args.progress:
     char longpath[200];memset(longpath,'a',sizeof(longpath));longpath[199]=0;
     fuxi_ram_progress_unix(SYS_execve,(uintptr_t)longpath,0);
     REQUIRE(last_path[95]==0 && strlen(last_path)==95);cases++;
-    for(unsigned i=0;i<20;i++) {fuxi_ram_progress_unix(20,i,0);fuxi_ram_progress_unix_result(20,0,i);}
+    for(unsigned i=0;i<20;i++) {token=fuxi_ram_progress_unix(20,i,0);fuxi_ram_progress_unix_result(token,20,0,i);}
     REQUIRE(strlen(fuxi_ram_progress_text)<sizeof(fuxi_ram_progress_text));
     REQUIRE(!strstr(fuxi_ram_progress_text,"u1 code="));cases++;
-    unsigned saved=unix_count;trace_lock=1;fuxi_ram_progress_unix(20,0,0);
+    unsigned saved=unix_count;dropped_events=0;trace_lock=1;fuxi_ram_progress_unix(20,0,0);
     REQUIRE(unix_count==saved && dropped_events==1);trace_lock=0;cases++;
     pid=2;fuxi_ram_main_unix(20);fuxi_ram_main_svc(0x2000,0,0x56000080,20);pid=1;cases++;
     for(unsigned i=0;i<sizeof(blocked_protected)/sizeof(blocked_protected[0]);i++) REFUSE("blocked syscall",fuxi_ram_main_unix(blocked_protected[i]));
@@ -264,7 +307,7 @@ if args.progress:
 with tempfile.TemporaryDirectory(prefix='fuxi-main-guards-') as temporary:
     work = Path(temporary)
     (work / 'test.c').write_text(api + '\n' + pins + '\n' + '\n'.join(bodies) + '\n' + tests)
-    subprocess.run(['clang', '-Wall', '-Wextra', '-Werror', '-Wno-deprecated-declarations',
+    subprocess.run(['clang', '-fsanitize=address,undefined', '-Wall', '-Wextra', '-Werror', '-Wno-deprecated-declarations',
                     str(work / 'test.c'), '-o', str(work / 'test')], check=True)
     result = subprocess.run([str(work / 'test'),
         str(args.ramdisk.resolve()),
@@ -272,7 +315,7 @@ with tempfile.TemporaryDirectory(prefix='fuxi-main-guards-') as temporary:
     (OUT / 'guard-tests.log').write_text(result.stdout + result.stderr)
     if result.returncode:
         raise SystemExit(result.stdout + result.stderr)
-    report = dict(system_entry=args.system_entry, progress=args.progress,
+    report = dict(system_entry=args.system_entry, native_root=args.native_root, progress=args.progress,
                   source_sha256={str(ROOT / 'package' / name): hashlib.sha256((ROOT / 'package' / name).read_bytes()).hexdigest()
                                  for name in ['RamRootProbe.c', 'RamLaunchdProbe.c']},
                   passed=result.stdout.strip(), hardware_result='pending')

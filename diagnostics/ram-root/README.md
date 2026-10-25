@@ -391,3 +391,25 @@ post-switch launchd) under ASan/UBSan with three mutation rejections, and
 binds pins/config/boot args, the archive, the `vfs_switch_root`/`MNT_ROOTFS`
 source contract, original executable hashes and the delivered image. Hardware
 output still requires a photo in the candidate's attempt directory.
+
+### Native-root progress and RAM cryptex cache
+
+For native-root progress use `--system-entry --native-root --progress` in the
+production-C guard checker. The candidate suite derives these flags from the
+archive and requires policy/guards for selector 4 as well as selector 3.
+Each check run preserves its own logs under `check-runs/<UTC>/`.
+
+`--system-cache` verifies and uses the existing RAM cryptex at
+`/Developer/mnt2` after pivot. It requires the original native cache-root auth
+result to be zero, pins the actual OS dyld bytes, supplies its cache-directory
+environment and sets the original no-ignition startup bit. It changes XNU
+diagnostic hooks, never original dyld/AMFI bytes or trust decisions.
+`check-ram-system-cache.py` executes production preparation C and original dyld
+CacheFinder instructions; `check-ram-cache-files.py` checks cache mapping
+alignment and CodeDirectory block hashes from a read-only host mount.
+
+Spawn snapshots distinguish raw `rv` from `child` read from the PID output
+pointer. Successful `posix_spawn` has `e=0 rv=0`; `child>0 pe=0` is the observed
+PID output, not proof that this child reached EL0. Missing/dropped observations
+stay unknown. See `svc-dispatch-preflight.md` and the v40 REVIEW for exact
+evidence and remaining runtime boundaries.
