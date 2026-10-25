@@ -2316,3 +2316,18 @@ run_id=20261025T051932.729404Z全部退出0并绑定本镜像；guards 93例
 实机待attempt-01照片：越过v42停点形态后的exec/unix增量、spawn路径
 多样性、write缓冲、free页趋势、新自然停点或预期封锁。900秒期限内
 可多拍中间画面。本候选无实机结论，normal_controller_stop_verified=false。
+
+
+### v43 attempt-01 临时启动与双对象传输完成（2026-10-25）
+
+互斥检查无活动任务，fcde91e可见，完整脚本核验后仅fastboot boot。
+OS 6,077,580,800字节、SystemOS 3,303,014,400字节全量传输，两对象
+ram_readback_verified=true（回读SHA256同源同值：e5634d04…与
+b4908cde…）。镜像仍3f0d9910f2f90b1483037f9ec5bc98bf5174d681303d2f778d0439e1370ec5b4；
+post-transfer-binding确认17项套件绑定与探针源码一致。boot.log与
+full-transfer归档attempt-01；无分区写入。
+
+normal_controller_stop_verified=false。待接收器结束后拍HALTED/
+路由恢复/USBRAM QUIESCE: Success，手选system-mount。本次窗口最长
+900秒/1048576 SVC，期间可多拍中间画面；终帧判据：exec/unix增量、
+spawn路径多样性、write缓冲、free页趋势、新自然停点或预期封锁。
