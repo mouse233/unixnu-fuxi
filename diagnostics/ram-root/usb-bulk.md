@@ -2619,3 +2619,41 @@ FUXIPAYL、最低段0xfffffff00427c000/skew0x7c000、KMEM余量662548480
 心跳和完整系统启动均待验收，normal_controller_stop_verified=false。
 下次用户准备fastboot后用v47 REVIEW命令与独立attempt-01；不重用v46
 照片或主机成功作为服务已实机通过的证据。父v46交付镜像哈希保持不变。
+
+
+### TWRP /data → UEFI 移植分支：M1 原生 UFS 只读诊断实现（2026-10-25）
+
+feat/twrp-data-uefi 提交 85e38d18（UEFI 仓库，独立检出
+ramdisk-test/uefi-twrp-data）。改动层：UEFI 诊断（新模块
+FuxiNativeUfsDxe、MemoryMapLib 两个 MMIO 窗口、APRIORI 顺序）、主机
+测试与候选构建工具、移植说明；DarwinBoot/XNU/USB 接收器协议/系统
+打包未改。M0 探针模块与开关行为不变（no-smc/scm-query 变体重建
+哈希与 M0 REVIEW 一致）。
+
+实现按本机 XNU 已验证的 NativeUfs 读取路径转录：停/起队列序列、
+单槽 UTRD 提交与轮询（完成/致命/超时，疑点即隔离缓冲并停止发令）、
+响应/sense/query 校验、SMMU stream 0x60 计划与配置回读。数据方向只
+允许 0/2，写入方向参数检查即拒绝；无密钥操作、无 BlockIo 发布。
+诊断在 DXE 调度即执行（APRIORI 排在 USB 接收器之前：receiver-only
+候选在入口内等待 180 秒后 CpuDeadLoop 驻留，到不了 ReadyToBoot），
+空闲门不满足不写任何寄存器；独立 DMA 窗口 139264 字节、4GiB 以下、
+不覆盖 ABL 遗留请求列表；SMMU 从次顶 bank 开始规划，顶 bank 原样
+留给 USB 路由试验；GPT/F2FS 走 M0 限界读取；原始块 SHA256 为独立
+实现；收尾再次停队列并打印 doorbell/故障寄存器。
+
+验证：建模控制器主机测试（UTRD/UPIU、轮询隔离、响应、停队列计划、
+SMMU 计划器含 From(1) 语义、SHA-256 对 hashlib）ASan/UBSan 通过；
+M0 82 fixture 回归通过；DataPort.dsc 与完整 fuxi.dsc 平台构建均在
+容器真实退出 0；交付模块反汇编 SMC 指令 0 条。receiver-only 候选
+Mu-fuxi-usb-ram.img 1871872 字节 SHA256 9535d644afd4e1cf1f08a7e1956
+e2257d3d0a1dda26b9efd1841497480f110c7，六项主机检查（smmu-audit、
+route、usb-ram、dwc3-ep0、dwc3-stop、image）全部退出 0，报告绑定
+交付镜像与源码。候选构建用实验检出 ramdisk-test/unixnu-source 的
+bootimg.py（v3 头+os_version）；顶层 unixnu-source 旧版 bootimg 在
+verify 处失败，此差异已记录在移植说明 §9，不改共享仓库。
+
+未上机：当前 USB 总线无设备（fastboot/adb 均空），不满足
+fcde91e 前置，未执行 fastboot boot。实机预期对照：GPT CRC 通过、
+userdata 0x2f7840..0x3afc3fa、首块 magic f673c25f 7086bec0（XNU
+2026-10-23 记录）、停机 readback doorbell=0。实机结论待照片；
+主机检查通过不等于实机通过。
