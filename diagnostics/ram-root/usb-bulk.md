@@ -2331,3 +2331,32 @@ normal_controller_stop_verified=false。待接收器结束后拍HALTED/
 路由恢复/USBRAM QUIESCE: Success，手选system-mount。本次窗口最长
 900秒/1048576 SVC，期间可多拍中间画面；终帧判据：exec/unix增量、
 spawn路径多样性、write缓冲、free页趋势、新自然停点或预期封锁。
+
+
+### v43 attempt-01 实机照片：第一个自然停点，watchdogd SIGTRAP（2026-10-25）
+
+IMG_6993.HEIC（SHA256 1b830330d2dae71e089a0cdd47d86da47a8777c9829c1c43df5f1d75828501ea）
+归档attempt-01。镜像/17项套件/post-transfer-binding重新核对一致。
+
+停机性质（源码核实）：panic行为"watchdogd[N] exited -- exit reason
+namespace 2 subcode 0x5 description: none"，与kern_exit.c
+proc_handle_critical_exit→panic_with_options格式逐一吻合（带冒号
+description区分于1843行printf）；watchdogd是crash-panic策略关键进程，
+死亡即panic，iOS原生行为。namespace 2=OS_REASON_SIGNAL、subcode 5=
+SIGTRAP（编译树reason.h核实）。非探针收窗：svc=187220远低于1048576，
+无bounded run ended行；非封锁：无RAM_FOLLOW行。panic屏渲染器
+（patch-xnu-entry-probe.py注入）确认此为内核panic帧。
+
+推进证据：exec 95→129，守护进程矩阵首次越出xpcproxy——PID1 spawn
+xpcproxy(121读出成功)，121再posix_spawn /usr/libexec/watchdogd成功
+（孙PID未捕获）；121读取Logging/Subsystems plist与/usr/swift-backtrace
+做前置配置。map err=0不变，pagechecks 15767→17476。free 631→1797页
+回升（短命守护进程退出释放），时钟仍1970。
+
+边界：SIGTRAP直接原因未证实（无faulting PC/ESR；假设：guard违例或
+Apple brk断言，均未证）；u70909 workq_kernreturn在途属pid121非死因；
+watchdogd PID数字受转写限制；三标记未拍，
+normal_controller_stop_verified=false。
+
+下一候选方向：取证（探针捕获致命信号现场：PC/ESR/guard码）或推进
+（关键退出记录不panic，越过watchdogd看后续矩阵与写入需求）。
