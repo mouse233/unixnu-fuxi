@@ -20,6 +20,11 @@
 #ifndef RAM_ROOT_NATIVE_HASH_CACHE
 #define RAM_ROOT_NATIVE_HASH_CACHE 0
 #endif
+#ifndef RAM_ROOT_FOLLOW_DENY_ATTACH
+#define RAM_ROOT_FOLLOW_DENY_ATTACH 0
+#endif
+/* bsd/sys/ptrace.h request number; only this one request is ever allowed. */
+#define RAM_ROOT_PT_DENY_ATTACH 31
 #if RAM_ROOT_NATIVE_HASH_CACHE
 extern unsigned long cs_native4k_full_blocks, cs_native4k_page_checks, cs_native4k_ready_blobs;
 #endif
@@ -308,6 +313,12 @@ uint64_t fuxi_ram_progress_unix(unsigned code, uint64_t arg0, uint64_t arg1)
         char type[8] = {0};
         if (!copyinstr(arg0, type, sizeof(type), &copied) && !strcmp(type, "tmpfs")) return token;
     }
+#if RAM_ROOT_FOLLOW_DENY_ATTACH
+    /* PT_DENY_ATTACH is the followed daemons' own anti-debug self-protect;
+     * allow exactly that request. Tracing or attaching to any process stays
+     * blocked with the rest of ptrace. */
+    if (code == SYS_ptrace && arg0 == RAM_ROOT_PT_DENY_ATTACH) return token;
+#endif
 #else
     (void)arg0; (void)arg1;
 #endif

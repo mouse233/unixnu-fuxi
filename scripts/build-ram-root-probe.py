@@ -56,6 +56,8 @@ if args.system_root_preflight and pins.get('system_userland_allowed') is not Fal
     raise SystemExit('Root preflight must explicitly prohibit system userland')
 if pins.get('system_root_switch', False) is not args.system_root_switch:
     raise SystemExit('Root switch pins disagree with the archive mode')
+if pins.get('follow_ptrace_deny_attach', False) and not args.progress:
+    raise SystemExit('Deny-attach follow allowance requires the progress archive')
 if args.system_root_switch and pins.get('system_userland_allowed') is not False:
     raise SystemExit('Root switch must explicitly prohibit system userland')
 if (pins['image_bytes'] != 184549376 or pins['file_bytes'] != 561856 or
@@ -98,6 +100,7 @@ if deadline not in (90, 300) or (deadline == 300 and not (args.system_cache and 
     raise SystemExit('Extended deadline requires verified system cache integrity mode')
 header += '#define RAM_ROOT_PROGRESS_SECONDS %d\n' % deadline
 header += '#define RAM_ROOT_NATIVE_HASH_CACHE %d\n' % int(pins.get('native_cs_hash_cache', False))
+header += '#define RAM_ROOT_FOLLOW_DENY_ATTACH %d\n' % int(bool(pins.get('follow_ptrace_deny_attach', False)))
 header += '#define RAM_ROOT_RESTORE_TRUST ' + str(int(bool(args.restore_trust_cache))) + '\n'
 if args.main_entry:
     header += '#define RAM_ROOT_MAIN_OFFSET UINT64_C(85896)\n'

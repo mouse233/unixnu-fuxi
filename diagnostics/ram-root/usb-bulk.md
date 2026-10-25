@@ -2221,3 +2221,32 @@ Rep…全名未证实；pages=0xac664 free=0x3a2仅记录不断言；停机三�
 下一候选决策点：ptrace(PT_DENY_ATTACH)放行策略（自保护调用）、
 写入封锁粒度、内存余量跟踪。实机推进方向：放开首条策略性阻塞后
 观察launchd后续服务矩阵与首个用户态写入需求。
+
+
+### v42：放行 PT_DENY_ATTACH（2026-10-25）
+
+针对v41照片PID57 ptrace(PT_DENY_ATTACH=31)触发设计内封锁，独立
+clone候选，仅改XNU探针与探针档案/检查脚本。fuxi_ram_progress_unix
+内与tmpfs例外同层放行arg0==31的单请求，其余ptrace与mount/unmount/
+__mac_mount/fmount/reboot维持派发前拒绝；fuxi_ram_main_unix(SYS_ptrace)
+本体仍无条件拒绝。编译位RAM_ROOT_FOLLOW_DENY_ATTACH由pins.json新增
+follow_ptrace_deny_attach驱动，缺省False时与v41编译行为等价；
+非progress模式置位被validate_stage_policy拒绝。写入封锁粒度复核：
+封闭集无write类syscall，EROFS来自切根卷MNT_RDONLY原生行为，不新增
+内核侧可写区；panic尾部pages/free仅按片记录。设计见
+follow-deny-attach.md。
+
+最终镜像203190272字节，SHA256 1c4ad272f052b9be6c44e7dc2e309affd0316a2118cf96da548cf86c466d2cb0；
+kernel.macho 5a08a3cfa36d2d2b6475e617af93751346e724d0b877cd6529867a6c0370cf33；
+payload 4f5cd94db0b4a85ee2fcadb4a51df72b9b7ecf278a240cb4bb8078bc721f426a。
+OEM=FUXIPAYL，skew重推导仍0x7c000。内核与容器固件构建均退出0，
+探针档案以v42 pins重建（RamRootProbePins.h含FOLLOW_DENY_ATTACH=1）。
+17项检查run_id=20261025T045148.785716Z全部退出0并绑定本镜像；
+probe-policy 37例、probe-guards 93例（含放行1例/拒绝2例）。
+缓存/签名/载体源码与v41逐字节相同，窗口审计沿用v41记录。
+
+互斥检查无活动设备任务；尚未发起v42 boot。待fastboot出现后按
+REVIEW命令attempt-01：若越过PT_DENY_ATTACH后RAM_FOLLOW再现
+syscall=26需核对a0（31=例外未生效的绑定问题；其他request号属预期
+拒绝），关注EROFS类失败与下一停点。normal_controller_stop_verified
+仍false，完整系统启动不预判。

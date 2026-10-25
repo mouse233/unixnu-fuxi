@@ -83,6 +83,7 @@ static int thread_call_enter_delayed(thread_call_t call,uint64_t deadline) {
 '''
 deadline = json.loads((OUT / 'pins.json').read_text()).get('progress_deadline_seconds', 90) if (OUT / 'pins.json').exists() else 90
 native_hash = json.loads((OUT / 'pins.json').read_text()).get('native_cs_hash_cache', False) if (OUT / 'pins.json').exists() else False
+deny_attach = json.loads((OUT / 'pins.json').read_text()).get('follow_ptrace_deny_attach', False) if (OUT / 'pins.json').exists() else False
 if args.progress:
     api = api.replace('seconds!=30', 'seconds!=' + str(deadline)).replace('30000000000ULL', str(deadline * 1000000000) + 'ULL')
     api += r'''
@@ -113,6 +114,7 @@ if args.restore_trust:
     pins += '#define RAM_ROOT_RESTORE_TRUST 1\n'
 pins += '#define RAM_ROOT_PROGRESS ' + str(int(args.progress)) + '\n'
 pins += '#define RAM_ROOT_PROGRESS_SECONDS %d\n#define RAM_ROOT_NATIVE_HASH_CACHE %d\n' % (deadline, int(native_hash))
+pins += '#define RAM_ROOT_FOLLOW_DENY_ATTACH %d\n' % int(deny_attach)
 if native_hash: api += '\nunsigned long cs_native4k_full_blocks,cs_native4k_page_checks,cs_native4k_ready_blobs;\n'
 assert '#define RAM_ROOT_ALLOW_MAIN_ENTRY 1' in pins
 bodies = []
@@ -292,6 +294,13 @@ if args.progress:
     REQUIRE(strstr(fuxi_ram_progress_text,"path=/private/var/tmp"));cases++;
     REFUSE("blocked syscall",fuxi_ram_progress_unix(SYS_mount,(uintptr_t)"apfs",(uintptr_t)"/dev/disk0s1"));
     REFUSE("blocked syscall",fuxi_ram_progress_unix(SYS___mac_mount,(uintptr_t)"tmpfs",(uintptr_t)"/private/var/tmp"));
+    if (RAM_ROOT_FOLLOW_DENY_ATTACH) {
+        token=fuxi_ram_progress_unix(SYS_ptrace,RAM_ROOT_PT_DENY_ATTACH,0);REQUIRE(token);cases++;
+        REFUSE("blocked syscall",fuxi_ram_progress_unix(SYS_ptrace,0,0));
+        REFUSE("blocked syscall",fuxi_ram_progress_unix(SYS_ptrace,7,0));
+    } else {
+        REFUSE("blocked syscall",fuxi_ram_progress_unix(SYS_ptrace,RAM_ROOT_PT_DENY_ATTACH,0));
+    }
     puts("TRACE_BEGIN");puts(fuxi_ram_progress_text);puts("TRACE_END");
     fuxi_ram_progress_unix(SYS_execve,1,0);
     REQUIRE(strstr(fuxi_ram_progress_text,"unreadable:1"));cases++;

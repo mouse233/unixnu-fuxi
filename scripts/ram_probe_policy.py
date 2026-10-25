@@ -28,6 +28,8 @@ def validate_stage_policy(pins, user_entry, main_entry, progress):
     require(pins.get('continue_after_main', False) is progress, 'main continuation policy mismatch')
     require(pins.get('follow_process_creation', False) is progress, 'process follow policy mismatch')
     require(pins.get('block_process_creation', True) is (not progress), 'process creation policy mismatch')
+    require(not pins.get('follow_ptrace_deny_attach', False) or progress,
+            'deny-attach follow allowance requires progress mode')
     return 'progress' if progress else 'main-entry' if main_entry else 'user-entry' if user_entry else 'mount'
 
 
