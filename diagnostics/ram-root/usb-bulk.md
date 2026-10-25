@@ -2269,3 +2269,29 @@ normal_controller_stop_verified=false。待接收器180秒无通信结束后
 RAM_CACHE/RAM_PROGRESS与最终画面。若RAM_FOLLOW再现syscall=26核对
 a0：31=例外未生效；其他request号属预期拒绝。kernel_handoff=true
 仍只是配置位。
+
+
+### v42 attempt-01 实机照片：PT_DENY_ATTACH 壁垒消除，运行至观测上限（2026-10-25）
+
+IMG_6991.HEIC（SHA256 71520f1c811105734ea8b60dfbd58d36e2766964758e450baf53e831fba2cb1c）
+归档attempt-01，含转写与photo-observation.json。镜像哈希、17项套件
+与post-transfer-binding重新核对一致。
+
+照片直接证明：无RAM_FOLLOW blocked panic，v41停点已越过；系统停在
+探针有界观测上限（svc=131073>131072，deadline_expired于
+RamLaunchdProbe.c:147）——观测窗口关闭，非故障非封锁。stage=10
+main=PASS、map=1 err=0 rv=0保持；unix=87745、exec=95，PID1连续
+spawn xpcproxy（child=90/91，pe=0），PID90末尾getpid自返回90，
+前序shared_region_check_np/mprotect/bsdthread_register为新进程
+libSystem标准初始化。pagechecks 7426→15767。launchd（pid=1）实际
+发起write，缓冲以com.apple.xpc.launchd1970-01-01 00:开头：系统
+时钟未设置，epoch时间戳；write已派发，返回码未保留。
+
+边界：300秒期限与SVC上限谁先到照片不可分；free页930→631随推进
+下降未耗尽，仅记录；cache-open末次ENOENT与map成功并存（多路径
+探测）；停机三标记未拍，normal_controller_stop_verified=false。
+完整系统启动、可写根、持久化未验证。
+
+下一候选决策点：扩大观测窗口（SVC上限/期限）看守护进程矩阵收敛
+或下一个自然停点（EROFS/内存/时钟依赖）；时钟未设置（1970时间戳）
+与内存余量（free 631页）跟踪。
