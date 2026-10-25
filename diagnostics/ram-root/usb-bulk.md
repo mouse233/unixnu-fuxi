@@ -2466,3 +2466,29 @@ full-transfer.json最终elapsed=595.345秒（先前555.0不是最终全流程
 耗时），双对象RAM回读仍通过。三停机标记未拍，normal_controller_
 stop_verified=false；完整系统启动/持久化未验证。本轮仅只读分析和
 归档，无新候选、无设备操作。
+
+### v45 attempt-01 实机传输：协议工作，提速远低于预期（2026-10-25）
+
+互斥检查无活动任务，fcde91e可见，完整脚本临时启动（boot 5.775秒）。
+OS/SystemOS双对象全量传输elapsed 509.49秒（aggregate 18.4 MB/s；
+两对象ram_readback_verified=true、SHA256同源同值，stage=passed，
+full-transfer.json归档attempt-01）。对比v43的567.977秒/16.5 MB/s
+仅+11%，远低于预期~2倍。
+
+两点拟合（v43每64KiB 3.96ms vs v45每1MiB 56.85ms）：每chunk固定
+成本仅≈0.43ms——节省的58.5秒≈134,474个省略chunk×0.43ms，反证
+1MiB chunk确已生效；剩余≈54ns/B串行成本是真墙，渐近≈18.5 MB/s。
+"每chunk固定成本主导"的原瓶颈假设被实测证伪。
+
+外围排除：源镜像外置盘读取678 MB/s（dd实测）；同一口/线ABL
+fastboot推198,428 KB@47.2 MB/s（attempt-01 boot.log），排除主机
+控制器/线缆/eUSB2中继。嫌疑收敛到本栈bulk-OUT流本身（~20 MB/s）：
+macOS libusb同步bulk路径或DWC3 RX流配置。下一步：设备空闲时用
+scripts/usb-ram-timing-probe.py（只读诊断，生产sender模块外包
+计时，发256MiB后ABORT、不留会话状态）把每chunk 56.85ms拆成
+payload线时间/头尾往返/间隙，据此定host侧（异步/流式提交）或
+固件侧（DWC3流配置）的后续候选。
+
+normal_controller_stop_verified=false（未拍三标记；接收器传输完成
+后已发布对象回菜单）。FuxiUsbRamDxe.efi 529d3104…≠v43副本，
+新固件确在运行。
