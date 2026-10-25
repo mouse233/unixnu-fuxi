@@ -2384,3 +2384,18 @@ sleh.o三fuxi符号核验。17项检查run_id=20261025T060926.115746Z全部
 （含brk imm16），主机端反查dyld缓存符号与断言类别；若死于SIGTRAP
 而无fault=行，来源在brk之外（EXC_GUARD等），为否证信息。内核补丁
 在ramdisk-test/unixnu-source仓库同轮提交。
+
+
+### v44 attempt-01 临时启动与双对象传输完成（2026-10-25）
+
+互斥检查无活动任务，fcde91e可见，完整脚本核验后仅fastboot boot。
+OS 6,077,580,800字节、SystemOS 3,303,014,400字节全量传输（555.0秒），
+两对象ram_readback_verified=true（回读SHA256同源同值）。镜像仍
+495ab2d81e7c767a2d1989567b67101fed1a13c79088e49945f6b3a7b260ddd0；
+post-transfer-binding确认17项套件绑定与探针源码一致。boot.log与
+full-transfer归档attempt-01；无分区写入。
+
+normal_controller_stop_verified=false。待接收器结束后拍HALTED/
+路由恢复/USBRAM QUIESCE: Success，手选system-mount。终帧判据：
+RAM_PROGRESS的fault=行（watchdogd复现SIGTRAP时给出pc/far/esr）
+与panic行；无fault=而行死于SIGTRAP则为brk外来源的否证。
