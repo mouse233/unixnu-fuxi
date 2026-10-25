@@ -71,6 +71,11 @@ static struct ram_event events[8];
 /* Sticky cache evidence survives the later console writes and fatal exit. */
 static struct ram_event cache_open, cache_map;
 static unsigned cache_open_count, cache_map_count;
+/* Last userspace brk fault: pure observation, never alters exception handling. */
+static uint64_t fault_pc, fault_far;
+static uint32_t fault_esr;
+static int fault_pid = -1;
+static unsigned fault_count;
 static struct ram_spawn spawns[8];
 static char last_path[96], last_stat[64], last_write[48];
 static int last_pid, last_stat_pid, last_write_pid;
@@ -96,6 +101,9 @@ static void progress_snapshot(void)
             "sigblobs=%lu blocks=%lu pagechecks=%lu\n", cs_native4k_ready_blobs,
             cs_native4k_full_blocks, cs_native4k_page_checks);
 #endif
+    if (used < sizeof(fuxi_ram_progress_text) && fault_count)
+        used += (size_t)snprintf(fuxi_ram_progress_text + used, sizeof(fuxi_ram_progress_text) - used,
+            "fault=%u pid=%d esr=%x pc=%llx far=%llx\n", fault_count, fault_pid, fault_esr, fault_pc, fault_far);
     unsigned first = unix_count > 4 ? unix_count - 4 : 0;
     for (unsigned i = first; i < unix_count && used < sizeof(fuxi_ram_progress_text); i++) {
         struct ram_event *event = &events[i & 7];
@@ -384,6 +392,25 @@ void fuxi_ram_progress_unix_result(uint64_t token, unsigned code, int error, int
     }
 #else
     (void)token; (void)code; (void)error; (void)result;
+#endif
+}
+
+/* Called from sleh.c before handle_breakpoint for an EL0 brk fault. Pure
+ * observation: record and return so the original exception semantics, and
+ * whatever the process does with the delivered signal, stay untouched. */
+void fuxi_ram_progress_fault(uint64_t pc, uint32_t cpsr, uint32_t esr, uint64_t far)
+{
+#if RAM_ROOT_PROGRESS
+    (void)cpsr;
+    if (!progress_lock()) return;
+    fault_pc = pc;
+    fault_esr = esr;
+    fault_far = far;
+    fault_pid = proc_getpid(current_proc());
+    fault_count++;
+    progress_unlock();
+#else
+    (void)pc; (void)cpsr; (void)esr; (void)far;
 #endif
 }
 

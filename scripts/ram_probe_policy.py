@@ -132,7 +132,7 @@ def inspect_system_probe(out):
                 'native root switch source binding mismatch')
     if main:
         objects = out / 'work/tree/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837'
-        for relative, names in [('osfmk/DEVELOPMENT/sleh.o', ['_fuxi_ram_main_svc', '_fuxi_ram_main_break']),
+        for relative, names in [('osfmk/DEVELOPMENT/sleh.o', ['_fuxi_ram_main_svc', '_fuxi_ram_main_break', '_fuxi_ram_progress_fault']),
                                 ('bsd/DEVELOPMENT/systemcalls.o', ['_fuxi_ram_progress_unix', '_fuxi_ram_progress_unix_result'])]:
             obj = objects / relative
             arguments = json.loads(obj.with_suffix('.o.json').read_text().strip().rstrip(','))['arguments']

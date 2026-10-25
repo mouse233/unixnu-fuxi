@@ -2360,3 +2360,27 @@ normal_controller_stop_verified=false。
 
 下一候选方向：取证（探针捕获致命信号现场：PC/ESR/guard码）或推进
 （关键退出记录不panic，越过watchdogd看后续矩阵与写入需求）。
+
+
+### v44：致命 brk 故障取证（2026-10-25）
+
+针对v43照片watchdogd SIGTRAP根因未证，独立clone候选。内核补丁在
+ESR_EC_BRK_AARCH64 EL0分支handle_breakpoint前挂fuxi_ram_progress_fault
+(pc,cpsr,esr,far)，纯观测不改异常语义；探针sticky记录fault_pc/far/
+esr/pid/count并新增快照行fault=%u pid=%d esr=%x pc=%llx far=%llx
+（有记录才显示）。ram_probe_policy sleh.o符号绑定+1；guards 96例
+（fault记录/覆盖/锁丢弃3例新增）。策略、封锁集、900秒/1048576窗口
+不变。设计见fatal-fault-forensics.md。
+
+首轮构建因手写补丁hunk行数错误（+19应+20）被git apply --check
+拒绝（corrupt at line 38，build-console-01.log保留）；修正后
+work树apply-check通过重建。最终镜像203190272字节，SHA256
+495ab2d81e7c767a2d1989567b67101fed1a13c79088e49945f6b3a7b260ddd0；
+kernel.macho 01b1430a8e120db8decb30bb8465bf0d536bd47dbcec1b4e6e9dca216826d928。
+sleh.o三fuxi符号核验。17项检查run_id=20261025T060926.115746Z全部
+退出0并绑定本镜像。
+
+实机待attempt-01：watchdogd若复现SIGTRAP，fault=行给出pc/far/esr
+（含brk imm16），主机端反查dyld缓存符号与断言类别；若死于SIGTRAP
+而无fault=行，来源在brk之外（EXC_GUARD等），为否证信息。内核补丁
+在ramdisk-test/unixnu-source仓库同轮提交。

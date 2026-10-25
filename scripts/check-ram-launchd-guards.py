@@ -303,6 +303,12 @@ if args.progress:
     } else {
         REFUSE("blocked syscall",fuxi_ram_progress_unix(SYS_ptrace,RAM_ROOT_PT_DENY_ATTACH,0));
     }
+    REQUIRE(!strstr(fuxi_ram_progress_text,"fault="));cases++;
+    fuxi_ram_progress_fault(0x1a2b3000,0,0xf2000000+0x1234,0x2a2b0000);
+    REQUIRE(strstr(fuxi_ram_progress_text,"fault=1 pid=1 esr=f2001234 pc=1a2b3000 far=2a2b0000"));cases++;
+    trace_lock=1;fuxi_ram_progress_fault(0xdead0000,0,0xf2005678,0);trace_lock=0;
+    fuxi_ram_progress_fault(0x5a6b7000,0,0xf2005678,0x6a6b0000);
+    REQUIRE(strstr(fuxi_ram_progress_text,"fault=2 pid=1 esr=f2005678 pc=5a6b7000 far=6a6b0000"));cases++;
     puts("TRACE_BEGIN");puts(fuxi_ram_progress_text);puts("TRACE_END");
     fuxi_ram_progress_unix(SYS_execve,1,0);
     REQUIRE(strstr(fuxi_ram_progress_text,"unreadable:1"));cases++;
