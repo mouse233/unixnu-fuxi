@@ -12,6 +12,7 @@ import json
 import subprocess
 import tempfile
 from pathlib import Path
+from ram_probe_policy import llvm_tool
 
 
 def compressor_function(source):
@@ -147,7 +148,7 @@ def main():
     require_early = run_sizing(source, 0, True)
     assert old > require_early + (600 << 20)
     payload = json.loads((out / 'payload-verification.json').read_text())
-    objdump = '/opt/homebrew/opt/llvm/bin/llvm-objdump'
+    objdump = llvm_tool('llvm-objdump')
     assembly = subprocess.check_output([objdump, '--disassemble-symbols=_vm_compressor_set_size',
                                        str(out / 'work/kernel/kernel.macho')]).decode()
     # The first parse reads segment size; the second reads the freezer flag.

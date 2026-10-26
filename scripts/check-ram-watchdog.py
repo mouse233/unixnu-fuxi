@@ -2,6 +2,7 @@
 """Exercise the real watchdog backend, and bind native ABI/client to delivery."""
 import argparse,hashlib,json,subprocess,tempfile
 from pathlib import Path
+from ram_probe_policy import llvm_tool
 ROOT=Path(__file__).resolve().parents[1]
 p=argparse.ArgumentParser(description=__doc__);p.add_argument('--output',required=True,type=Path);p.add_argument('--model-only',action='store_true');a=p.parse_args();out=a.output.resolve()
 sha=lambda f:hashlib.sha256(f.read_bytes()).hexdigest()
@@ -30,10 +31,10 @@ if not a.model_only:
  assert '#define RAM_SYSTEM_WATCHDOG 1' in (build/'RamSystemProbePins.h').read_text()
  assert 'RamWatchdog.late.o' in subprocess.check_output(['xcrun','ar','t',str(build/'libRamRootProbe.a')],text=True)
  assert sha(out/'work/tree/kits/sheng/RamWatchdog.cpp')==sha(source)
- symbols=subprocess.check_output(['/opt/homebrew/opt/llvm/bin/llvm-nm',str(out/'work/kernel/kernel.macho')],text=True)
+ symbols=subprocess.check_output([llvm_tool('llvm-nm'),str(out/'work/kernel/kernel.macho')],text=True)
  for name in ('_fuxi_ram_watchdog_prepare','_fuxi_ram_watchdog_state','__ZTV11RamWatchdog'):
   assert any(line.split()[-1:]==[name] and ' U ' not in line for line in symbols.splitlines()),name
- cache_symbols=subprocess.check_output(['/opt/homebrew/opt/llvm/bin/llvm-nm',str(build/'RamSystemCache.o')],text=True)
+ cache_symbols=subprocess.check_output([llvm_tool('llvm-nm'),str(build/'RamSystemCache.o')],text=True)
  assert '_fuxi_ram_watchdog_prepare' in cache_symbols
  report['original_model_sha256']=sha(ROOT/'scripts/ram_watchdog_original.py')
  report['build_script_sha256']=sha(ROOT/'scripts/build-ram-watchdog.py')

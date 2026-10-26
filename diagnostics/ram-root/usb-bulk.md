@@ -2718,3 +2718,20 @@ main-entry 扩展不在上游同名脚本中，后续移植须保留宏与编译
 未重跑完整镜像/编译对象门禁，未操作手机，不新增实机结论。v47 待上机、
 v46 watchdog 准备失败的历史边界保持不变。容器恢复独立记录宿主 amd64
 工具与 AARCH64 固件目标，不沿用旧 ARM64 venv。
+
+
+### 2026-10-26：WSL 存储故障恢复与 v48 Linux 独立重建准备
+
+宿主 D 盘耗尽曾引发 WSL Bus/I/O error；释放宿主空间并重启 Ubuntu 后 EXT4
+日志恢复，根 rw、账号解析、dpkg/apt 检查正常。未重装或删除发行版。大任务新增
+宿主 /mnt/d 余量监测与 12 GiB 保护；不再使用 ext4 虚拟余量代替实际容量。
+
+已补齐完整 21H461 IPSW（全 ZIP CRC、组件 SHA384、固定输入 SHA256 通过）、
+原始 launchd/dyld 及 RAM OS/SystemOS 载荷，窗口哈希与历史记录一致。实验 source
+选择性引入四项上游 Linux 支持，01e3168 已推 mouse233 fork；本地 RAM 保护与
+DarwinBoot 原恢复 diff 保留。UDIF6例、watchdog生产33例/4突变通过。
+
+新建 usb-system-mount-v48-linux 与独立 Linux ABI reference，从配置记录重建，
+不继承 v47 镜像/缓存或检查通过结论。UEFI/DarwinBoot 独立 smoke 构建成功，
+但它只有 dummy 载荷。工具链及新内核/组合镜像/完整18项检查仍在推进。未操作手机，
+v47 待上机和 v46 prepare errno=6 的历史边界不变。详见 wsl-linux-rebuild.md。
