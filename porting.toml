@@ -259,14 +259,14 @@ kind = "device"
 reference = "https://github.com/mouse233/unixnu-fuxi/blob/9644d94e6bb050e4bde5f50f94312dd10cd3f416/diagnostics/ram-root/usb-bulk.md"
 command = "fastboot boot <receiver-image>; python3 scripts/test-usb-ram-full.py --boot-profile usb-system --expected-sha256 <image-sha> --output out/usb-system-mount-v37/attempt-01"
 revision = "38bdf3ebc29dcb29bf7fa0cedc105cec75bc289d"
-result = "pivot=OK old=md0 newroot=apfs with rootfs=1, outgoing=/Developer, dev=devfs and /sbin/launchd SHA256 verified, photographed as IMG_6987."
+result = "pivot=OK old=md0 newroot=apfs with rootfs=1, outgoing=/Developer, dev=devfs and /sbin/launchd SHA256 verified. The iteration log records this as the reading of photo IMG_6987; the photo file itself is not committed."
 
 [[area.evidence]]
 kind = "device"
 reference = "https://github.com/mouse233/unixnu-fuxi/blob/9644d94e6bb050e4bde5f50f94312dd10cd3f416/diagnostics/ram-root/system-root-audit.md"
 command = "python3 scripts/test-usb-ram-full.py --boot-profile usb-system --output out/usb-system-mount-v41/attempt-01"
 revision = "4975e049f0bca1d7289f41e6f4c97033fba0212b"
-result = "Shared region map returned 0, stage=10, main=PASS, PID 1 spawned xpcproxy as child 69 and pids 41, 57, 63 and 69 ran at EL0. Delivered image SHA256 d9111f8b934df910a67bf6787a83b618988aa4cef3cd77eee2de985ab4f31468, photographed as IMG_6990 (photo SHA256 962cbfe9b45ed3d8872949f4443d6f4b37b136f760814db5e3be5d57971d8ccc)."
+result = "Shared region map returned 0, stage=10, main=PASS, PID 1 spawned xpcproxy as child 69 and pids 41, 57, 63 and 69 ran at EL0. Delivered image SHA256 d9111f8b934df910a67bf6787a83b618988aa4cef3cd77eee2de985ab4f31468. The iteration log records photo IMG_6990 (its own SHA256 962cbfe9b45ed3d8872949f4443d6f4b37b136f760814db5e3be5d57971d8ccc) as the source of these readings; the photo file is not committed."
 
 [[area.evidence]]
 kind = "device"
@@ -280,7 +280,7 @@ kind = "device"
 reference = "https://github.com/mouse233/unixnu-fuxi/blob/9644d94e6bb050e4bde5f50f94312dd10cd3f416/diagnostics/ram-root/usb-bulk-evidence.json"
 command = "python3 scripts/test-usb-ram-full.py --boot-profile usb-system --output out/usb-system-mount-v46/attempt-01"
 revision = "6d3234fdfef8dc5164dcd7f00ff853e355030150"
-result = "RAM_WATCHDOG prepare failed with errno=6 at RamSystemCache.c:163, photographed as IMG_6997. The stage is not identified because three stages share ENXIO."
+result = "RAM_WATCHDOG prepare failed with errno=6 at RamSystemCache.c:163. The iteration log records this as the reading of photo IMG_6997, which is not committed. The stage is not identified because three stages share ENXIO and the log entry does not name the stage."
 
 [[area.evidence]]
 kind = "host"
@@ -518,7 +518,7 @@ inputs = [
   "The device identity preflight: serial, product and unlocked state, plus the expected image SHA256.",
 ]
 configuration = [
-  "Each attempt writes to its own out/<candidate>/attempt-NN directory with the boot profile named, and keeps the photographs and raw reports with the attempt.",
+  "Each attempt writes to its own out/<candidate>/attempt-NN directory with the boot profile named, and keeps the photographs and raw reports there. Those directories are not committed, so the committed iteration log is what a reader can resolve.",
   "The canonical iteration log is diagnostics/ram-root/usb-bulk.md, appended in order, with conclusions backfilled into the candidate REVIEW.",
 ]
 procedure = [
@@ -554,7 +554,7 @@ kind = "device"
 reference = "https://github.com/mouse233/unixnu-fuxi/blob/9644d94e6bb050e4bde5f50f94312dd10cd3f416/diagnostics/ram-root/usb-bulk.md"
 command = "python3 scripts/test-usb-ram-full.py --boot-profile usb-system --expected-sha256 <image-sha> --output out/<candidate>/attempt-NN"
 revision = "9644d94e6bb050e4bde5f50f94312dd10cd3f416"
-result = "Iteration log records the reached stage per attempt with photographs, and holds the corrected EP0 stop readings and the false stop verified flags."
+result = "Iteration log records the reached stage of each attempt together with the readings transcribed from device photographs, and holds the corrected EP0 stop readings and the false stop verified flags. The photo files themselves are not committed to this repository."
 
 [[area.evidence]]
 kind = "host"

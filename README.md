@@ -23,7 +23,7 @@ This board runs the RAM receiver path: the firmware takes the OS payload into DR
 
 ## Status
 
-Verified on device, with commands, images and photographs recorded in the iteration log:
+Verified on device. The iteration log `diagnostics/ram-root/usb-bulk.md` holds the commands, image hashes and the readings transcribed from the device photographs. The photograph files themselves are not committed to this repository, so treat the log text as the record and the photo as the source behind it:
 
 - v36 native SystemOS root authentication (`auth=80`).
 - v37 native root switch: `pivot=OK old=md0 newroot=apfs`, `/sbin/launchd` SHA256 verified.
