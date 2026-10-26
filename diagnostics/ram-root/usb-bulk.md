@@ -3021,3 +3021,33 @@ early suspend。**更正本报告上文一处措辞**：前文“PHY 挂起假�
 5d3d6ab4…、`V-E-later-session.jpg` 0ba6664e…）与 `VD-not-built.md`。
 遗留：V-A/V-B/V-C 绑定提交 28e2f007，V-E 绑定其后的快照提交；
 `dwc3-ep0-host.c`/`dwc3-stop-host.c` 仍未入库而被已跟踪检查脚本硬依赖。
+
+
+### 2026-10-26：TWRP 分支 M1 read-proof v8 修复与 M2 草稿（待实机）
+
+改动层：UEFI DWC3 命令串行保护、UFS只读诊断/收尾、构建输入绑定与主机检查；
+没有修改 XNU 或系统载荷。撤出38ba3c33轮询中的完整事件分派，CMDACT未清时
+不写该DEP的参数/命令；保留PHYCFG及最多4个CPU视图原始事件字快照，不消费事件。
+新增RESET/CLEARSTALL命令覆盖与生产stop联合用例，22项EP0跨4配置及9项stop通过。
+
+metadata/userdata在同次启动分别三次独立读取、使用不同缓冲区逐字节比较；
+出错/不同即停止。撤销shutdown后的Read能力，隔离后不再读寄存器，stop证明包含
+双doorbell、run及fatal状态。M2所需feature/cp_payload/CP/NAT/main也进入报告。
+
+候选 ramdisk-test/uefi-twrp-data/out/m1-read-proof-v8，1871872字节，SHA256
+fdab273913dbe4a7853b9d33ec3c8332b5943aedab344cce5782baf87ec32de8。
+框架7e237de，显式设备board输入1d071da；共享schema2未改。完整平台与两种模块
+构建成功，十项主机/交付检查真实退出0；实际UFS EFI位于交付FD、协议绑定通过，
+交付及no-SMC/query变体的原生UFS SMC指令均0。D盘最终构建最低45.33GiB。
+
+M2 F2fsReadOnly草稿随模块编译但不在设备调用：超级块/CP引导、NAT读取地址计划、
+非inline目录项解析，13类fixture及读取证明经ASan/UBSan通过。NAT journal、inode、
+路径和文件字节读取未完成，无挂载/解密结论。
+
+用户稍后准备fastboot；本轮未启动/传输/刷写/改槽，无新实机通过结论。
+原Windows USB枚举/停机故障仍待设备验证，不能以本轮主机通过宣称修复。
+M1实机须拍三次读取proof、hash、GPT、队列stop和poisoned=0；USB停机另判。
+构建/检查/候选REVIEW与M2续接见docs/fuxi-m1-read-proof-m2-draft.md；
+Windows交付入口 D:/Projects/UniXNU/migration/20261026-m1-read-proof-v8/。
+
+本轮UEFI源码提交：75a7faca13ebc849f1e04ea1241179a7464f32dd（mouse233/uefi-fuxi feat/twrp-data-uefi）；实机待准备。
