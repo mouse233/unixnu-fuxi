@@ -49,11 +49,11 @@ completion = [
 limits = [
   "The layered format 2 build path is not adopted. It needs a SoC source entry pinned in feeds.toml, a component selection, and a [device_tree] source, and this repository has no dts/ directory.",
   "The board.toml header comment described the Xiaomi Pad 6S Pro (sheng) after the fork; it now names the Xiaomi 13 (fuxi).",
-  "README.md still documents the sheng build commands and refers to ../UniXNU-sheng.",
+  "The README now documents the fuxi RAM receiver workflow. Keep its build steps aligned with this record when the board workflow changes.",
 ]
 next_action = [
   "Add the sm8550 SoC source with a pinned commit to feeds.toml, author dts/fuxi.dts, and fill [components] include with catalog IDs once the board builds through the layered driver; then rerun ./unixnu status and the record check.",
-  "Rewrite README.md for this board: scope, dependencies, the RAM receiver build entry points, and a link to this record.",
+  "Keep the README scope, dependencies, build entry points and link to this record aligned with the current fuxi workflow.",
 ]
 
 [[area.evidence]]
@@ -106,7 +106,7 @@ completion = [
 ]
 limits = [
   "Framebuffer presentation and full reservation preservation are not verified on this board, so this area is not claimed as device verified.",
-  "Receiver shutdown is unverified: every logged attempt records normal_controller_stop_verified=false, and the corrected stop readback DSTS=0x0010FFD1 with DEVCTRLHLT=0 and USBLINKST=4 shows the core never confirmed halt.",
+  "Receiver shutdown is unverified for the later XNU handoff attempts summarized here: they record normal_controller_stop_verified=false, and the corrected stop readback DSTS=0x0010FFD1 with DEVCTRLHLT=0 and USBLINKST=4 shows the core never confirmed halt. The earlier standalone v23 receiver run did confirm normal controller stop.",
   "USB disappearance alone does not prove the receiver stopped; a photograph of HALTED, restored routing and USBRAM QUIESCE: Success is required.",
 ]
 next_action = [
@@ -248,7 +248,7 @@ limits = [
   "The chain stops at a watchdogd panic, so full userland and the home screen are not reached and persistence is untested.",
   "errno 6 is ENXIO and three stages share it, and the photograph does not name the stage, so the v46 failing stage is not identified from that evidence. The v47 race fix does not establish the cause of the v46 branch.",
   "usb-system-mount-v48-linux and usb-system-reference-linux-v1 state that build, full checks and device acceptance are pending and that no v47 conclusion is inherited, so both stay planned for this area.",
-  "Every attempt records normal_controller_stop_verified=false, so a clean receiver stop is still unverified.",
+  "The later XNU handoff attempts summarized here record normal_controller_stop_verified=false, so receiver stop is unverified for that attempt series. The earlier standalone v23 receiver run passed normal controller stop.",
 ]
 next_action = [
   "Capture per call errno and stage names so the v46 prepare failure can be attributed to one stage, then run the v47 image and record the reached stage from a photograph.",
@@ -518,7 +518,7 @@ inputs = [
   "The device identity preflight: serial, product and unlocked state, plus the expected image SHA256.",
 ]
 configuration = [
-  "Each attempt writes to its own out/<candidate>/attempt-NN directory with the boot profile named, and keeps the photographs and raw reports there. Those directories are not committed, so the committed iteration log is what a reader can resolve.",
+  "Each attempt writes to its own out/<candidate>/attempt-NN directory with the boot profile named. The test host may keep photographs and raw reports there, but those directories are not committed. The iteration log transcribes selected readings from device photographs and is the evidence available in the repository.",
   "The canonical iteration log is diagnostics/ram-root/usb-bulk.md, appended in order, with conclusions backfilled into the candidate REVIEW.",
 ]
 procedure = [
@@ -529,7 +529,7 @@ procedure = [
 findings = [
   "Committed records available to a reader: diagnostics/ram-root/usb-bulk.md (181901 bytes), usb-bulk-evidence.json (39315 bytes), commandcode-evidence.json, full-os-audit.json, watchdog-service.md, apfs-ram-model.md, uefi-ram-transfer.md, wsl-linux-rebuild.md and windows-wsl-migration.md.",
   "An archived stop reading was corrected from 0010ff11 to DSTS=0x0010FFD1 for photograph IMG_7055. Both readings support the same conclusion: DEVCTRLHLT=0, USBLINKST=4, and the core never confirmed halt.",
-  "Every logged attempt records normal_controller_stop_verified=false, so receiver stop has never been accepted on device.",
+  "The later XNU handoff attempts summarized here record normal_controller_stop_verified=false, so receiver stop is unverified for that attempt series. The earlier standalone v23 receiver run passed normal controller stop.",
   "The EP0 and stop model checks compile without -DFUXI_USB_DMA32 and without the two macros of the current build, so they do not test the delivered translation unit, and their fixtures are not committed. They cannot serve as host verified evidence.",
   "The ForceRM difference against the upstream dwc3_ep0_end_control_data() is a command construction difference only. V-C, which drops ForceRM, still reaches the same Endpoint Command 0x8 on Physical EP 0 timeout, and the photograph shows the difference directly: the submitted command word is cmd=108 where V-A and V-B submit cmd=908, the delta being DWC3_DEPCMD_HIPRI_FORCERM (BIT11, 0x800). With the trace macro, the UFS prefix (V-B, FUXI_DATA_PORT_UFS=0, same sequence shape) and ForceRM all tested, those three axes are closed.",
   "An intermittent failure must not be recorded as a certain one: in V-C two EndTransfer completions succeeded at the same endpoint and call site before the third failed, and the earlier reading that EP0 ENDTRANSFER never completes was wrong.",
@@ -573,4 +573,4 @@ kind = "device"
 reference = "https://github.com/mouse233/unixnu-fuxi/blob/1d071dae4618b0676d313cfbe1fc39689e6f139e/diagnostics/ram-root/usb-bulk.md"
 command = "fastboot boot m1-ab-ep0snapshot-v6; python3 scripts/boot-ram-window-once.py"
 revision = "1d071dae4618b0676d313cfbe1fc39689e6f139e"
-result = "Three receiver runs with one fastboot boot each, plus the V-E read-only failure snapshot, recorded with host sampling counts and the photographs that carry them."
+result = "Three receiver runs with one fastboot boot each, plus the V-E read-only failure snapshot, are recorded with host sampling counts and readings transcribed from device photographs. The photo files are not committed to this repository."

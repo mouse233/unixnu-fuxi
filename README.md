@@ -28,9 +28,9 @@ Verified on device. The iteration log `diagnostics/ram-root/usb-bulk.md` holds t
 - v36 native SystemOS root authentication (`auth=80`).
 - v37 native root switch: `pivot=OK old=md0 newroot=apfs`, `/sbin/launchd` SHA256 verified.
 - v41 shared region mapped, `main` passed, and several userland processes running at EL0.
-- v43 first natural stop: a `watchdogd` critical exit panic.
+- v43 first natural XNU stop: a `watchdogd` critical exit panic.
 
-Not reached: a complete userland boot, the home screen, display presentation, touch, GPU, Wi-Fi, audio and power transitions. Receiver shutdown is also unverified; every logged attempt ends with `STOP status=Time out`, so the core has never confirmed a halt.
+Not reached: a complete userland boot, the home screen, display presentation, touch, GPU, Wi-Fi, audio and power transitions. Receiver shutdown is unverified for the XNU handoff attempts summarized here: those attempts end with `STOP status=Time out`. An earlier standalone v23 receiver run did confirm normal controller stop, so this result does not apply to every receiver attempt in the full log.
 
 Treat the completion level of each subsystem, its limits and its next action in [porting.toml](porting.toml) as the current statement for this board.
 
