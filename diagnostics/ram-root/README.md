@@ -56,8 +56,15 @@ unchanged 176 MiB RestoreRamDisk from the iPad7,1 iPadOS 17.7.11 (21H461) IPSW.
 Android userdata is not the root device. No partition was flashed or erased and
 the Android boot slot was not changed.
 
-The historical `codex/fuxi-ramroot-bringup` branches preserve the exact source
-checkouts used for those tests (base UniXNU commit `97de9e7` plus diagnostics).
+The exact source used for those tests (base UniXNU commit `97de9e7` plus
+diagnostics) is pinned in `mouse233/UniXNU` by the annotated tag
+`fuxi-ramroot-20261023`, which points at `34c82ea`. The
+`codex/fuxi-ramroot-bringup` branch that used to hold it was deleted on
+2026-10-26; the tagged commit is an ancestor of `main`, so `git checkout
+fuxi-ramroot-20261023` still reproduces the tested tree. The device repository
+`mouse233/unixnu-fuxi` keeps a branch of the same name at `cdcacc0`, and that
+commit is already an ancestor of that repository's `main` (brought in by merge
+`80ce002`), so the branch holds no work of its own.
 The fork `main` branches merge that work with the forks' newer upstream commits.
 Use both forks together. The integration preserves the newer staged-SystemOS
 patch ordering, and skips Stage A cross-archive stub injection when UFS or the
