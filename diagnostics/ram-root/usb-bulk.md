@@ -3088,3 +3088,27 @@ Unknown USB Device (Device Descriptor Request Failed)，VID0000/PID0002，
 原图/报告位于out/m1-read-proof-v8/attempt-01，Windows入口同轮migration目录。
 
 实机证据与 M2 v2 bootstrap 源码提交：`e813b0fd5e78ad8ea58af1b91f6a2c5ba0c513e1`（`mouse233/uefi-fuxi feat/twrp-data-uefi`）。本轮上机镜像仍绑定 `75a7faca`，新 M2 源码未替换旧镜像绑定，也未再次上机。
+
+
+### 2026-10-26：TWRP 分支 M2 metadata-files v1（主机通过，未上机）
+
+改动层为 UEFI 只读 F2FS、UFS 诊断入口和交付工具。clean checkpoint NAT journal
+（含 compact journal）覆盖所选 NAT 副本，node/inode footer 与策略检查，inline/block
+目录及绝对路径、直接/间接/双重间接与稀疏文件读取已实现；中途错误输出清零。
+保留 dirty/未知特性/加密/verity/压缩/casefold、cp_payload、多设备等拒绝边界。
+
+候选 ramdisk-test/uefi-twrp-data/out/m2-metadata-files-v1，1875968 字节，
+SHA256 cf28d6375ae7a321334fa789ef996a7f7a8e72df2a806bde9d5e9453160cf009。完整 AARCH64 平台、两种启用 M2/park 的模块构建成功；十二项主机/
+交付检查退出0。38组文件fixture、14组引导fixture、独立 mkfs/sload feature499
+卷的三个真实文件读取对照通过（ASan/UBSan），均不是手机读取成功。
+交付FD/EFI/源码绑定通过，交付及两个独立原生UFS EFI均0条SMC。
+
+实机候选先执行原M1 proof，再列metadata根目录（最多16项），尝试
+/vold/metadata_encryption/key/version（最多1MiB，存在性待确认），完整成功才打印SHA。
+随后停UFS队列并驻留在APRIORI原生UFS入口，不调度USB接收器，不发载荷、不交接XNU。
+这不修复原USB枚举/停机故障。TWRP独立文件/首块对照、M2实机结果均待采集。
+本轮没有再次操作手机，无boot/flash/擦除/改槽/传输；不覆盖旧v8及其attempt绑定。
+Windows交付入口 D:/Projects/UniXNU/migration/20261026-m2-metadata-files-v1/，
+设计、命令与验收边界见 docs/fuxi-m2-metadata-files.md 和候选 REVIEW.md。
+
+本轮 M2 源码提交：`6bcce79e08675dd732e72fdf3433a6566ee7fcb3`（mouse233/uefi-fuxi feat/twrp-data-uefi），交付49项源码哈希与该提交内容一致。默认关闭模块回归亦通过。
