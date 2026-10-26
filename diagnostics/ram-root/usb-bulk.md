@@ -3051,3 +3051,40 @@ M1实机须拍三次读取proof、hash、GPT、队列stop和poisoned=0；USB停�
 Windows交付入口 D:/Projects/UniXNU/migration/20261026-m1-read-proof-v8/。
 
 本轮UEFI源码提交：75a7faca13ebc849f1e04ea1241179a7464f32dd（mouse233/uefi-fuxi feat/twrp-data-uefi）；实机待准备。
+
+
+### 2026-10-26：M1 read-proof v8 attempt-01，原始读一致性与UFS停队列通过，USB仍失败
+
+互斥空闲、fcde91e/product=fuxi/unlocked与usb-ram profile及交付SHA核验后，
+2026-10-26T21:53:19.181421+08:00仅一次fastboot boot，Sending/Booting OKAY、退出0。
+镜像fdab2739…绑定75a7faca；本候选十项主机/交付检查已全部退出0。
+无flash/擦除/改槽/载荷传输/重启/重复启动。
+
+IMG_7066/7068/7069原图已存候选attempt-01，哈希与结构化判读在assessment.json。
+NOP/query/wakeSSU/TUR/capacity/GPT成功，LUN0 last=3afc3ff、block=4096；
+metadata=4000..7fff、userdata=2f7840..3afc3fa。两个分区均为
+independent-read-proof=Success reads=3/3 distinct-buffers=1；是同次启动
+三条读取命令的比较，缓存重放不另计读取。metadata SHA256
+e77426cf7e4e7d0c2af46e8c8434a358a6c8f923c7b614ec8a72ec288446e51d；userdata SHA256
+890d7f621df98d0e652092fd7e35e31f4adf4e72fa654a7eca6796e1d379be33。
+UFS stop=1/db=0/tdb=0/run=0/HCS=10f/IS=0，final poisoned=0/ready=0。
+bank68/slot104/SID60/GFSR=0，FSR=400无c00001fe掩码故障位。
+本轮有界原始读取/一致性/队列停止范围通过；未新增TWRP独立块对照、
+SMMU完整回滚、BlockIo发布、文件读取、解密或系统启动通过结论。
+
+metadata M2-input：feature=499、cp-payload=0、cp=512、nat=2560、main=4096。
+M2 v2按实测能力位仅扩展SB/CP引导识别并记录Features；inode/文件策略不放行。
+14类fixture及AARCH64模块编译通过，无M2设备执行；v8镜像仍绑定旧提交。
+
+USB仍EP0 ENDTRANSFER超时，DEPCMD=d08、PHYCFG=00102400，失败瞬间两挂起位为0；
+DSTS=0001f958无DEVCTRLHLT。CPU视图原始事件pos80/84/88/92为
+201/301/50301/101，即CONNECT_DONE、link(info0)、link(info5)、RESET，
+所采样四字不含END完成事件，不支持此前把积压直接定性为END完成死锁。
+count与事件字是分次采样，非原子历史。最终USB halt timeout DSTS=00112a41，
+QUIESCE=Time out、route/buffers retained；normal_controller_stop_verified=false。
+用户听见连接/断开提示音；Windows 59次采样无VID1209，但捕获新增
+Unknown USB Device (Device Descriptor Request Failed)，VID0000/PID0002，
+故不能写“主机完全无发现”，仍无成功描述符/枚举证据。
+原图/报告位于out/m1-read-proof-v8/attempt-01，Windows入口同轮migration目录。
+
+实机证据与 M2 v2 bootstrap 源码提交：`e813b0fd5e78ad8ea58af1b91f6a2c5ba0c513e1`（`mouse233/uefi-fuxi feat/twrp-data-uefi`）。本轮上机镜像仍绑定 `75a7faca`，新 M2 源码未替换旧镜像绑定，也未再次上机。
