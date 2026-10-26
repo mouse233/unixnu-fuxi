@@ -2735,3 +2735,42 @@ DarwinBoot 原恢复 diff 保留。UDIF6例、watchdog生产33例/4突变通过�
 不继承 v47 镜像/缓存或检查通过结论。UEFI/DarwinBoot 独立 smoke 构建成功，
 但它只有 dummy 载荷。工具链及新内核/组合镜像/完整18项检查仍在推进。未操作手机，
 v47 待上机和 v46 prepare errno=6 的历史边界不变。详见 wsl-linux-rebuild.md。
+
+
+### 2026-10-26：UniXNU / UEFI 上游合并与 TWRP M1 Linux 构建
+
+按本轮授权同步 mouse233 fork。UniXNU 上游 main ae68700 历史重写，
+以旧上游 245aca1 到原 fork main 8612a53 的九文件差异逐项迁入，保留
+RAM-root/user-entry 与静态 storage 审计保护。main c994e23、实验
+feat/ramdisk-test 7e237de 均已推送；实验保留 DarwinBoot fork da5b43b、
+RAM system/main/cache/trust 补丁、Linux dwarfdump/libsa 适配和旧候选
+依赖/脚本兼容入口。原共享检出两处有未提交改动，未覆盖其工作；实验
+audit-amfi-pmgr-contract.py 重叠使本机快进安全中止，合并树保留在
+根 migration/20261026-upstream/unixnu-{main,ram}，远端分支已更新。
+
+UEFI 上游 fuxi 5493eb07 已合入主分支 4fbf22ac、USB RAM 分支
+32b3b57e、TWRP 分支 3222f6a7（文档跟进 7fdd506d），全部推送且远端
+SHA 复核通过；本机三个 UEFI 检出均快进。保留本机 FD/内存布局、
+受限 SEC FDT/载荷检查、USB 路由与 UFS 小端 PRDT；上游独立 loader/
+extents 源码入库，但不自动调度其另一套 RAM 扫描器或未经检查的 HOB。
+
+改动层：共享 XNU/构建框架、UEFI 源码合并及主机构建/打包工具；
+不把组合镜像称作仅改 UEFI。TWRP 构建器兼容当前 amd64 Linux 宿主，
+目标仍 AARCH64。no-SMC/query 两版 DataPort.dsc 与完整 fuxi.dsc/
+Android-v3 receiver-only 打包真实退出 0；两个 DXE 均归档并绑定源。
+M0 82 fixtures、M1 建模 ASan/UBSan/9 SHA256 向量通过；SMMU audit、
+route、receiver、EP0、stop、交付 image 六项检查全部退出 0并绑定
+同一镜像/源码。EFI 反汇编 M0 两版 0/1 条 SMC，UFS 两版均 0。
+
+独立候选位于 migration/20261026-upstream/uefi-twrp/out/
+upstream-sync-ufs-m1-receiver/，REVIEW 记构建命令/输入/边界；镜像
+Mu-fuxi-ufs-m1.img（校验器同字节别名 Mu-fuxi-usb-ram.img）
+1867776 字节，SHA256 a2b338dcf0ae19c647f92fdd714b5d90284a9faf0427486d452a8fa5f6b3470a。
+使用合并后的 feat/ramdisk-test 基础；顶层 main bootimg 仍无本地 v3
+元数据扩展，不改用其替代实验基础。
+
+未操作手机、未新增 attempt/照片；GPT/magic/SHA256/停机 readback
+数值块照片仍待采集，未宣称 /data 解密、BlockIo 发布或 XNU/系统启动。
+原 v47 待实机、v46 errno=6 与 v48 完整 XNU/系统重建边界保持。
+仓库源内合并说明见 docs/fuxi-upstream-sync-20261026.md；根
+UPSTREAM-SYNC-20261026.md 为报告入口，详细退出码/日志在同名迁移目录。
