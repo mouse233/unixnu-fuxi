@@ -2853,3 +2853,70 @@ USB枚举/传输和正常停机仍失败，normal_controller_stop_verified=false
 不把UFS队列停止当作USB HALTED，不放开保留DMA缓冲与路由的保护。
 候选REVIEW与docs/fuxi-ufs-cached-report.md已回填三张照片结论。后续定位
 EP0结束传输/重置再武装与USB停机，另取独立userdata对照；无系统启动结论。
+
+
+### 2026-10-26：M1 EP0 A/B 三候选（V-A/V-B/V-C），纠正 trace=0 的前提与停机 DSTS 读数
+
+改动层：UEFI DWC3 gadget 驱动的编译期宏与 M1 候选构建工具。UFS 核心/SMMU 策略/
+PRDT/队列/超时隔离/USB 状态机/payload/内核均未改。本轮**未操作手机**。
+
+前提纠正一：上一轮把 `FUXI_USB_EP0_TRACE=0` 记为"同一套代码只少日志"。实际打开
+trace 编译不过：`FUXI_TRACE(Arg)` 定义为 `DEBUG Arg`，调用点已自带一层括号，展开
+后 DEBUG 收到两个参数即报错；`=0` 时宏为空可编译。故本分支所有产物的每包 EP0/
+SETUP 追踪是**不存在**而非静音。两处改为 `DEBUG (Arg)` 修复（Dwc3Endpoint.c 4 处、
+FuxiUsbRamDxe.c 2 处；Dwc3Core.c 另一套裸字符串约定，正确未动）。产物侧证据：
+交付 EFI 内 `FUXI EP0` 命中 4（父候选 0）、`USBRAM: setup rt` 命中 1（父 0）。
+
+前提纠正二：重判读归档照片 IMG_7055，停机失败值为 `DSTS=0x0010FFD1`，此前记录写作
+`0010ff11`（照片放大核对）。两种读数结论一致：`DEVCTRLHLT`(bit22)=0、USBLNKST=4、
+COREIDLE=0，核心从未确认停机；差别仅在 SOFFN 字段。历史条目未改写，此条作追加更正。
+
+新增源码结论（与上游 torvalds/linux dwc3 对照）：EP0 物理编号 OUT=0/IN=1、
+`0xC800+n*0x10` 与上游一致，排除该嫌疑；但上游 `ep0.c dwc3_ep0_end_control_data()`
+构造 `ENDTRANSFER|CMDIOC|PARAM(resource_index)`、DEPCMDPAR 全 0 且**不带 ForceRM**，
+本地 `Dwc3EndTransfer` 无条件带 `HIPRI_FORCERM`，且本地注释"END 完成前保留共享 TRB"
+与之自相矛盾。上游 `gadget.c` 亦记新版编程指南建议 ForceRM 清零以便完成时更新 TRB
+进度。此为命令构造分歧，是否成因需实机判定，不据源码宣称修复。
+
+照片可判读的排除项：`FUXI SNAP ABL`/`SNAP POST`/`FUXI LINK t=0ms` 三处独立读到
+`PHYCFG=0x00102400`，`SUSPHY`(bit6)=0、`ENBLSLPM`(bit8)=0。上游要求 speed≤HIGH 或
+EndTransfer 时每次端点命令前清零重载这两位（DWC_usb3 3.30a §3.2.2）；本候选在启用
+连接时已为 0，且驱动除 `Dwc3CoreExit` 外不再置 SUSPHY，故该 PHY 挂起假设无证据支持。
+边界：照片无超时瞬间的 PHYCFG 采样。t=0ms 时 link=0(U0)、DSTS speed=0(HIGH)、核心
+未停机，与随后 `USBRAM: speed=3` 一致；停机时链路已落状态 4。
+
+三候选（容器 unixnu-fuxi-build-arm64，x86_64 宿主，AARCH64/CLANGPDB；工具新增
+`--usb-ep0-trace`/`--usb-ep0-forcerm`/`--without-ufs` 并写出双镜像名）：
+V-A `m1-ab-ep0trace-v3` Mu-fuxi-ufs-m1.img 1871872 B
+b64dfe070131f6fedcb3b08fe92437204fcfb08da72f68bd365cffb68ec2e697（trace 开、ForceRM
+同已验收、UFS 前置在）；V-C `m1-ab-ep0noforcerm-v4` 1871872 B
+82925412455da1c76e9e74c73c386bbd0813587d763d620e9785affa0be92723（仅 EP0 不带 ForceRM）；
+V-B `m1-ab-usbonly-v3` Mu-fuxi-usb-ram.img 1863680 B
+ba22cc22bb3f8d7012a1c55168b209d03f2444b6000ed4abca02ddf91f802eb2（`FUXI_DATA_PORT_UFS=0`，
+USB 前无 UFS 接管/SMMU 重配/DMA 分配，亦是最接近历史 macOS 接收器的对照）。
+
+源码绑定：V-A/V-B 相对父候选差异恰 3 文件（两处宏修复 + 构建工具），FuxiNativeUfsDxe
+与 UFS 核心逐字节相同，故父候选 UFS 结论可延续。修复宏后首建 V-A 为 f7eeeeff…，加
+define 后重建为 b64dfe07…，说明本流程镜像哈希跨次重建不稳定；因此"默认值保持原行为"
+不以哈希相等取证，改以 `logs/firmware.log` 取证：V-C 有 5 条
+`-DFUXI_USB_EP0_FORCERM=0`，V-A 无该宏（走源码默认 1）。
+
+主机检查：`migration/run-m1-ab-checks.py` 逐条记真实退出码，三候选各 6 项（SMMU audit、
+route、receiver、EP0 模型、stop 模型、交付镜像）全部退出 0。未复跑因此不宣称：
+`check_fuxi_ufs_report_image.py`（依赖候选自身 verification.json 与 modules-no-smc/
+modules-scm-query 独立构建）、缓存 ASan/UBSan、M0 82 fixtures、9 组 SHA256 向量。
+既有缺口记录：EP0/stop 模型检查编译时不带 `-DFUXI_USB_DMA32` 也不带本轮两个宏，测的
+不是交付 TU，且缺"同一 DEP 块 CMDACT 未清时再发命令"与"EP0 命令未确认时清 RUN_STOP"
+两个当前最相关场景；其 fixture 仍未入库（mtime 10-23），干净克隆跑不了这两项检查，
+按 §2 保留其他会话未完成改动未代为提交。
+
+D 盘余量全程 46G，高于 12 GiB 下限；未触碰其他会话的 18 个未提交改动与
+usb-system-mount-v48-linux 的失败排队任务（`work/rerun-linux-checks.py` 第 34 行
+`PosixPath % int` 自身报错，与本轮无关）。
+
+下一步：设备需用户重新进 fastboot，按 §0 核验互斥与 fcde91e/product/unlocked，只用
+`fastboot boot`，每台一次、独立 attempt。顺序 V-A（首次取得真实 EP0 命令序列）→
+V-C（判定 ForceRM 分歧）→ V-B（仅 V-A 同样失败时，隔离 USB 前的 UFS/SMMU 状态）。
+`Ep0RestartFailed` 全驱动无清零点，一次 500 ms 超时永久失去 EP0，与 Windows 快照
+看不到 1209:0001 一致；它是症状放大器不是根因，无实机证据前不放宽该保护。
+分析入口 D:/Projects/UniXNU/migration/20261026-m1-ep0-ab/REVIEW.md。
