@@ -2774,3 +2774,36 @@ Mu-fuxi-ufs-m1.img（校验器同字节别名 Mu-fuxi-usb-ram.img）
 原 v47 待实机、v46 errno=6 与 v48 完整 XNU/系统重建边界保持。
 仓库源内合并说明见 docs/fuxi-upstream-sync-20261026.md；根
 UPSTREAM-SYNC-20261026.md 为报告入口，详细退出码/日志在同名迁移目录。
+
+
+### 2026-10-26：TWRP M1 Linux 镜像 attempt-01，进入接收器后 EP0 超时
+
+用户进入 fastboot 后授权单次启动。交付仍为 upstream-sync-ufs-m1-receiver
+的 Mu-fuxi-ufs-m1.img，1867776 字节，SHA256
+a2b338dcf0ae19c647f92fdd714b5d90284a9faf0427486d452a8fa5f6b3470a。
+改动层/测试范围：UEFI 原生 UFS 诊断与 USB 接收器；本轮没有源码/固件
+改动、XNU 或系统载荷。复核镜像及 30 项源码绑定，沿用已绑定且退出 0
+的六项主机检查。未覆盖其他会话改动。
+
+互斥检查无活动测试；Windows fastboot 核对设备、product=fuxi、unlocked=yes。
+当前 a 槽，a/b 均 successful=yes、unbootable=no、retry-count=6。原单次
+工具在独立 attempt 适配 Windows fastboot 路径，保留 SHA256、verification、
+usb-ram profile 与身份检查。16:27:39 +08:00 Sending/Booting 均 OKAY，退出 0。
+只执行一次 fastboot boot，无 flash/擦除/改槽/重启/载荷传输。
+
+用户照片 IMG_7051..JPG：USBRAM S19 ConfigureEnableEndpoints returned Success；
+WAIT 1209:0001；speed=3 两次；USB CONTEXT existing bank=5 checked=1，
+USB ROUTE VERIFIED。随后 Endpoint Command 0x8 on Physical EP 0 timed out；
+ENDTRANSFER failed，RscIdx=0。Windows 启动后 USB 快照未见 1209:0001。
+因此确认固件到达接收器，但不能判为 USB 枚举/传输成功。
+
+源码推论：EP0 命令等待 CMDACT 清除超时后置 Ep0RestartFailed，阻止再武装；
+照片不能区分具体触发事件或硬件根因。RscIdx=0 对 EP0 OUT 是合法值，不能
+仅凭该值归因。照片未含 FUXIUFS GPT/magic/SHA256/stop 数值块，也未含
+QUIESCE Success、路由恢复或 HALTED，UFS 验收及正常停机仍待证据。
+候选 REVIEW 已回填；照片、device-test.json、assessment.json 与 REPORT.md
+归档在 migration/20261026-upstream/uefi-twrp/out/
+upstream-sync-ufs-m1-receiver/attempt-01；Windows 入口为
+D:/Projects/UniXNU/migration/20261026-m1-test/attempt-01/。
+后续应定位 EP0 ENDTRANSFER/重置再武装路径，并改善 UFS 数值证据留存；
+本轮不自动重复启动，不宣称 /data 解密、BlockIo 或系统启动通过。
