@@ -1,74 +1,108 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
-    <source media="(prefers-color-scheme: light)" srcset="assets/logo-light.svg">
-    <img alt="UniXNU" src="assets/logo-light.svg" width="200">
-  </picture>
-</p>
+# UniXNU-fuxi
 
-<p align="center">
-  <a href="https://unixnu.com"><img alt="Documentation" src="https://img.shields.io/badge/docs-unixnu.com-2A5BD7?logo=readthedocs&logoColor=white"></a>
-  <a href="https://t.me/unixnu"><img alt="Telegram" src="https://img.shields.io/badge/Telegram-@unixnu-26A5E4?logo=telegram&logoColor=white"></a>
-  <a href="https://qun.qq.com/universal-share/share?ac=1&authKey=Pubz23DOCY76nxjlGuSms2zesk4jRvas4zrXJRYk7omf7CprXbGQigLEI%2BCoYR8D&busi_data=eyJncm91cENvZGUiOiIxMTI2MTE2NzU5IiwidG9rZW4iOiJwSHJsUDN1UnN2Vi8yM210TjJRbzBIcERmcUpyOS9lb0hHVVpadWdvVFdScVpSYUFLT1YzTk5TWC9mN2xWYmtIIiwidWluIjoiMzE1MTEwOTc0MSJ9&data=_cJgr-jX9yJ2-GXwVjRN5FOhDyk5B-HAfIk5LSunbW_XkkmKqNXbpH33wzP93J0p9DI1fbjgBUrUfTVhwDcxjg&svctype=4&tempid=h5_group_info"><img alt="QQ Group" src="https://img.shields.io/badge/QQ%20Group-join-12B7F5?logo=qq&logoColor=white"></a>
-  <a href="https://x.com/unixnu"><img alt="X" src="https://img.shields.io/badge/X-@unixnu-000000?logo=x&logoColor=white"></a>
-</p>
+Device repository for the Xiaomi 13 (fuxi, SM8550). It holds the board file, kernel defconfigs, device scripts, drivers, package files and the porting record.
 
-# UniXNU-sheng
+This board runs the RAM receiver path: the firmware takes the OS payload into DRAM over USB bulk, and XNU roots from that RAM window. It is not a flash based port. Nothing in this repository writes an Android partition.
 
-Device repository for the Xiaomi Pad 6S Pro (sheng, SM8550). It holds the board file, kernel defconfig, device scripts, drivers and package.
+## Scope
 
-🎉 **News:** The native Metal GPU driver is fully working on sheng. The render server composites the system UI through the Adreno 740, and listed processes get their own Metal devices.
+1. UEFI firmware in [uefi-fuxi](https://github.com/mouse233/uefi-fuxi) opens a USB bulk receiver window and receives the payload into DRAM. The window ends after 180 s without host traffic.
+2. The UniXNU menu entry starts DarwinBoot, which calls `ExitBootServices` and hands off to XNU.
+3. XNU exposes the received window as a RAM block device, mounts the APFS system volume as its root, and starts `launchd`.
 
-- [Documentation](https://unixnu.com)
-- [Device page](https://unixnu.com/devices/sheng)
-- [Porting guide](https://unixnu.com/porting/)
-- [Build](https://unixnu.com/building)
+| Item | Value |
+| --- | --- |
+| SoC | SM8550 |
+| Board name | fuxi |
+| OS profile | `ipados-17.7.11-21H461` |
+| Restore image | `iPad_Pro_HFR_17.7.11_21H461_Restore.ipsw` (iPad7,1, j120ap, `chip_id 0x8011`, `board_id 12`), used unchanged |
+| Kernel defconfigs | `fuxi_defconfig`, `fuxi_full_defconfig`, `fuxi_ramroot_defconfig` |
+| Payload volume tag | `FUXIPAYL` |
+| Firmware | `fuxi` and `feat/ramdisk-test` branches of [uefi-fuxi](https://github.com/mouse233/uefi-fuxi) |
+| Structured record | [porting.toml](porting.toml), published at [unixnu.com/devices/fuxi-mouse233](https://unixnu.com/devices/fuxi-mouse233) |
 
-Firmware: [uefi-sheng](https://github.com/UniXNU/uefi-sheng).
+## Status
 
-Build with the `unixnu` driver of [UniXNU](https://github.com/UniXNU/UniXNU). Clone both repositories with `--recurse-submodules`; `unixnu fetch` also updates the module submodules.
+Verified on device, with commands, images and photographs recorded in the iteration log:
+
+- v36 native SystemOS root authentication (`auth=80`).
+- v37 native root switch: `pivot=OK old=md0 newroot=apfs`, `/sbin/launchd` SHA256 verified.
+- v41 shared region mapped, `main` passed, and several userland processes running at EL0.
+- v43 first natural stop: a `watchdogd` critical exit panic.
+
+Not reached: a complete userland boot, the home screen, display presentation, touch, GPU, Wi-Fi, audio and power transitions. Receiver shutdown is also unverified; every logged attempt ends with `STOP status=Time out`, so the core has never confirmed a halt.
+
+Treat the completion level of each subsystem, its limits and its next action in [porting.toml](porting.toml) as the current statement for this board.
+
+## Dependencies
+
+- EDK2 builds inside the Docker container `unixnu-fuxi-build-arm64`. BaseTools are Linux ELF binaries, so the firmware build does not run on macOS directly. The workspace is mounted at `/work`, the EDK2 tree at `/work/uefi-fuxi/Mu_Basecore`.
+- XNU builds on Linux or macOS. The Linux path uses `scripts/linux/setup-toolchain.py` from the UniXNU checkout and needs a Clang with `__builtin_xnu_type_*` support plus a Mach-O toolchain; distribution Clang is not enough.
+- The UniXNU checkout provides the build driver, the component catalog and `scripts/porting-record.py`.
+- A device with an unlocked bootloader, reachable through `fastboot`, plus host USB tooling for the log reader.
 
 ## Build
 
-Run these commands from the UniXNU checkout. The device repository is `../UniXNU-sheng`.
+Run these from the UniXNU checkout, with this repository as `../UniXNU-fuxi` and the firmware as `../uefi-fuxi`. Each candidate has its own output directory under `out/`, and these steps expect `PYTHONDONTWRITEBYTECODE=1`.
 
-```sh
-./unixnu defconfig sheng_defconfig -D ../UniXNU-sheng
-./unixnu fetch
-./unixnu ipsw fetch
-./unixnu build kernel
-./unixnu build package
-./unixnu build firmware --uefi ../uefi-sheng
-./unixnu build payload --unique-chip-id <hex> --trust-cache <bundle> --data-ramdisk <seed>
-./unixnu bootimg --uefi ../uefi-sheng --dtb <sheng.dtb>
-```
+1. Create or update the candidate directory. New system volume candidates start from the preparer, which writes an independent directory instead of reusing a cached tree:
 
-The [device page](https://unixnu.com/devices/sheng#build) adds the userdata image and the Data seed growth commands. The platform seed, trust cache and Data seed are device inputs. Use `--owner-trust-cache <bundle>` for an owner-signed bundle.
+   ```sh
+   PYTHONDONTWRITEBYTECODE=1 python3 scripts/prepare-usb-system-mount-candidate.py --parent <parent> --output <candidate>
+   ```
 
-Without a Mac, run the kernel and userdata steps in the [macOS runner workflow](https://github.com/UniXNU/UniXNU/actions/workflows/macos.yml). The [build guide](https://unixnu.com/building#macos-runner) lists its inputs.
+2. Build the kernel for the candidate with that candidate's own `build-kernel.py`, then finalize it:
 
-## Device support
+   ```sh
+   PYTHONDONTWRITEBYTECODE=1 python3 out/<candidate>/build-kernel.py
+   PYTHONDONTWRITEBYTECODE=1 python3 out/<candidate>/finalize.py
+   ```
 
-The original iPadOS userland runs from the IPSW; the home screen and Settings are reached. This table records user-facing device support.
+3. Build the firmware image, keeping the USB route and PHY options, and adding the system handoff for system volume payloads:
 
-| Feature | State | Notes |
-| --- | --- | --- |
-| Touch | ✅ | Novatek NT36532E |
-| Display | ✅ | |
-| UFS | ✅ | Native UFS root |
-| Wi-Fi | ❌ | |
-| Bluetooth | ❌ | |
-| Camera | ❌ | |
-| GPU | ✅ | Native Metal, GPU compositing, per-process devices and exported pipeline caches |
-| USB | ❌ | |
-| Audio | ❌ | |
-| Sensors | ❌ | |
-| Battery driver | ❌ | |
-| MiPPS | ❌ | |
-| Suspend and resume | ❌ | |
+   ```sh
+   PYTHONDONTWRITEBYTECODE=1 python3 scripts/build-fuxi-usb-ram.py --try-usb-route --keep-phy --system-handoff
+   ```
 
-✅ available, ⚠️ partial, ❌ not available. The GPU details are in the [Adreno 740 driver](https://unixnu.com/drivers/native-adreno) page.
+4. Package a system payload only through the packager, which writes the `FUXIPAYL` FAT OEM tag. Calling the boot image builder directly leaves no tag and the boot manager reports no boot entry found:
 
-## License
+   ```sh
+   PYTHONDONTWRITEBYTECODE=1 python3 scripts/package-fuxi-xnu-boot.py --output out/<candidate>
+   ```
 
-BSD-2-Clause-Patent. See [LICENSE](LICENSE).
+5. Re-derive the receiver window skew from the delivered `kernel.macho`: the skew must be congruent with the lowest non-empty segment address modulo 2 MiB. A recorded value from another layout is not reusable.
+
+6. Run the host checks and record each real exit code. `scripts/check-usb-system-candidate.py` runs them in order and keeps the true status of every step:
+
+   ```sh
+   PYTHONDONTWRITEBYTECODE=1 python3 scripts/check-usb-system-candidate.py --output out/<candidate> --uefi ../uefi-fuxi
+   ```
+
+   The individual checks are `check-usb-smmu-audit.py`, `check-usb-smmu-route.py`, `check-usb-ram.py`, `check-fuxi-usb-ram-image.py` and, for system volumes, `check-usb-system-mount.py`, `check-ram-probe-policy.py` and `check-ram-launchd-guards.py --system-entry`.
+
+7. Validate this record after any change to it or to the board configuration:
+
+   ```sh
+   python3 scripts/porting-record.py check --device ../UniXNU-fuxi
+   ```
+
+**Next step:** boot one receiver window with `scripts/boot-ram-window-once.py` and transfer with `scripts/usb-ram-send.py`, then follow [Diagnostics](#diagnostics).
+
+## Device operation
+
+- `fastboot boot` only. No flashing, no erase, no boot slot change, no other partition write.
+- Check that no receiver, sender or boot task is already running before touching the device, and confirm the serial, product and unlocked state before each boot.
+- The receiver window and `fastboot` are mutually exclusive: while a window is open, `fastboot devices` lists nothing. An empty list is not evidence that the receiver stopped.
+- Do not unplug, reboot or start another boot while a transfer is running. A stop is only accepted from a photograph showing `HALTED`, the restored route and `USBRAM QUIESCE: Success`.
+- Host checks passing does not mean the device accepted the image. Record the reached stage from the photograph, and keep hardware values on this board only.
+
+## Diagnostics
+
+- `diagnostics/ram-root/usb-bulk.md` is the iteration log: candidates, on-device conclusions and next steps, appended in order.
+- `diagnostics/ram-root/README.md` introduces the topic files, including `uefi-ram-transfer.md`, `apfs-ram-model.md`, `full-os-memory.md`, `system-root-audit.md`, `fatal-fault-forensics.md` and `watchdog-service.md`.
+- Each candidate keeps its own `REVIEW.md` and attempt directories. These are working files and are not committed, so the record cites the committed iteration log for on-device results.
+- `scripts/build-fuxi-ram-diagnostic.py`, `scripts/build-ram-root-probe.py` and `scripts/audit-ram-full-os.py` produce the read-only diagnostics used by these logs.
+
+## Layered build path
+
+`board.toml` declares `schema_version = 2` so the documentation catalog renders this record. The board does not yet build through the layered driver: it has no SoC source in `feeds.toml`, no component selection and no `dts/` directory, so `./unixnu status` on the format 2 driver stops at the missing `sm8550` source. The board scripts above remain the working entry points. The remaining steps are recorded as limits in the configuration area of [porting.toml](porting.toml).
