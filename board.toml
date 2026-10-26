@@ -1,13 +1,23 @@
+schema_version = 2
+
 # Board description of the Xiaomi Pad 6S Pro (sheng, SM8550), read by the unixnu build driver.
 
 [board]
 name = "fuxi"
 soc = "SM8550"
+soc_source = "sm8550"
+os_profile = "ipados-17.7.11-21H461"
 description = "Xiaomi 13"
 # The archive builders inherited from sheng all address the device package as
 # kits/sheng (115 references), so keep that name: it is only the link name the
 # build tree uses for package/, not the board identity.
 kit = "sheng"
+
+# Format 2 component selection is not in use yet: this board still builds
+# its RAM receiver path with the board's own scripts and the Native* pins.
+# See the configuration area of porting.toml.
+[components]
+include = []
 
 # The target OS image: the unchanged iPad7,1 iPadOS 17.7.11 restore image. Give --ipsw PATH to use a local file; without
 # it the remote url is read with range requests, only the members that are needed.
