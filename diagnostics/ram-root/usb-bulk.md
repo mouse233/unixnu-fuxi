@@ -2807,3 +2807,49 @@ upstream-sync-ufs-m1-receiver/attempt-01；Windows 入口为
 D:/Projects/UniXNU/migration/20261026-m1-test/attempt-01/。
 后续应定位 EP0 ENDTRANSFER/重置再武装路径，并改善 UFS 数值证据留存；
 本轮不自动重复启动，不宣称 /data 解密、BlockIo 或系统启动通过。
+
+
+### 2026-10-26：M1 ufs-m1-report-v2，UFS 原始读取/队列停止与缓存重放实机证据
+
+改动层：UEFI UFS 诊断文本缓存/状态快照、接收器驻留前报告重放和主机构建/
+检查工具。48行×192 CHAR16有界缓存封存后不可追加，截断/溢出显式提示；
+诊断结束停留20秒，接收窗口停止后重放，不重新读取寄存器或发令。新增
+接管前后HC/SID60/SMMU快照；UfsCore/PRDT/队列/SMMU策略及DWC3实现未改。
+未引入参考仓库的提前接管分支、写盘日志或根卷发布放宽。
+
+独立候选 ramdisk-test/uefi-twrp-data/out/ufs-m1-report-v2/，镜像1871872字节，
+SHA256 2720dbdd9ad49d9cf64fb21703b9dc5ef9459d28777188d20e5a6b37cb3fbae9。
+两个DataPort变体/完整平台/Android-v3打包退出0；D盘监测始终>46GiB。
+缓存ASan/UBSan、M1控制器/9SHA向量、M0的82fixtures通过；六项交付检查
+及额外报告/EFI绑定检查均真实退出0。验证33项源码，UFS EFI在实际交付FD
+内、协议存在于两个模块；交付及两变体UFS的SMC指令均0。
+
+用户授权下一步测试，互斥检查空闲，设备/product/unlocked及profile/哈希
+核验；当前a，两槽successful=yes/unbootable=no/retry=6。共享启动器被另一
+会话补了Linux路径发现，独立适配首轮仅主机fastboot路径预检查失败，未发
+设备命令；修正独立副本后16:56:29+08:00仅一次fastboot boot成功，退出0。
+无flash/擦除/改槽/载荷传输/重启。原始报告与照片归档于候选attempt-01，
+Windows入口 D:/Projects/UniXNU/migration/20261026-m1-report-v2/attempt-01/。
+
+IMG_7052显示NOP/query/wakeSSU/TUR/capacity/GPT成功；LUN0 last=3afc3ff，
+block=4096，metadata=4000..7fff，userdata=2f7840..3afc3fa。GPT成功绑定
+生产header/array CRC与边界验证。metadata F2FS头成功，userdata未找到；
+仅头部检查，不是挂载/解密。userdata magic=964cc46e 60ab062f，与历史
+f673c25f 7086bec0不同，待独立当前读对照，不能凭差异宣称损坏或解密。
+userdata首块SHA256 ad3ccf81e2258a4754e7c28dcd67866de05dee85b5b732190aa0345395156f4d；
+metadata首块SHA256 e77426cf7e4e7d0c2af46e8c8434a358a6c8f923c7b614ec8a72ec288446e51d。
+它们是照片中的单次读取哈希，缓存重放不等于重复读一致或独立比对通过。
+
+UFS选slot104/bank68/pages128，SID60从0个匹配变1个，最终SCTLR=0、
+CBAR=10000/CBA2R=1、GFSR=0。FSR=400仅format[10:9]=2，按Linux
+ARM_SMMU_CB_FSR_FAULT掩码c00001fe没有故障位，不能把非零FSR或FAR
+直接当DMA故障证据。UFS stop=1/db=0/run=0，最终tdb=0、HCS=10f/IS=0、
+poisoned=0，获得原始读/GPT和UFS队列停止实机证据。
+
+IMG_7054重现USB EP0 cmd8/ENDTRANSFER超时；IMG_7055补齐接收超时后的
+DWC3 halt timeout DSTS=0010ff11/route retained，QUIESCE=Time out，
+buffers retained。随后完整CACHED REPORT及STOP证明最终重放实机执行。
+USB枚举/传输和正常停机仍失败，normal_controller_stop_verified=false；
+不把UFS队列停止当作USB HALTED，不放开保留DMA缓冲与路由的保护。
+候选REVIEW与docs/fuxi-ufs-cached-report.md已回填三张照片结论。后续定位
+EP0结束传输/重置再武装与USB停机，另取独立userdata对照；无系统启动结论。
