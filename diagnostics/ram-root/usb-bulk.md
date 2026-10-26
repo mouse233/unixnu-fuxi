@@ -3112,3 +3112,27 @@ Windows交付入口 D:/Projects/UniXNU/migration/20261026-m2-metadata-files-v1/�
 设计、命令与验收边界见 docs/fuxi-m2-metadata-files.md 和候选 REVIEW.md。
 
 本轮 M2 源码提交：`6bcce79e08675dd732e72fdf3433a6566ee7fcb3`（mouse233/uefi-fuxi feat/twrp-data-uefi），交付49项源码哈希与该提交内容一致。默认关闭模块回归亦通过。
+
+
+### 2026-10-26：M2 metadata-files v1 attempt-01，首个 inline 文件实机读取成功
+
+2026-10-26T22:49:51.566129+08:00 serial/product/unlocked/profile/SHA及互斥检查后，仅一次fastboot boot，
+Sending/Booting OKAY、退出0。镜像cf28d637…cf009绑定6bcce79e，十二项主机检查已退出0。
+新M2单次启动适配器显式验证诊断驻留配置，未篡改receiver_only=false的原验证报告。
+无flash/擦除/改槽/载荷传输/重启/重复启动。
+
+IMG_7071原图SHA256 52b44e06e613dbb300ba42c7989c4e5543e85c40e455d61b323fe5b6cca3717b，保存在候选attempt-01。
+M1两个分区3/3读取与首块SHA保持一致。M2 prepare/root-open/root-list/lookup成功，
+CP pack2、flags145、version5788ea72、feature499、journal0；根目录13项（含点项）。
+/vold/metadata_encryption/key/version：nid69、bytes1、inline1，file-read=Success，
+SHA256 6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b，与主机SHA256(b'1')一致，但这不是TWRP独立读取证明。
+UFS stop1/db0/tdb0/run0/HCS10f/IS0，poisoned0、ready0；最终
+FUXIM2 PARK: no USB receiver; no handoff，watchdog-disable成功。
+
+本轮首个inline文件读取已观察到；目标未经过非inline文件数据块路径，且journal0，
+因此不能推广为非inline/非空journal实机通过。TWRP同状态独立对照、非inline完整
+文件SHA比较仍待补齐；无Android解密、RAM对象加载或XNU交接。原USB故障未重测。
+详见 out/m2-metadata-files-v1/attempt-01/REPORT.md、assessment.json 与
+docs/fuxi-m2-device-20261026.md；Windows同轮migration目录。
+
+实机证据归档提交：`8614cb4cb4bebbc6742fc040e4a868f2b59909cf`（mouse233/uefi-fuxi feat/twrp-data-uefi）；镜像源码仍固定6bcce79e。
