@@ -2920,3 +2920,104 @@ V-C（判定 ForceRM 分歧）→ V-B（仅 V-A 同样失败时，隔离 USB 前
 `Ep0RestartFailed` 全驱动无清零点，一次 500 ms 超时永久失去 EP0，与 Windows 快照
 看不到 1209:0001 一致；它是症状放大器不是根因，无实机证据前不放宽该保护。
 分析入口 D:/Projects/UniXNU/migration/20261026-m1-ep0-ab/REVIEW.md。
+
+
+### 2026-10-26：M1 EP0 A/B 实机三轮（V-A/V-C/V-B）与 V-D 被自身模型否决
+
+改动层：仅 UEFI DWC3 gadget 诊断输出与候选构建开关；UFS 核心、SMMU 策略、
+PRDT、队列、超时/隔离策略、USB 状态机、payload、内核均未改。三次各一次
+`fastboot boot`，无 flash/擦除/改槽/载荷传输/重复启动。互斥检查均空闲，
+`fcde91e`/product=fuxi/unlocked=yes，profile=usb-ram，启动前镜像与
+verification.json 哈希一致。
+
+V-A `m1-ab-ep0trace-v3` b64dfe07…，18:46:xx 启动 OKAY。首次取得真实 EP0
+序列：`cmd=1` 建立 ep0-ep3 全部 `complete reg=00000001`（status 0）、`cmd=6`
+武装 SETUP `reg=00000006`、`evt=7 status=0`（EPCMDCMPLT）、
+`USBRAM: bus reset; session cleared` 后完整重建端点。关键：出现
+`complete ep=0 reg=00000908`，即 CMD=8、CMDACT(BIT10)=0、STATUS=0 的
+**EP0 EndTransfer 成功完成**。因此上一轮记的“EP0 ENDTRANSFER 超时”不能读成
+“该命令从不完成”，此前记录把间歇失败写成了必然失败。`USBRAM: bus reset;
+session cleared` 一行本身在坏宏的 FUXI_TRACE 内，修复前任何产物都印不出来。
+主机侧 `Get-PnpDevice` 278 次采样（18:48:20-18:58:15）全部无 VID_1209，
+也无以其他 ID 落地或报错的 USB 设备。停机仍 `STOP status=Time out;
+buffers retained`。
+
+V-C `m1-ab-ep0noforcerm-v4` 82925412…，19:02 启动 OKAY。**否证 ForceRM 假设**：
+仍走到同一条 `DWC3: Endpoint Command 0x8 on Physical EP 0 timed out!` /
+`ENDTRANSFER failed on Physical EP 0, RscIdx 0: Time out`，主机
+（至 19:04:42）全 none。照片给出改动生效的直接证据：提交的命令字为
+`cmd=108`，而 V-A/V-B 为 `cmd=908`，差值正是
+`DWC3_DEPCMD_HIPRI_FORCERM = BIT11 = 0x800`（Dwc3.h:242）；
+`CMDIOC = BIT8 = 0x100`，两者相加 0x8|0x100|0x800 = 0x908 与 V-A 读数逐位吻合。
+该轮失败前有两轮 EndTransfer 在**同一端点同一调用点**成功完成，第三轮才不完成。
+
+V-B `m1-ab-usbonly-v3` ba22cc22…，19:22 启动 OKAY。**否证“USB 前先接管
+UFS/SMMU/DMA 导致 USB 失败”**：`FUXI_DATA_PORT_UFS=0`，无 FuxiNativeUfsDxe、
+无 20 秒停留、无 FUXIUFS 早期报告，`S19`/`WAIT 1209:0001` 之后的序列与
+V-A/V-C 同形，最后仍 `cmd=908` 于 Physical EP 0 / RscIdx 0 超时；主机 109 次
+采样全 none。三条轴（trace 编译与否、ForceRM、UFS 前置）到此关闭。
+
+独立第二读（关闭上一轮遗留项）：V-A 与 V-E 屏幕上的报告给出 userdata 首块
+SHA256 `545471f32e59c962688f8ae078fd768ea54750fa9c14f0a160859c31c3aa8c3e`，
+与 report-v2 16:56 的 `ad3ccf81…` **不同**；而 metadata 首块
+`e77426cf7e4e7d0c2af46e8c8434a358a6c8f923c7b614ec8a72ec288446e51d` 两次
+**逐字符相同**，magic 两次均为 `964cc46e 60ab062f`。4096 字节的 metadata 块不变
+而 userdata 块变、头 8 字节不变，最合理读法是 Android 在两次启动之间写了 /data，
+不是读盘不稳定也不是损坏。仍只是头部检查，屏幕明写
+`metadata-decrypt=UNIMPLEMENTED file-read=UNIMPLEMENTED`，不构成挂载或解密。
+同一屏内停留与 Park 重放是同一次读的重复显示，只有跨启动才是两次独立读。
+容量/GPT/边界/停队列/bank68-slot104 与上一轮一致。
+
+V-D 未产出镜像、未动设备：按“总线复位时恢复 EP0 闭锁”写了两版，都被驱动自己的
+主机模型当场否决——同时清 `Ep0RestartFailed` 与两个 `EndTransferPending` 触发
+`dwc3-ep0-host.c:329` 的 `CommandWrites == Commands` 断言（复位分支会向该 DEP 块
+重新发命令）；只清 `Ep0RestartFailed` 触发 :325 的
+`Dwc3SetHalt (&Dev, 0, TRUE) == EFI_DEVICE_ERROR` 断言。19 个用例里有 6 个专门
+管 END 未结时不得信任 EP0 状态，其中
+`both EP0 END acks are required and CONNECT_DONE cannot reset resources mid-cancel`
+正是本改动要做的事，共同内容是“不得向 CMDACT 可能永不清零的块再写 DEPCMD”，
+而这恰是本次故障的疑似物理成因。硬做须先删既有保护，且会让一次启动同时改变
+两个变量，故撤销；`git status` 已回到干净，EP0 模型恢复 19/19。
+
+撤销过程中确认一个真实后果并值得单记：`Dwc3Endpoint.c:895` 的 early-out 在
+`DWC3_DCFG` 设备地址清零与 unstall 循环**之前**返回，所以首次 END 失败后的每次
+总线复位只给接收器发消息、硬件层面什么都不做，设备一直保留旧地址。这解释了
+“前两轮正常、第三轮起再也不行”，结论收窄为：**第一次失败的 END 是第一因，
+闭锁是放大器**，修闭锁不等于修问题。
+
+V-E `m1-ab-ep0snapshot-v6` 3790775f…，与 V-A 只差一段只读失败快照
+（`FUXI SNAPFAIL`，回读 DEPCMD/DEPCMDPAR0/DCTL/DSTS/GEVNTCOUNT 与 TRB 所有权，
+上限 6 次，不发命令、不应答事件、不分配；仅使用本树已定义偏移）。交付 EFI 内含
+`SNAPFAIL` 字符串，六项主机检查退出 0；**EP0/stop 模型编译时不带
+`FUXI_USB_DMA32`，该段代码模型完全覆盖不到，只能实机验证**。19:44 启动 OKAY，
+19:47 抓到快照（V-E 主机侧 250 次采样仍全 none）：
+
+```
+FUXI SNAPFAIL ep=0 cmd=908 DEPCMD=00000D08 PAR0=00000000 DCTL=90F00000
+  DSTS=0015D4D8 GEVNTCOUNT=00000010 trb=00000C23 started=1 rsc=0
+```
+
+逐位按本树定义解：`DEPCMD=0xD08` → CMD=8、**CMDACT(BIT10) 仍置位**、FORCE
+RM(BIT11)+CMDIOC(BIT8) 与提交值一致、`STATUS=(x>>12)&0xF=0`（完全无结果）；
+`DCTL=0x90F00000` → RUN_STOP 仍置位，核心在跑；`DSTS=0x0015D4D8` →
+CONNECTSPD=0(HIGH)、`USBLNKST=5`，按本树 **USB2** 编码表（Dwc3.h:212-219，头文件
+明写 SS 字段同但编码不同）为 `HS_EARLY_SUSPEND`，DEVCTRLHLT=0；
+**`GEVNTCOUNT=0x10` 非零** → 超时那一刻事件环里还有未取走的事件；
+`trb=0x00000C23` → **HWO(BIT0) 仍为 1，TRB 还在硬件手里**，`LST`=1、
+`TRBCTL=(x>>4)&0x3F=2=CONTROL_SETUP`、IOC=1；`started=1 rsc=0`。
+
+因此这不是驱动读回竞态：命令确实从未被核心退休，SETUP TRB 仍归硬件。由此留下两条
+线索：(1) `Dwc3SendEpCommand` 等待期间只轮询 `DEPCMD`、不调用
+`Dwc3ProcessEvents`，`GEVNTCOUNT` 非零说明完成事件无处被消费，这是唯一一个
+“自己造成”的候选，形状正是死锁（命令待发完→事件不被取→没人取事件）；
+是否需要读环并应答 `EHB` 核心才退休命令，仍属硬件问题。(2) 失败瞬间链路处于
+early suspend。**更正本报告上文一处措辞**：前文“PHY 挂起假设无证据支持”依据的是
+`FUXI LINK t=0ms`（启用连接时）的 `PHYCFG=00102400`，不是失败瞬间的采样；快照未含
+`PHYCFG`，故本轮既不支持也不排除，应改述为“失败瞬间未见证据”。上游该规则正好适用
+于 speed ≤ HIGH，也就是本次状态。
+
+判读与照片、主机日志归档：`D:/Projects/UniXNU/migration/20261026-m1-ep0-ab/`
+下 attempt-01..04（V-E 原图 `V-E-snapfail.jpg`
+5d3d6ab4…、`V-E-later-session.jpg` 0ba6664e…）与 `VD-not-built.md`。
+遗留：V-A/V-B/V-C 绑定提交 28e2f007，V-E 绑定其后的快照提交；
+`dwc3-ep0-host.c`/`dwc3-stop-host.c` 仍未入库而被已跟踪检查脚本硬依赖。
