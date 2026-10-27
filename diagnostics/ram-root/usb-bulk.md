@@ -3382,3 +3382,12 @@ legacy、callback、object invoke 编号 0/1/2；尚未证明源码和模块构�
 镜像 SHA256 bbe2159579a5a3d2a1bcd3908860b97ce2ae8f3cae9bb801892cd3f9f3916943。
 12 项交付检查、两份对照模块和查询白名单 ASan/UBSan 检查通过。硬件 pending；
 SMC 无硬超时，可停在 begin，需用户在场且可能手动重启。
+
+### 2026-10-27：M3 smcinvoke 可用性 attempt-01 — 待照片
+
+互斥、fcde91e/fuxi/unlocked、usb-ram profile、镜像 SHA
+bbe2159579a5a3d2a1bcd3908860b97ce2ae8f3cae9bb801892cd3f9f3916943
+及 51 个源码文件与提交 6a11bda3 绑定后仅一次 fastboot boot；Sending、
+Booting 均 OKAY，退出 0。等待照片确认 INFO/subject 返回及 UFS 状态。
+记录位于 uefi-twrp-data/out/m3-smcinvoke-avail-v1/attempt-01/ 和
+D:/Projects/UniXNU/migration/20261027-m3-smcinvoke-avail-v1/attempt-01/。
