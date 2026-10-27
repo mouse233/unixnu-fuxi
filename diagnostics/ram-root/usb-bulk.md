@@ -3225,3 +3225,16 @@ UFS stop=1/db=0/tdb=0/run=0/HCS=0x10f/IS=0、poisoned=0，最终pre-USB park；
 SMMU configured=1/GFSR=0/FSR=0x400，未证明完整路由恢复。journal=0，非空
 NAT journal无实机覆盖；Android解密、RAM对象、XNU交接仍未实现或验证。
 原图/assessment/报告见 out/m2-noninline-file-v1/attempt-02/，Windows交付同名目录。
+
+### 2026-10-27：M3 metadata 映射规划器主机阶段
+
+开始M3。UEFI/TWRP源码提交 44ea501733d9cbcec1bdeac528efe5ff13e252d8：新增严格限界的metadata-only
+dm-default-key 地址/DUN规划器及TWRP只读首块参考采集器。4KiB、AES-XTS、
+wrappedkey_v0、iv_large_sectors及完整映射必须由调用方核实；当前无实际映射
+提供者、无磁盘IO、密钥处理、SMC/ICE执行或解密。合成规划测试ASan/UBSan、
+采集器4项模拟测试、两种AARCH64模块构建均通过；编译对象函数存在，
+no-SMC/query DataProbe分别0/1条SMC，NativeUfs两者均0。无可启动镜像及新设备操作。
+手机预计仍在M2诊断驻留；下一步需A17 TWRP解密后只读采集data映射首块SHA及
+原始userdata首块SHA/魔数，仍不能据此推断实际dm表几何或UEFI解密成功。
+详见 out/m3-metadata-plan-v1/REVIEW.md、docs/fuxi-m3-metadata-plan-20261027.md。
+Windows入口 D:/Projects/UniXNU/migration/20261027-m3-dm-plan/。
