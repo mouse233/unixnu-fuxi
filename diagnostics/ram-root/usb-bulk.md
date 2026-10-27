@@ -3518,3 +3518,23 @@ M2 pack=2 cp-flags=00000145 feature=00000499 cp-version=5788EAAC，文件
 UFS stop=1 db=tdb=run=0 poisoned=0 smmu-configured=1；SMMU GFSR=0
 FSR=400 FAR=1BBBE7FD98DF，完整路由恢复未证明；PARK，无密钥装载、
 桥操作或解密。镜像 52a79ea3af33f926b7cf4125c72d3696d2fc275a565079361ef9e5219e4b4586（提交 9c03b55140d9b7808ef77a1a9872067b41674ad4 的 51 个源码文件绑定）。
+
+### 2026-10-27：M3 metadata key 目录只读候选（待上机）
+
+只读打开 /vold、/vold/metadata_encryption、/vold/metadata_encryption/key：
+/key 为目录时最多列出 6 个条目，对最多 3 个普通文件（单文件 8192 字节上限）
+计算 SHA256 并打印不超过 16 字节的前缀；不装钥、不调用 SMC/TA、不解密。
+生产 F2FS 读取器在合成嵌套镜像上经 ASan/UBSan 验证；13 项交付检查通过，
+交付与两种对照模块 `smc #` 均为 0。镜像 SHA256 04467d7df7a820f885c0abd2c61288ab379d3bb525131a8891c8da3c8a975f67。
+硬件 pending：实际布局、blob 大小/哈希与 checkpoint 状态均未取得。
+
+### 2026-10-27：M3 QTEE 共享内存桥闭环调用候选（待上机）
+
+按固定哈希 qcom-scm.ko 反汇编实现标量 SMC64（x0=0xC2000000|svc<<8|cmd、
+x1=arginfo）与桥 owner 2 的 enable 0x1c / create 0x1e / delete 0x1d。
+候选分配一页 4 KiB，先做已实机通过的 INFO 自查询；仅当 available=1 时
+enable→create(vm_count=0)→取 a1 为句柄→delete，delete 尝试后才释放页面。
+create 的 arg1=phys|6、arg3 VMID、条件 0x1a 均为静态推断；同步 SMC 无硬超时。
+主机 ASan/UBSan 与 13 项交付检查通过；交付 EFI 1 条 `smc #`，两种对照模块 0；
+镜像 SHA256 e711317c585a20cf66bd97ec119972bacafe4db54a823297b7c1342115f0dd28。
+硬件 pending；闭环成功也不证明 TA 会话、共享内存权限或解密。
