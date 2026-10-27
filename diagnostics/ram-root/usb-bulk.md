@@ -3419,3 +3419,11 @@ uefi-twrp-data/docs/fuxi-m3-smcinvoke-layout-20261027.md 与 out/m3-smcinvoke-la
 无密钥、未接入固件。本机 crypto capability、slot、DUN、ICE/HWKM、
 厂商 PRDT 与错误清理尚未验证，不能据此提交硬件请求或声称解密。
 详见 uefi-twrp-data/docs/fuxi-m3-ufs-crypto-layout-20261027.md。
+
+### 2026-10-27：M3 SMCI 响应与生命周期主机实验
+
+候选驱动在原输入缓冲区读取对象返回，另一个缓冲区承载 callback/piggyback；
+错误、未知终态与非空输出缓冲区隔离。固定哈希 TWRP 模块局部核对 release
+0xffff/4096 和 legacy flush、invalidate 调用。5 项主机测试常规及 -O 通过；
+无 SMC/手机/密钥操作，不实现回调、内存桥或真实安全释放，不能视为 M3 完成。
+详见 uefi-twrp-data/docs/fuxi-m3-smcinvoke-response-20261027.md。
