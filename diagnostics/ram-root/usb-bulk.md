@@ -3157,3 +3157,21 @@ metadata首块SHA256 e77426cf7e4e7d0c2af46e8c8434a358a6c8f923c7b614ec8a72ec28844
 原M2镜像/源码绑定不变。静态报告及TWRP JSON在
 D:/Projects/UniXNU/migration/20261027-twrp-a17-static/；仓库报告
 docs/fuxi-twrp-a17-static-20261027.md。未flash/写分区/读取密钥内容。
+
+### 2026-10-27：M2 non-inline file v1 主机候选
+
+接续 A17 TWRP 已核验的非秘密文件 /metadata/aconfig/maps/system.package.map：
+10527字节，SHA256 14f3d8675423917e383a71c936f4d9a81a29480f34ae3c550e0f4c34e53a0991。
+新 UEFI 候选将卷相对路径固定为 /aconfig/maps/system.package.map，保持 M1 原始
+重复读、GPT、F2FS clean policy、完整文件SHA、UFS停队列及 pre-USB park；未启用
+Android解密、USB接收器、RAM对象或XNU交接。
+
+源码提交0586ebe8af5a0ee6fe26ea3271f94ab6cfac5201；镜像
+out/m2-noninline-file-v1/Mu-fuxi-m2-metadata.img，1875968字节，SHA256
+6b7e00d7738d7372f6489fb1e39165b56db9034f1e63ad74a0598700d503432d。
+完整平台、no-SMC/query独立模块及12项主机/交付检查退出0；交付EFI目标路径、
+FD包含关系、源码绑定49项、模块绑定各19项通过。主机通过不等于设备通过。
+本轮无设备boot/flash/擦除/改槽/载荷传输；手机仍由用户保持在A17 TWRP。
+Windows交付入口 D:/Projects/UniXNU/migration/20261027-m2-noninline-file-v1/。
+下一次仅在核对互斥与fcde91e fastboot后单次临时boot，拍下文件size/hash与
+UFS停队列/park；非inline、非空journal与解密尚无实机结论。
