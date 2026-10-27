@@ -3481,3 +3481,11 @@ M2 pack=2 flags=145 cp-version=5788EAA2，文件 10527 字节 SHA256
 14f3d8675423917e383a71c936f4d9a81a29480f34ae3c550e0f4c34e53a0991；
 UFS stop=1 db=tdb=run=0 poisoned=0；SMMU GFSR=0 FSR=400，完整路由
 恢复未证明。PARK，无密钥装载或解密。
+
+### 2026-10-27：M3 共享内存桥 INFO 查询候选（待上机）
+
+TWRP qcom-scm.ko 设备静态封装对照 service 0c、command 1c/1d/1e。
+新候选仅 INFO 查询 02000c1c/1e/1d，不执行桥操作、装钥或解密；
+保留 UFS 能力探针与 M2。白名单 ASan/UBSan 和 12 项资格检查通过，
+交付 EFI 一条 SMC；镜像 SHA256 c19c942743a6ac49f60fbd3aed35feb0ca72f95ec26acb2f691d1948aa869311。
+硬件 pending，SMC 无硬超时；available 不证明桥建立及访问权限。
