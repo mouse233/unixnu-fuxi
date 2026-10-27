@@ -3267,3 +3267,23 @@ EFI 状态及接口是否非空，不调用任何安全服务，不直接 SMC、
 12 项主机检查、两种模块构建和专用镜像 GUID/日志绑定检查通过；反汇编 UFS
 模块 SMC=0，硬件结果 pending。实机仅 fastboot boot，照片采集 DXE 协议状态、
 M1/M2 及停队列；非 clean checkpoint 不跳过保护。M3 解密与 TEE 可用性未证明。
+
+### 2026-10-27：M3 DXE 协议发现 attempt-01 — 待照片
+
+设备 fcde91e/fuxi/unlocked=yes，镜像 SHA 6cb8015b5d52ecbc47dd2b2d9138b991ad5078d61554bf978803fb2b4bebb948，
+已核验与提交 e1ef51ae 的 51 个源码输入绑定；仅一次 fastboot boot，Sending 和
+Booting 均 OKAY、退出 0。手机直接进 fastboot，不假定 metadata checkpoint clean。
+仍需照片确认 SCM/QSEE 协议状态、UFS 读取及停队列。原始记录位于
+uefi-twrp-data/out/m3-protocol-discovery-v1/attempt-01/，Windows 入口
+D:/Projects/UniXNU/migration/20261027-m3-protocol-discovery-v1/attempt-01/。
+
+### 2026-10-27：M3 DXE 协议发现 attempt-01 照片
+
+IMG_7108 原图 SHA256 3cdf8d3a73e447ff8365d1bcee74362cc12ef598595225b9d59652610d67cc68。
+SCM=Not Found nonnull=0、QSEE=Not Found nonnull=0；仅证明当前 DXE 时点未
+发现 UEFI 协议，不能推断底层 TEE 不可用。UFS 基础命令/GPT 成功，两分区
+独立读取各 3/3；metadata pack=2 flags=0x44，prepare=Unsupported，
+read-bytes=0：因缺少 clean-unmount 位而遵循现有只读策略停止。UFS stop=1、
+db=0、tdb=0、run=0、poisoned=0；SMMU GFSR=0/FSR=0x400，完整路由恢复
+未证明。最终 PARK，未执行 SMC、KeyMint、ICE 或解密。实机照片及 assessment
+位于 out/m3-protocol-discovery-v1/attempt-01/，Windows 对应同名交接目录。
