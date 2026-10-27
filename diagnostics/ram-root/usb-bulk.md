@@ -3461,3 +3461,12 @@ UFS stop=1 db=tdb=run=0 poisoned=0；SMMU GFSR=0 FSR=0x400，完整路由
 区与配置区重叠，最多读取八项，不读配置、不调用 SMC。真实 CCAP 回归和
 12 项交付检查通过；候选 SHA256 e71fc149d6088a6e24bc25dadd84e2eb7656e48ed22153237f488ae1f4a32964，
 硬件 pending，参考 uefi-twrp-data/out/m3-crypto-cap-v2/REVIEW.md。
+
+### 2026-10-27：M3 UFS crypto capability v2 attempt-01 — 待照片
+
+互斥、fcde91e/fuxi/unlocked、usb-ram profile、镜像 SHA
+e71fc149d6088a6e24bc25dadd84e2eb7656e48ed22153237f488ae1f4a32964
+及提交 d85d675f 的 51 个源码文件绑定核验通过。只执行一次 fastboot boot，
+Sending、Booting 均 OKAY，退出 0；待照片确认能力条目和 UFS 停队列。
+原始记录位于 uefi-twrp-data/out/m3-crypto-cap-v2/attempt-01 与
+D:/Projects/UniXNU/migration/20261027-m3-crypto-cap-v2/attempt-01。
