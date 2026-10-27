@@ -3298,3 +3298,31 @@ d23874d80d1ce8c1a60b69568a7b1252b4053e7e5af9c0a21846fd0979a544dd。
 硬件 pending。同步 SMC 无软件硬超时，禁用 watchdog 的驻留候选可能停在
 begin；上机需用户在场，拍 begin/return，可能需要手动重启。查询成功不证明
 ICE/KeyMint/密钥/解密可用，不得把不返回推断成 unsupported。
+
+### 2026-10-27：M3 SMC64 INFO attempt-01 — 等待屏幕结果
+
+互斥、fcde91e/fuxi/unlocked、usb-ram profile、镜像 SHA
+d23874d80d1ce8c1a60b69568a7b1252b4053e7e5af9c0a21846fd0979a544dd
+及 51 个源码文件与提交 1a38a511 绑定后，只执行一次 fastboot boot。
+Sending OKAY；Booting 阶段 usb_read failed，Windows 错误 31、退出 1。
+设备是否进入诊断、是否执行 SMC 均未知；不自动重试，等待屏幕照片。
+原始记录位于 uefi-twrp-data/out/m3-scm-info-v1/attempt-01/，Windows 入口
+D:/Projects/UniXNU/migration/20261027-m3-scm-info-v1/attempt-01/。
+
+### 2026-10-27：M3 SMC64 INFO attempt-02 — 等待照片
+
+首次 Booting 因 Windows USB 读取错误 31 失败且设备状态未知；用户明确要求
+再次启动，重新检查 fcde91e/fuxi/unlocked 与设备互斥后，仅再执行一次
+fastboot boot。Sending OKAY、Booting OKAY、退出 0。未据此判定 SMC 返回；
+等待屏幕照片。原始记录为 uefi-twrp-data/out/m3-scm-info-v1/attempt-02/
+与 D:/Projects/UniXNU/migration/20261027-m3-scm-info-v1/attempt-02/。
+
+### 2026-10-27：M3 SMC64 INFO attempt-02 照片
+
+IMG_7111 SHA256 7a811c99d46feeaa04d5e611355f89c58ea4889b18523538cadd73934204bea5。
+SCM64 INFO 自查询 return a0=0 a1=1 decode=Success available=1；SCM/QSEE
+UEFI 协议仍 Not Found。UFS 基础命令/GPT 成功、两分区独立读取各 3/3；
+metadata pack=2 flags=0x44，prepare=Unsupported、read-bytes=0，按策略停止。
+UFS stop=1、db=tdb=0、run=0、poisoned=0；SMMU GFSR=0/FSR=0x400，完整
+路由恢复未证明。PARK；ICE、KeyMint、密钥加载和解密未测试。照片与 assessment
+位于 out/m3-scm-info-v1/attempt-02/ 和 Windows 对应交接目录。
