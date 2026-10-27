@@ -3238,3 +3238,21 @@ no-SMC/query DataProbe分别0/1条SMC，NativeUfs两者均0。无可启动镜像
 原始userdata首块SHA/魔数，仍不能据此推断实际dm表几何或UEFI解密成功。
 详见 out/m3-metadata-plan-v1/REVIEW.md、docs/fuxi-m3-metadata-plan-20261027.md。
 Windows入口 D:/Projects/UniXNU/migration/20261027-m3-dm-plan/。
+
+### 2026-10-27：M3 TWRP 明文参考与脱敏 DM 几何
+
+用户进入A17 TWRP并解密data；fcde91e/fuxi、/data=dm-7 F2FS rw，userdata
+映射直接下层sda32(259:16)，/metadata=sda17 F2FS rw。只读4KiB首块：
+映射data SHA256 d99375331359c5120ef2dc6a6019ff5ab3b0a55063f38facd7e35d3be305257b，
+offset1024有F2FS魔数；原始userdata SHA256 e815d5f476ef20b73c152bf6640a7881d7912f9dceeaea95700f10d9904d3d5a，
+该偏移无F2FS魔数。块内容未保存，卷未冻结。
+sysfs映射与原分区大小469917144个512字节扇区，起点24887808，块大小4096；
+与之前UEFI GPT起点/长度一致。tmpfs只读DM_TABLE_STATUS程序要求密钥字段为
+脱敏'-'，只输出白名单字段：default-key aes-xts-plain64，target begin=0、
+length=469917144、device start=0、IV offset=0、backing=259:16、sector=4096、
+iv_large_sectors与wrappedkey_v0均为真。临时程序已清理，未保存/传出密钥或表原文。
+源码提交 c1fd1efed371d2172ecbde24ceb47640bcf58c11，设备程序SHA256 110771ceec7ac746d9b763ebbc32562c1ef3d191d177b4b5bcc80104fb2b86ba；
+ASan/UBSan主机测试和设备自检通过。实测几何首末块/DUN主机规划通过。
+UEFI安全服务、密钥操作、ICE、明文对照均未验证，无新的固件boot/分区写入。
+报告及JSON位于 out/m3-dm-evidence-v1/，Windows入口
+D:/Projects/UniXNU/migration/20261027-m3-dm-plan/。
