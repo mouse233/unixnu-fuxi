@@ -3326,3 +3326,13 @@ metadata pack=2 flags=0x44，prepare=Unsupported、read-bytes=0，按策略停�
 UFS stop=1、db=tdb=0、run=0、poisoned=0；SMMU GFSR=0/FSR=0x400，完整
 路由恢复未证明。PARK；ICE、KeyMint、密钥加载和解密未测试。照片与 assessment
 位于 out/m3-scm-info-v1/attempt-02/ 和 Windows 对应交接目录。
+
+### 2026-10-27：M3 ICE SCM 可用性查询候选（待上机）
+
+基于 INFO 自查询实机成功，新候选只用 INFO 查询 ICE set/clear/derive
+三个 service ID 的可用性；先自查询，异常停止，不执行这些服务或密钥操作。
+候选 out/m3-scm-ice-avail-v1，镜像 SHA256
+06911cdf369d5f87fd167a234b66800ac31d241db6e5f80677bf81dfb6c79361。
+12 项主机检查通过；UFS EFI 一条 SMC 指令、最多调用四次，对照模块零条。
+同步 SMC 无硬超时，可能停在 begin、需要手动重启；硬件结果 pending，
+可用性不证明权限、密钥加载或解密。上机只允许一次 fastboot boot。
