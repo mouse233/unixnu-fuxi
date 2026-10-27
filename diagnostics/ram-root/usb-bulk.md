@@ -3489,3 +3489,10 @@ TWRP qcom-scm.ko 设备静态封装对照 service 0c、command 1c/1d/1e。
 保留 UFS 能力探针与 M2。白名单 ASan/UBSan 和 12 项资格检查通过，
 交付 EFI 一条 SMC；镜像 SHA256 c19c942743a6ac49f60fbd3aed35feb0ca72f95ec26acb2f691d1948aa869311。
 硬件 pending，SMC 无硬超时；available 不证明桥建立及访问权限。
+
+### 2026-10-27：M3 桥接查询及 UFS 能力选择候选 v2（待上机）
+
+增加依据实测能力选择 AES-256-XTS/4096 条目，实测向量主机模型选择 index 3；
+固定哈希 UFS/SCM/HWKM 模块静态审计与篡改拒绝通过。候选 INFO 查询
+共享内存桥 1c/1e/1d，可用性不证明权限；不装钥、不解密。12 项交付检查
+通过；镜像 SHA256 52a79ea3af33f926b7cf4125c72d3696d2fc275a565079361ef9e5219e4b4586，硬件 pending。
