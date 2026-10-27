@@ -3435,3 +3435,13 @@ UEFI 有界读取 CCAP/最多四项 CRYPTOCAP；不读取配置区、不执行 S
 交付 EFI 零条 SMC。候选 uefi-twrp-data/out/m3-crypto-cap-v1，镜像 SHA256
 4e183affa8537ec24fa376bcd14d5e12c8320a2f64fada3aff5825ffd890a9f1。保持 M2 和 USB 前 PARK；
 硬件 pending，不能推断槽位可用、QTEE 权限或解密。
+
+### 2026-10-27：M3 UFS crypto capability attempt-01 — 待照片
+
+互斥、fcde91e/fuxi/unlocked、usb-ram profile、镜像 SHA
+4e183affa8537ec24fa376bcd14d5e12c8320a2f64fada3aff5825ffd890a9f1
+和提交 36377ba5 的 51 个源码文件绑定检查通过；只执行一次 fastboot boot，
+Sending 和 Booting 均 OKAY、退出 0。待照片确认 capability、UFS 停队列；
+未确认 checkpoint clean。原始记录位于
+uefi-twrp-data/out/m3-crypto-cap-v1/attempt-01 与
+D:/Projects/UniXNU/migration/20261027-m3-crypto-cap-v1/attempt-01。
