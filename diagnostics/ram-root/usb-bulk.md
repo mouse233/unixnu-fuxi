@@ -3427,3 +3427,11 @@ uefi-twrp-data/docs/fuxi-m3-smcinvoke-layout-20261027.md 与 out/m3-smcinvoke-la
 0xffff/4096 和 legacy flush、invalidate 调用。5 项主机测试常规及 -O 通过；
 无 SMC/手机/密钥操作，不实现回调、内存桥或真实安全释放，不能视为 M3 完成。
 详见 uefi-twrp-data/docs/fuxi-m3-smcinvoke-response-20261027.md。
+
+### 2026-10-27：M3 UFS crypto capability 只读候选（待上机）
+
+UEFI 有界读取 CCAP/最多四项 CRYPTOCAP；不读取配置区、不执行 SMC 或
+密钥操作。门禁及读范围模型经 ASan/UBSan 检查，12 项资格检查退出 0，
+交付 EFI 零条 SMC。候选 uefi-twrp-data/out/m3-crypto-cap-v1，镜像 SHA256
+4e183affa8537ec24fa376bcd14d5e12c8320a2f64fada3aff5825ffd890a9f1。保持 M2 和 USB 前 PARK；
+硬件 pending，不能推断槽位可用、QTEE 权限或解密。
