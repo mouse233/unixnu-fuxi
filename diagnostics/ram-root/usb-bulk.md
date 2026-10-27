@@ -3201,3 +3201,12 @@ SMMU configured=1/GFSR=0/FSR=0x400，未宣称完整路由恢复。
 下一步可正常启动Android并使用系统菜单关机，再从关机状态进入fastboot复测；
 正常运行可能更新文件与metadata，清洁标志和文件基准均须重新判断。
 原图/assessment/报告见 out/m2-noninline-file-v1/attempt-01/，Windows交付同名目录。
+
+### 2026-10-27：M2 non-inline attempt-02 临时启动
+
+用户报告从Android正常关机后进入fastboot。2026-10-27 10:27:41 +08:00，
+设备互斥空闲、fcde91e/product=fuxi/unlocked=yes及profile/镜像SHA核验后，
+仅执行一次fastboot boot；Sending OKAY 0.058秒、Booting OKAY 1.740秒，退出0。
+镜像 SHA256 6b7e00d7738d7372f6489fb1e39165b56db9034f1e63ad74a0598700d503432d，
+绑定源码0586ebe8af5a0ee6fe26ea3271f94ab6cfac5201。等待CP flags、文件读取与
+停队列照片；不把主机OKAY当作实机通过。原始记录见独立 attempt-02/device-test.json。
