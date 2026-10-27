@@ -3287,3 +3287,14 @@ read-bytes=0：因缺少 clean-unmount 位而遵循现有只读策略停止。UF
 db=0、tdb=0、run=0、poisoned=0；SMMU GFSR=0/FSR=0x400，完整路由恢复
 未证明。最终 PARK，未执行 SMC、KeyMint、ICE 或解密。实机照片及 assessment
 位于 out/m3-protocol-discovery-v1/attempt-01/，Windows 对应同名交接目录。
+
+### 2026-10-27：M3 SMC64 INFO 自查询候选（待上机）
+
+在 DXE 协议未发现后，新增独立默认关闭的 SMC64 INFO 自查询探针；一次调用
+x0=c2000601、x1=1、x2=02000601，既不执行 key 操作也不查询 ICE 功能。
+UFS 候选 out/m3-scm-info-v1，镜像 SHA256
+d23874d80d1ce8c1a60b69568a7b1252b4053e7e5af9c0a21846fd0979a544dd。
+12 项交付检查通过，镜像 UFS EFI 1 条 SMC、两份对照 UFS EFI 0 条；
+硬件 pending。同步 SMC 无软件硬超时，禁用 watchdog 的驻留候选可能停在
+begin；上机需用户在场，拍 begin/return，可能需要手动重启。查询成功不证明
+ICE/KeyMint/密钥/解密可用，不得把不返回推断成 unsupported。
