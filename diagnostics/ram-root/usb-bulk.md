@@ -3210,3 +3210,18 @@ SMMU configured=1/GFSR=0/FSR=0x400，未宣称完整路由恢复。
 镜像 SHA256 6b7e00d7738d7372f6489fb1e39165b56db9034f1e63ad74a0598700d503432d，
 绑定源码0586ebe8af5a0ee6fe26ea3271f94ab6cfac5201。等待CP flags、文件读取与
 停队列照片；不把主机OKAY当作实机通过。原始记录见独立 attempt-02/device-test.json。
+
+### 2026-10-27：M2 non-inline attempt-02 文件对照通过
+
+IMG_7091 原图 SHA256 25cad71e505cf6b408fbec3b0a8e70a1b555d342fede260e571f1d4835e221bb。
+原生UFS NOP/query/wake/TUR/capacity/GPT成功，metadata/userdata独立缓冲读取各3/3。
+FUXIM2 prepare=Success，selected-pack=2、cp-flags=0x45、cp-version=0x5788ea84、
+journal=0；root-open/root-list成功，13项含点项。
+lookup=/aconfig/maps/system.package.map 成功，nid=12、bytes=10527、inline=0；
+file-read=Success bytes=10527，SHA256 14f3d8675423917e383a71c936f4d9a81a29480f34ae3c550e0f4c34e53a0991，
+与先前TWRP的文件大小及完整SHA一致。两次之间经历Android启动/关机，不能宣称
+全卷状态一致；该文件的非inline完整读取与独立文件对照成立。
+UFS stop=1/db=0/tdb=0/run=0/HCS=0x10f/IS=0、poisoned=0，最终pre-USB park；
+SMMU configured=1/GFSR=0/FSR=0x400，未证明完整路由恢复。journal=0，非空
+NAT journal无实机覆盖；Android解密、RAM对象、XNU交接仍未实现或验证。
+原图/assessment/报告见 out/m2-noninline-file-v1/attempt-02/，Windows交付同名目录。
