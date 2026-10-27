@@ -3175,3 +3175,14 @@ FD包含关系、源码绑定49项、模块绑定各19项通过。主机通过�
 Windows交付入口 D:/Projects/UniXNU/migration/20261027-m2-noninline-file-v1/。
 下一次仅在核对互斥与fcde91e fastboot后单次临时boot，拍下文件size/hash与
 UFS停队列/park；非inline、非空journal与解密尚无实机结论。
+
+### 2026-10-27：M2 non-inline file v1 attempt-01 已临时启动
+
+2026-10-27 10:20:29 +08:00，互斥检查无并发设备任务，fcde91e/product=fuxi/
+unlocked=yes、usb-ram profile、镜像SHA与12项检查核验后，只执行一次
+fastboot boot；Sending OKAY 0.059秒、Booting OKAY 1.644秒、退出0。
+镜像 SHA256 6b7e00d7738d7372f6489fb1e39165b56db9034f1e63ad74a0598700d503432d，
+绑定源码0586ebe8af5a0ee6fe26ea3271f94ab6cfac5201。
+当前等待手机照片；不把主机启动OKAY当作非inline读取、UFS停止或M2通过。
+原始记录位于 out/m2-noninline-file-v1/attempt-01/device-test.json，Windows交付
+目录为 D:/Projects/UniXNU/migration/20261027-m2-noninline-file-v1/attempt-01/。
