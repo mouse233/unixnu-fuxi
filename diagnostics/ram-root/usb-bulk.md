@@ -3546,3 +3546,21 @@ create 的 arg1=phys|6、arg3 VMID、条件 0x1a 均为静态推断；同步 SMC
 fastboot boot，Sending、Booting 均 OKAY，退出 0。待照片确认 metadata key
 目录读取结果。原始记录位于 uefi-twrp-data/out/m3-metadata-key-v1/attempt-01
 与 D:/Projects/UniXNU/migration/20261027-m3-metadata-key-v1/attempt-01。
+
+### 2026-10-27：M3 metadata key attempt-01 照片
+
+照片 SHA256 2632f8dfcc83eafe9a94cab441445b89384df516f51e0e1f07893c4c766314b6。`prepare=Success pack=2 feature=00000499`。
+`/vold` 2 项；`/vold/metadata_encryption` 1 项 `key`（nid 68，目录）；
+`key` 目录 4 项：
+
+- `version` nid 69，1 字节 inline，SHA256 `6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b`（内容 `1`）
+- `secdiscardable` nid 70，16384 字节，超过 8192 上限，按策略只报大小
+- `keymaster_key_blob` nid 71，208 字节 inline，SHA256 `9a57f01af0b8c9836cdf04f9abc2f83ad21baf94527b2c80b18b06f04ab2321e`
+- `encrypted_key` nid 72，276 字节 inline，SHA256 `262a72de710d1f0f6b9b902dba7e16096759ace3a27cb2c38e3a0c6860b4684c`
+
+`hashed=3 result=Success`。UFS `stop=1 db=tdb=run=0 poisoned=0 smmu-configured=1`；
+SMMU `GFSR=0 FSR=400 FAR=1BBBE7FD98DF`；PARK，无密钥使用、无 SMC、无解密。
+交付候选的目录名打印有缺陷：列表复用缓冲区未补 `\0`，把上一条名字的尾部粘在
+`key` 后（显示为 `keydata_encryption`）；`.../key` 查找本身返回 Success mode=4000，
+且 nid/类型/后续 4 项均一致，故条目名按 `key` 记录。源码已补终止符，镜像未重建。
+镜像 04467d7df7a820f885c0abd2c61288ab379d3bb525131a8891c8da3c8a975f67（提交 0a45414530d03676a53915ecd613ae6cd306dd54 的 52 个源码文件绑定）。
