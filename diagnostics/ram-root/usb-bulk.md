@@ -3186,3 +3186,18 @@ fastboot boot；Sending OKAY 0.059秒、Booting OKAY 1.644秒、退出0。
 当前等待手机照片；不把主机启动OKAY当作非inline读取、UFS停止或M2通过。
 原始记录位于 out/m2-noninline-file-v1/attempt-01/device-test.json，Windows交付
 目录为 D:/Projects/UniXNU/migration/20261027-m2-noninline-file-v1/attempt-01/。
+
+### 2026-10-27：M2 non-inline attempt-01 checkpoint 不满足 clean policy
+
+IMG_7090 原图 SHA256 f6c1010e630aea66d14817fd5654dc613bc7b84c875a9f8cdf9b247d03b127ed。
+UFS NOP/query/wake/TUR/capacity/GPT成功，metadata与userdata独立读取各3/3，
+两者首块SHA与此前A17 TWRP一致。metadata feature=0x499。
+FUXIM2 prepare=Unsupported，selected-pack=2、cp-flags=0x44、read-bytes=0。
+源码 F2rPrepare 要求 CP_UMOUNT_FLAG=0x01；0x44没有该位，所以在目录/文件
+查找前按策略拒绝。无目标文件读取/hash，不能认定非inline读取通过；不把缺位
+本身归因为文件系统损坏或确定TWRP操作是根因，也不回退旧CP或绕开保护。
+UFS stop=1/db=0/tdb=0/run=0/HCS=0x10f/IS=0、poisoned=0，最终pre-USB park；
+SMMU configured=1/GFSR=0/FSR=0x400，未宣称完整路由恢复。
+下一步可正常启动Android并使用系统菜单关机，再从关机状态进入fastboot复测；
+正常运行可能更新文件与metadata，清洁标志和文件基准均须重新判断。
+原图/assessment/报告见 out/m2-noninline-file-v1/attempt-01/，Windows交付同名目录。
