@@ -3505,3 +3505,16 @@ TWRP qcom-scm.ko 设备静态封装对照 service 0c、command 1c/1d/1e。
 Sending、Booting 均 OKAY，退出 0。待照片确认 INFO 查询、能力选择与 UFS 停机。
 原始记录位于 uefi-twrp-data/out/m3-bridge-avail-v2/attempt-01 和
 D:/Projects/UniXNU/migration/20261027-m3-bridge-avail-v2/attempt-01。
+
+### 2026-10-27：M3 bridge availability v2 attempt-01 照片
+
+照片 SHA256 37ac257dff2a583bd4b0e3a07f216db31c7a7327dcf54be5bef53921c04862be。INFO 自查询和 02000c1c/1e/1d 均为
+a0=0 a1=1 decode=Success available=1；只证明 INFO 报告可用，未建立桥、
+不证明共享内存权限、QTEE 会话或解密。crypto-cap status=Success
+CCAP=80003f06 advertised=6 read=6：0001FF00/0001FF01/0001FF02/
+0003FF00/0003FF01/0003FF02；crypto-xts4096 select=Success index=3。
+M2 pack=2 cp-flags=00000145 feature=00000499 cp-version=5788EAAC，文件
+10527 字节 SHA256 14f3d8675423917e383a71c936f4d9a81a29480f34ae3c550e0f4c34e53a0991。
+UFS stop=1 db=tdb=run=0 poisoned=0 smmu-configured=1；SMMU GFSR=0
+FSR=400 FAR=1BBBE7FD98DF，完整路由恢复未证明；PARK，无密钥装载、
+桥操作或解密。镜像 52a79ea3af33f926b7cf4125c72d3696d2fc275a565079361ef9e5219e4b4586（提交 9c03b55140d9b7808ef77a1a9872067b41674ad4 的 51 个源码文件绑定）。
