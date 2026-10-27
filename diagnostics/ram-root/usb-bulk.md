@@ -3372,3 +3372,13 @@ uefi-twrp-data/docs/fuxi-m3-qsee-static-20261027.md 和 out/m3-qsee-static-v1/�
 含 QSEE proxy 注册、client environment、app loader、invoke/callback 和共享
 内存路径；关键符号与 TWRP smcinvoke 模块相符。七个固定源码文件哈希已保存；
 仍未证明与本机模块同一次构建或 ABI 完全一致，未发起 TA/SMC 或访问密钥。
+
+### 2026-10-27：M3 smcinvoke SCM 可用性候选（待上机）
+
+公开 SM8550 源码与本机 SCM 模块静态对照显示 owner 0x32/service 0x06 的
+legacy、callback、object invoke 编号 0/1/2；尚未证明源码和模块构建完全一致。
+独立候选通过 INFO 查询 32000600/01/02 是否可用，不执行这些调用或 TA/密钥
+操作；异常停止后续，最多四次同步 SMC。候选 out/m3-smcinvoke-avail-v1，
+镜像 SHA256 bbe2159579a5a3d2a1bcd3908860b97ce2ae8f3cae9bb801892cd3f9f3916943。
+12 项交付检查、两份对照模块和查询白名单 ASan/UBSan 检查通过。硬件 pending；
+SMC 无硬超时，可停在 begin，需用户在场且可能手动重启。
