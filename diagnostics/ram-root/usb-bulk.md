@@ -3336,3 +3336,23 @@ UFS stop=1、db=tdb=0、run=0、poisoned=0；SMMU GFSR=0/FSR=0x400，完整
 12 项主机检查通过；UFS EFI 一条 SMC 指令、最多调用四次，对照模块零条。
 同步 SMC 无硬超时，可能停在 begin、需要手动重启；硬件结果 pending，
 可用性不证明权限、密钥加载或解密。上机只允许一次 fastboot boot。
+
+### 2026-10-27：M3 ICE 可用性 attempt-01 — 待照片
+
+互斥、fcde91e/fuxi/unlocked、usb-ram profile、镜像 SHA
+06911cdf369d5f87fd167a234b66800ac31d241db6e5f80677bf81dfb6c79361
+及 51 个源码文件和提交 bec3bce1 绑定后仅一次 fastboot boot；Sending、
+Booting 均 OKAY，退出 0。等待照片确认 INFO/subject 返回及 UFS 状态。
+原始记录位于 uefi-twrp-data/out/m3-scm-ice-avail-v1/attempt-01/ 和
+D:/Projects/UniXNU/migration/20261027-m3-scm-ice-avail-v1/attempt-01/。
+
+### 2026-10-27：M3 ICE SCM 可用性 attempt-01 照片
+
+IMG_7134 SHA256 a67a3c6d7d12bc8419c466f8e6f9790376748c8f7962b5591c869b1ea7f2ffe0。
+INFO 自查询及 02001005/02001006/02001007 均 a0=0 a1=1 decode=Success
+available=1；仅证明 INFO 报告可用，不证明服务执行、权限、key 或解密。
+UFS 命令/GPT 和两分区独立读取各 3/3；metadata pack=1 flags=0x45、
+cp-version=0x5788ea97、journal=0；M2 文件 10527 字节 SHA256
+14f3d8675423917e383a71c936f4d9a81a29480f34ae3c550e0f4c34e53a0991
+与既有 TWRP 基准一致。stop=1、db=tdb=0、run=0、poisoned=0；
+SMMU GFSR=0/FSR=0x400，完整路由恢复未证明。PARK，无解密或 XNU handoff。
