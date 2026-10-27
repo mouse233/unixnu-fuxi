@@ -3538,3 +3538,11 @@ create 的 arg1=phys|6、arg3 VMID、条件 0x1a 均为静态推断；同步 SMC
 主机 ASan/UBSan 与 13 项交付检查通过；交付 EFI 1 条 `smc #`，两种对照模块 0；
 镜像 SHA256 e711317c585a20cf66bd97ec119972bacafe4db54a823297b7c1342115f0dd28。
 硬件 pending；闭环成功也不证明 TA 会话、共享内存权限或解密。
+
+### 2026-10-27：M3 metadata key attempt-01 — 待照片
+
+互斥、fcde91e/fuxi/unlocked、usb-ram profile、镜像 SHA
+04467d7df7a820f885c0abd2c61288ab379d3bb525131a8891c8da3c8a975f67 与提交 0a454145 的 52 个源码文件绑定检查通过；只执行一次
+fastboot boot，Sending、Booting 均 OKAY，退出 0。待照片确认 metadata key
+目录读取结果。原始记录位于 uefi-twrp-data/out/m3-metadata-key-v1/attempt-01
+与 D:/Projects/UniXNU/migration/20261027-m3-metadata-key-v1/attempt-01。
