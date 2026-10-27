@@ -3470,3 +3470,14 @@ e71fc149d6088a6e24bc25dadd84e2eb7656e48ed22153237f488ae1f4a32964
 Sending、Booting 均 OKAY，退出 0；待照片确认能力条目和 UFS 停队列。
 原始记录位于 uefi-twrp-data/out/m3-crypto-cap-v2/attempt-01 与
 D:/Projects/UniXNU/migration/20261027-m3-crypto-cap-v2/attempt-01。
+
+### 2026-10-27：M3 UFS crypto capability v2 照片
+
+照片 SHA256 88335d0ef0b66c8e8ffbd8ddb2033d4dcaa195c20809850b389f11286491d044。crypto-cap Success，CCAP=80003F06，6/6 项：
+0001FF00、0001FF01、0001FF02、0003FF00、0003FF01、0003FF02。
+按标准字段解读：第 3 项为 AES-XTS、key-size code 3、SDUS mask FF（含
+4096 字节）；CFGC=3f 对应 64 个报告配置，不证明可用槽位或钥匙。
+M2 pack=2 flags=145 cp-version=5788EAA2，文件 10527 字节 SHA256
+14f3d8675423917e383a71c936f4d9a81a29480f34ae3c550e0f4c34e53a0991；
+UFS stop=1 db=tdb=run=0 poisoned=0；SMMU GFSR=0 FSR=400，完整路由
+恢复未证明。PARK，无密钥装载或解密。
