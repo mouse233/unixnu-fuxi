@@ -3564,3 +3564,13 @@ SMMU `GFSR=0 FSR=400 FAR=1BBBE7FD98DF`；PARK，无密钥使用、无 SMC、无�
 `key` 后（显示为 `keydata_encryption`）；`.../key` 查找本身返回 Success mode=4000，
 且 nid/类型/后续 4 项均一致，故条目名按 `key` 记录。源码已补终止符，镜像未重建。
 镜像 04467d7df7a820f885c0abd2c61288ab379d3bb525131a8891c8da3c8a975f67（提交 0a45414530d03676a53915ecd613ae6cd306dd54 的 52 个源码文件绑定）。
+
+### 2026-10-27：M3 bridge call attempt-01 — 待照片
+
+互斥、fcde91e/fuxi/unlocked、usb-ram profile、镜像 SHA
+e711317c585a20cf66bd97ec119972bacafe4db54a823297b7c1342115f0dd28 与提交 0a454145 的 52 个源码文件绑定检查通过；只执行一次
+fastboot boot，Sending、Booting 均 OKAY，退出 0。待照片确认桥
+enable/create/delete 的返回码与句柄。同步 SMC 无硬超时：任何一步停在
+begin 行都表示该次调用未返回，需保留画面后手动重启。
+原始记录位于 uefi-twrp-data/out/m3-bridge-call-v1/attempt-01 与
+D:/Projects/UniXNU/migration/20261027-m3-bridge-call-v1/attempt-01。
