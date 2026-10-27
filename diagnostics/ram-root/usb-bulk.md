@@ -3356,3 +3356,19 @@ cp-version=0x5788ea97、journal=0；M2 文件 10527 字节 SHA256
 14f3d8675423917e383a71c936f4d9a81a29480f34ae3c550e0f4c34e53a0991
 与既有 TWRP 基准一致。stop=1、db=tdb=0、run=0、poisoned=0；
 SMMU GFSR=0/FSR=0x400，完整路由恢复未证明。PARK，无解密或 XNU handoff。
+
+### 2026-10-27：M3 QSEE smcinvoke 主机静态审计
+
+A17 ramdisk 的 smcinvoke_dlkm 注册 qseecom_proxy 的函数表并依赖 SCM 和
+qtee_shmbridge；libqtikeymint 导入的传输函数由 libkeymasterdeviceutils
+导出，后者导入 QSEECom。七个文件哈希、符号种类和注册调用的可复现审计
+通过，修改模块的拒绝测试通过。只读静态结果，未执行设备代码/安全调用、
+未读取密钥；匹配本机的 QSEE ABI 和 UEFI 访问权限仍未证明。见
+uefi-twrp-data/docs/fuxi-m3-qsee-static-20261027.md 和 out/m3-qsee-static-v1/。
+
+### 2026-10-27：M3 SM8550 smcinvoke 候选源码对照
+
+固定 LineageOS SM8550 模块源码 9e8972287159837a256d0afcddc3f636f67ce8dd，
+含 QSEE proxy 注册、client environment、app loader、invoke/callback 和共享
+内存路径；关键符号与 TWRP smcinvoke 模块相符。七个固定源码文件哈希已保存；
+仍未证明与本机模块同一次构建或 ABI 完全一致，未发起 TA/SMC 或访问密钥。
