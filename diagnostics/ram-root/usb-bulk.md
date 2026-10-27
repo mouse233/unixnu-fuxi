@@ -3574,3 +3574,21 @@ enable/create/delete 的返回码与句柄。同步 SMC 无硬超时：任何一
 begin 行都表示该次调用未返回，需保留画面后手动重启。
 原始记录位于 uefi-twrp-data/out/m3-bridge-call-v1/attempt-01 与
 D:/Projects/UniXNU/migration/20261027-m3-bridge-call-v1/attempt-01。
+
+### 2026-10-27：M3 bridge call attempt-01 照片
+
+照片 SHA256 d4767b2bc5aebb297865a80e25d56970f5f464eac3f7b5b87ccccb82aaea956c。页 `phys=C6A41000 bytes=1000`。
+
+- `enable` x0=`C2000C1C` x1=0 → a0..a3 全 0
+- `create` x0=`C2000C1E` arg0=`C6A41000` arg1=`C6A41006` arg2=`1000` arg3=0
+  → a0=0、a1=`5C`（句柄）、a2=a3=0
+- `delete` handle=`5C` → a0=0、a1=`59`、a2=a3=0
+- `FUXIM3 BRIDGE result=Success handle=5C`
+
+即：设备接受 UEFI 引导服务页作为桥内存，三步 INFO 之外的共享内存桥操作均返回
+成功。这是桥注册闭环，不是 TA 会话：句柄 `5C` 只表示 QTEE 登记了这页，未做任何
+数据传输，也未证明 TA 可访问该内存或存在 KeyMint 会话。delete 的 a1=`59` 含义未知。
+
+UFS `stop=1 db=tdb=run=0 poisoned=0 smmu-configured=1`；SMMU `GFSR=0 FSR=400
+FAR=1BBBE7FD98DF`；M2 仍 `file-sha256=14f3d867…0991`；PARK，无密钥、无 TA、无解密。
+镜像 e711317c585a20cf66bd97ec119972bacafe4db54a823297b7c1342115f0dd28（提交 0a45414530d03676a53915ecd613ae6cd306dd54 的 52 个源码文件绑定）。
