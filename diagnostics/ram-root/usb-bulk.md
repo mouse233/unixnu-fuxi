@@ -3391,3 +3391,14 @@ bbe2159579a5a3d2a1bcd3908860b97ce2ae8f3cae9bb801892cd3f9f3916943
 Booting 均 OKAY，退出 0。等待照片确认 INFO/subject 返回及 UFS 状态。
 记录位于 uefi-twrp-data/out/m3-smcinvoke-avail-v1/attempt-01/ 和
 D:/Projects/UniXNU/migration/20261027-m3-smcinvoke-avail-v1/attempt-01/。
+
+### 2026-10-27：M3 smcinvoke 可用性 attempt-01 照片
+
+IMG_7135 SHA256 0e64f2a6519501e1398b69fbcbac69607b33d684f98f3da6d710e179f068093d。
+INFO 自查询及 32000600/32000601/32000602 均 a0=0 a1=1 decode=Success
+available=1；仅证明 INFO 报告可用，不证明 invoke、共享内存、权限或解密。
+UFS 命令/GPT 和两分区独立读取各 3/3；metadata pack=1 flags=0x45、
+cp-version=0x5788ea97、journal=0；M2 文件 10527 字节 SHA256
+14f3d8675423917e383a71c936f4d9a81a29480f34ae3c550e0f4c34e53a0991
+与既有 TWRP 基准一致。stop=1、db=tdb=0、run=0、poisoned=0；
+SMMU GFSR=0/FSR=0x400，完整路由恢复未证明。PARK，无解密或 XNU handoff。
