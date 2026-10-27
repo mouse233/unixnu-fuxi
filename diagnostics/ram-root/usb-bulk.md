@@ -3402,3 +3402,12 @@ cp-version=0x5788ea97、journal=0；M2 文件 10527 字节 SHA256
 14f3d8675423917e383a71c936f4d9a81a29480f34ae3c550e0f4c34e53a0991
 与既有 TWRP 基准一致。stop=1、db=tdb=0、run=0、poisoned=0；
 SMMU GFSR=0/FSR=0x400，完整路由恢复未证明。PARK，无解密或 XNU handoff。
+
+### 2026-10-27：M3 smcinvoke 对象布局主机原型
+
+基于固定 SM8550 候选源码，构造仅合成内存的 root register 和 app loader open
+请求；设备模块反汇编局部核对 root=1、register op=5/counts=0x1100、
+loader open op=0/counts=0x1001/UID=122 及 12 字节头和 8 字节 descriptor。
+主机四项矢量/无效句柄测试常规及优化模式通过；未执行 SMC、访问手机或
+读取密钥。响应/回调、共享内存和完整硬件 ABI/权限仍未验证。见
+uefi-twrp-data/docs/fuxi-m3-smcinvoke-layout-20261027.md 与 out/m3-smcinvoke-layout-v1/。
