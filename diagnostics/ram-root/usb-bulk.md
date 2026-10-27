@@ -3256,3 +3256,14 @@ ASan/UBSan主机测试和设备自检通过。实测几何首末块/DUN主机规
 UEFI安全服务、密钥操作、ICE、明文对照均未验证，无新的固件boot/分区写入。
 报告及JSON位于 out/m3-dm-evidence-v1/，Windows入口
 D:/Projects/UniXNU/migration/20261027-m3-dm-plan/。
+
+### 2026-10-27：M3 DXE 安全协议发现候选（待上机）
+
+UEFI 实验分支在 M2 原生 UFS DXE 入口增加 SCM/QSEE LocateProtocol，只输出
+EFI 状态及接口是否非空，不调用任何安全服务，不直接 SMC、不解密。M0 旧探针
+未纳入此前 M2 镜像，因此这次使用实际 DXE 路径；NOT_FOUND 只适用于该时点。
+候选 out/m3-protocol-discovery-v1，SHA256
+6cb8015b5d52ecbc47dd2b2d9138b991ad5078d61554bf978803fb2b4bebb948。
+12 项主机检查、两种模块构建和专用镜像 GUID/日志绑定检查通过；反汇编 UFS
+模块 SMC=0，硬件结果 pending。实机仅 fastboot boot，照片采集 DXE 协议状态、
+M1/M2 及停队列；非 clean checkpoint 不跳过保护。M3 解密与 TEE 可用性未证明。
