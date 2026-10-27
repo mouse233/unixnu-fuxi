@@ -3411,3 +3411,11 @@ loader open op=0/counts=0x1001/UID=122 及 12 字节头和 8 字节 descriptor�
 主机四项矢量/无效句柄测试常规及优化模式通过；未执行 SMC、访问手机或
 读取密钥。响应/回调、共享内存和完整硬件 ABI/权限仍未验证。见
 uefi-twrp-data/docs/fuxi-m3-smcinvoke-layout-20261027.md 与 out/m3-smcinvoke-layout-v1/。
+
+### 2026-10-27：M3 UFS 加密请求头主机草案
+
+仅生成合成 UTRD 读取头，基于通用 Android UFS 格式及现有 FnuFillUtrd；
+端序、范围和错误输入的 4 项测试在常规与 -O 下通过。无设备 I/O、
+无密钥、未接入固件。本机 crypto capability、slot、DUN、ICE/HWKM、
+厂商 PRDT 与错误清理尚未验证，不能据此提交硬件请求或声称解密。
+详见 uefi-twrp-data/docs/fuxi-m3-ufs-crypto-layout-20261027.md。
