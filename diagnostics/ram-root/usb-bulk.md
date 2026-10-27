@@ -3445,3 +3445,19 @@ Sending 和 Booting 均 OKAY、退出 0。待照片确认 capability、UFS 停�
 未确认 checkpoint clean。原始记录位于
 uefi-twrp-data/out/m3-crypto-cap-v1/attempt-01 与
 D:/Projects/UniXNU/migration/20261027-m3-crypto-cap-v1/attempt-01。
+
+### 2026-10-27：M3 crypto capability attempt-01 照片
+
+IMG_7137 SHA256 81ccee211dc2d8f1f93f566f37893c59b000f5cf23c220bca6a1e873b2cb0f6e。CCAP=80003F06 advertised=6 read=0，
+Compromised Data 是探针自身错误拒绝配置基址 0x8000 超出映射窗口，不是
+控制器返回错误；未读配置区。M2 pack=2 flags=0x145 文件 10527 字节、
+SHA256 14f3d8675423917e383a71c936f4d9a81a29480f34ae3c550e0f4c34e53a0991；
+UFS stop=1 db=tdb=run=0 poisoned=0；SMMU GFSR=0 FSR=0x400，完整路由
+恢复未证明。PARK，无解密。后续修正边界并重新验证。
+
+### 2026-10-27：M3 UFS crypto capability v2（待上机）
+
+修复 v1 将配置区基址 0x8000 位于 UFS 窗口外误判为数据损坏；仍拒绝能力
+区与配置区重叠，最多读取八项，不读配置、不调用 SMC。真实 CCAP 回归和
+12 项交付检查通过；候选 SHA256 e71fc149d6088a6e24bc25dadd84e2eb7656e48ed22153237f488ae1f4a32964，
+硬件 pending，参考 uefi-twrp-data/out/m3-crypto-cap-v2/REVIEW.md。
