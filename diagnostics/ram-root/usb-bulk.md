@@ -3136,3 +3136,24 @@ FUXIM2 PARK: no USB receiver; no handoff，watchdog-disable成功。
 docs/fuxi-m2-device-20261026.md；Windows同轮migration目录。
 
 实机证据归档提交：`8614cb4cb4bebbc6742fc040e4a868f2b59909cf`（mouse233/uefi-fuxi feat/twrp-data-uefi）；镜像源码仍固定6bcce79e。
+
+### 2026-10-27：A17 TWRP 参考纠正与 M2 独立对照
+
+用户纠正旧 A16 TWRP 不能解密本机 Android 17，上传并进入
+`TWRP-FUXI-A17.img`（104857600字节，SHA256 56f5f36e9aaeb9e79815c702d9e9196c8c0e1b03d363ec4e4c9646cd4af1444c）。
+静态解包逐条比较：新镜像 CPIO 4025项，旧镜像4026项，仅新旧共同条目的
+`prop.default` 不同，旧镜像另有空 `.` 条目；主程序、fstab、KeyMint及
+UFS/ICE/SCM模块未变化。新属性 release17，但SDK32、主程序A15标记仍在；
+不能由属性差异单独断定解密成功原因。
+
+新TWRP ADB确认 fcde91e/fuxi、release17、/dev/block/dm-7在/data以f2fs rw挂载，
+/data/system与/data/media/0目录可见；用户报告解密成功。只读对照：
+metadata version 1字节、SHA256 6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b；
+metadata首块SHA256 e77426cf7e4e7d0c2af46e8c8434a358a6c8f923c7b614ec8a72ec288446e51d，
+均与M2 attempt-01一致。userdata首块SHA256 f7480f0ad4b1080c71b3664b0402dbe9c0e8f11d9b6a539d1777139ecc41fbec，
+与上次UEFI不同；TWRP已rw挂载卷，不据此判断损坏。
+选定下一非inline目标 /metadata/aconfig/maps/system.package.map，10527字节、SHA256
+14f3d8675423917e383a71c936f4d9a81a29480f34ae3c550e0f4c34e53a0991；尚无UEFI读取。
+原M2镜像/源码绑定不变。静态报告及TWRP JSON在
+D:/Projects/UniXNU/migration/20261027-twrp-a17-static/；仓库报告
+docs/fuxi-twrp-a17-static-20261027.md。未flash/写分区/读取密钥内容。
