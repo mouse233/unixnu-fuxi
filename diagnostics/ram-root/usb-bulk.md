@@ -3496,3 +3496,12 @@ TWRP qcom-scm.ko 设备静态封装对照 service 0c、command 1c/1d/1e。
 固定哈希 UFS/SCM/HWKM 模块静态审计与篡改拒绝通过。候选 INFO 查询
 共享内存桥 1c/1e/1d，可用性不证明权限；不装钥、不解密。12 项交付检查
 通过；镜像 SHA256 52a79ea3af33f926b7cf4125c72d3696d2fc275a565079361ef9e5219e4b4586，硬件 pending。
+
+### 2026-10-27：M3 bridge availability v2 attempt-01 — 待照片
+
+互斥、fcde91e/fuxi/unlocked、usb-ram profile、镜像 SHA
+52a79ea3af33f926b7cf4125c72d3696d2fc275a565079361ef9e5219e4b4586
+与提交 9c03b551 的 51 个源码文件绑定检查通过；只执行一次 fastboot boot，
+Sending、Booting 均 OKAY，退出 0。待照片确认 INFO 查询、能力选择与 UFS 停机。
+原始记录位于 uefi-twrp-data/out/m3-bridge-avail-v2/attempt-01 和
+D:/Projects/UniXNU/migration/20261027-m3-bridge-avail-v2/attempt-01。
