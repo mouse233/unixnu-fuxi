@@ -4059,3 +4059,13 @@ LUN4 分阶段成功/七个失败路径以及生产哈希测试通过；56 项�
 7681d106b26714ef296859999d794b728a22dee1c52ecff2cccba16eae0ca04c。
 未上机；大桥是否被接受、TA 是否可加载和 SMMU 完整恢复均未知。详情
 D:/Projects/UniXNU/migration/20261028-m3-lun4-large-bridge-v1/REVIEW.md。
+
+### 2026-10-28：LUN4 大桥 attempt-01 — Booting USB 读取错误（设备阶段未知）
+
+用户确认进入 fastboot；互斥检查通过，fcde91e、fuxi、unlocked=yes、current-slot=a，
+usb-ram profile，15 项资格检查及 56 项源码绑定通过；镜像 SHA256
+7681d106b26714ef296859999d794b728a22dee1c52ecff2cccba16eae0ca04c。
+独立 attempt-01 一次 fastboot boot，Sending OKAY、Booting FAILED：usb_read failed
+（Windows 错误 31），退出 1；无 flash/擦除/slot 更改，不自动重试。设备实际执行阶段未知，
+待屏幕照片，不能宣称大桥或 UFS 测试通过。原始记录位于候选及
+D:/Projects/UniXNU/migration/20261028-m3-lun4-large-bridge-v1/attempt-01/device-test.json。
