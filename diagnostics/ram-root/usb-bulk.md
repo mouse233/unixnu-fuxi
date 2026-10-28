@@ -3794,3 +3794,14 @@ UEFI DXE/工具层默认关闭开关，限定桥诊断，无对象/TA/blob/key/�
 24个双配置生产桥生命周期、固定模块/DTB审计及篡改拒绝、C2 56向量、C1与INFO回归通过；
 15项交付检查退出0。镜像SHA256 5818cd8079bca6f3096b2f061fc4b1351b777b22699774bdddb8563629239c6c，源码提交29d85a3894a48659a0cec4393330d1c89b5c474f的56个交付源码绑定。
 目录uefi-twrp-data/out/m3-bridge-hlos-v1。用户已重新进入fastboot，实机pending，C2仍未通过。
+
+### 2026-10-28：HLOS桥attempt-01临时启动（待照片）
+
+用户确认已进入fastboot后，互斥、fcde91e/fuxi/unlocked、usb-ram profile、15项交付检查、
+HLOS固定模块/DTB审计和24个双配置生命周期向量、提交29d85a3894a48659a0cec4393330d1c89b5c474f的56个源码文件绑定重新核验通过。
+镜像SHA256 5818cd8079bca6f3096b2f061fc4b1351b777b22699774bdddb8563629239c6c。独立attempt-01只执行一次fastboot boot，
+Sending/Booting均OKAY，退出0；无flash/擦除/slot写入。完成UTC：2026-10-28T06:55:52.888196+00:00。
+原始记录保留于uefi-twrp-data/out/m3-bridge-hlos-v1/attempt-01及
+D:/Projects/UniXNU/migration/20261028-m3-bridge-hlos-v1/attempt-01。
+待照片核对profile=hlos、参数phys|6/phys|6/2200/3、enable/create/delete的a0..a3、64位句柄、released/retained、UFS/SMMU及PARK。
+主机启动命令成功不代表桥生命周期成功；C2仍未通过，本次没有执行对象调用。
