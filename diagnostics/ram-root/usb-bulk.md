@@ -3619,3 +3619,21 @@ release 17；configure 的参数序列化是另一路 cmd=0x2116。无 C2 invoke
 及 D:/Projects/UniXNU/migration/20261028-m3-bridge-blob-v1/attempt-01。
 等待照片核对 bridge create、页内 SHA/prefix32、blob result/delete/released、
 UFS stop/db/tdb/run/poisoned、SMMU 和 PARK。当前不宣称 C1 实机通过或 TA/解密成功。
+
+### 2026-10-28：C1 bridge blob attempt-01 照片
+
+照片 SHA256 `b5c268199736a8ce9fc13ae001c5c0dd2c05f785a02d2a6e06f3d90487f31f8e`。C1 实机读取/桥清理闭环通过：
+页 `phys=C6A3C000 bytes=2000`（8 KiB）；enable a0..a3=0；
+create args=`C6A3C000/C6A3C006/2000/0`，a0=0、a1=5C、a2=a3=0。
+`BLOB prepare=Success pack=1 feature=00000499`，文件 `bytes=208 mode=8000 inline=1`。
+页内 SHA256 `9a57f01af0b8c9836cdf04f9abc2f83ad21baf94527b2c80b18b06f04ab2321e`，
+`bytes=208 match=1 read=Success`。32 字节前缀已打印，开头确认为 `851a4b4d4b44`；
+完整前缀保留在原图，避免长零串转录歧义，本条不猜写全部字节或封装语义。
+delete handle=5C → a0=0、a1=59、a2=a3=0；`result=Success delete=Success`、
+`released bytes=2000`。删除前的清零与缓存同步由交付源码顺序保证，照片不独立证明擦除效果。
+UFS `stop=1 db=tdb=run=0 hcs=0000010F is=0 poisoned=0 ready=0`，stage=shutdown，PARK。
+SMMU `GFSR=0 FSR=400` 残留，sid60 matches=1、slot=104、bank=68、SCTLR=0；
+不宣称完整路由恢复。M2 10527 字节 SHA256 14f3d867…0991 仍一致。
+镜像 `20a31268b23ce12417be75593b5fff6116edb0bf4a7d2afac94f846339fdce15`（提交 4c191520 的 54 个源码文件绑定）；14 项主机检查通过。
+未执行 TA、装钥或解密。此结果只证明真实 wrapped blob 可读入注册页并完成桥删除，
+不证明安全世界/TA 已读取此页。用户已重新进入 fastboot，并授权完成核对后进入 C2。
