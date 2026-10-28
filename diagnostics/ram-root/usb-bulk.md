@@ -3700,3 +3700,18 @@ uefi-twrp-data/out/m3-smci-root-object-v2/attempt-01 与
 D:/Projects/UniXNU/migration/20261028-m3-smci-root-object-v2/attempt-01。
 待照片确认 INFO/SMCI bridge-create、register a0..a3/消息头/返回对象、release、
 bridge-delete/released 或 retained、UFS/SMMU/PARK；目前不宣称 root invoke、TA 或解密成功。
+
+### 2026-10-28：C2 object root attempt-01 照片 — 同样失败
+
+照片 SHA256 `52c1fd083a4504eeb939df29abeb88cf913c703066564c21eda1ee73b8d4ffbe`。object 命令 2 的 root register **仍未通过**：
+`mode=object-cmd2`；8 KiB 页 `C697D000`；bridge enable a0=a1=0，create a0=0/handle=5C。
+register `x0=72000602 x1=224 in=C697D000 out=C697E000 handle=1 op=5 counts=1100`
+返回 `a0=FFFFFFFF80000001 a1=a2=a3=0`，可见 hdr=1/5/1100、OI=0/0、OO=0/0、out 前四 word=0。
+`retained bridge=5C object=0`、`result=Not Ready retained=1`；未执行 release/delete/free，
+无自动 fallback/retry，无 TA、密钥或解密。与 v1 命令 0 同样的 raw 返回，故仅换入口未解决。
+UFS `stop=1 db=tdb=run=0 hcs=0000010F poisoned=0 ready=0`；SMMU GFSR=0/FSR=400
+仍残留，不证明完整恢复。照片可见 PARK 与 cached report end，未见 INCOMPLETE 提示；
+128 行报告容量覆盖了本次尾部，不将此推成所有分支都不会溢出。
+镜像 `6d119c131fafaee0d30530c70f471ead075e85aca7589ed66899a7a105b07eeb`，提交 69ba2ae9 的 55 个交付源码文件绑定及 14 项检查有效。
+raw 错误仍未准确归类，不能归因权限/内存/KeyMint；下一步核对共同调用上下文
+（异常级、中断屏蔽、standard SMC 路径）与桥内存契约，保持未完成状态而不宣称 C2 通过。
