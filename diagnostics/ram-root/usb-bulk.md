@@ -3882,3 +3882,22 @@ v3 只放开 out 页前 8 字节（version/op），仍要求 +8..end 全零、�
 +4108/+8191 拒绝向量）、24 个桥向量通过；18 项交付检查退出0；56 个交付源码绑定。
 镜像 SHA256 44660291c87e2ed5d3695998e89ab8baa61ad5ec1e19d8b5fc0bbb835507ca94；hardware=pending，C2/C3 仍未通过。
 下一步一次实机：预期 register 接受句柄2 → open UID122 → 两个 release → delete，仍以 stop= 为准。
+
+### 2026-10-28：root+loader批处理attempt-01 — stop=complete passed=1F
+
+照片IMG_7177..JPG，SHA256 81550901836e2feda8af0c8d215f8a749f1755f6c5aef3a43e0e9e153dd0a0a3。整条组合链一次启动走完。
+
+- 桥：page phys=C6A3D000；enable a0..a3=0；create(HLOS 1VM/VMID3/权限6)参数C6A3D006/C6A3D006/2200/3，
+  返回a0=0、a1=0、a2=5D1AABBE、a3=0；delete用5D1AABBE返回全零。
+- root register：handle=1、op=5、counts=1100，返回a0..a3=0；hdr=1/5/1100、oi=0/0、
+  oo=00000002/00000000、out=00010002/0000FFFD/0/0（nz=4）→ 接受远端对象2。
+- loader open：在对象2上op=0、counts=1001、BI offset=32 size=4 UID=122，返回a0..a3=0；
+  oi=00000020/00000004、oo=0/0 → 返回远端对象3。只按UID打开，未发送TA名、分片或加载请求。
+- 释放：对象3（op=FFFF/counts=0）返回全零；对象2同样返回全零。
+- 结束：BATCH stop=complete passed=1F env=0 loader=0 retained=0；released bytes=2000；
+  result=Success；PARK与cached report end可见。
+- 每次调用out页都回读00010002/0000FFFD、nz=4、counts(+8)=0；按piggyback语义无待处理对象，
+  其含义仍不解释。SMMU GFSR=0、FSR=00000400、far=1BBBE7FFD8DF仍残留，不宣称完整路由恢复。
+- UFS stop=1、db=tdb=run=0、hcs=0000010F、is=0；M2的10527字节与SHA256 14f3d867…0991仍一致。
+- 镜像44660291c87e2ed5d3695998e89ab8baa61ad5ec1e19d8b5fc0bbb835507ca94与提交863010bd755edfa15b1309e30f9f50c885119ca8的56个源码绑定、18项检查、82/148/24向量仍有效。
+  本次只证明该通路上桥、对象注册/打开/释放与桥清理闭环；未加载TA、未使用密钥、未转换、未写ICE、未解密。
