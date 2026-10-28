@@ -3988,3 +3988,20 @@ fe18a467cbbd9457cc8e2e4a05822ff056238342881cfc558a045aea6d467eac；
 a 与此前保存副本一致，b 不同且未提取，原因未知。后续启动时仍需核实槽位。
 未写分区、未重启、未调用 UEFI/SMC、未加载 TA/解密；未证明 UEFI 跨 LUN 成功或 load 输入正确。
 原始输出和详情：D:/Projects/UniXNU/migration/20261028-m3-adb-lun-slot/。
+
+### 2026-10-28：LUN4 keymaster 只读候选 v2（未上机）
+
+独立 UEFI DXE 候选 m3-lun4-keymaster-v2：先核验 LUN0 的 M2 文件长度和 SHA256，
+失败跳过 LUN4；LUN4 TUR/capacity、GPT CRC 和分区边界校验后，分别分块哈希
+keymaster_a/b 并对照本机 Android 全分区哈希。slot=unknown；不自动选槽、不加载 TA、
+不读密钥、不写分区。一次读取上限 16 块，每个分区 128 块。异常停止后续读取，
+保留现有 UFS quarantine 和停队列保护。硬件和 SMMU 完整恢复仍未验证。
+GUI 监视器构建完成 exit=0；v2 镜像 SHA256
+22586f4458b1e8e65527e2139b3ec5e9d1aa472d152994206240c703f2ac8e93；
+12 项资格检查退出0；88 个 GPT 等 fixture、UFS 核心及生产哈希路径测试通过；
+56 项交付源码与 UEFI 提交 cbde65ffe97601431b9d0a99d90ec8153a36d60a 绑定一致。
+GUI 修复状态文件读取/原子替换竞争，实时显示固件模块、调整 finalize 独立进度并保留旧 run；
+GUI 自检、真实构建以及独立成功/失败状态测试通过。v1 因默认关闭配置辅助模块链接失败未交付。
+标准单次启动入口已适配 parked 诊断、Windows fastboot 和源码/资格绑定；模拟成功、篡改拒绝、
+重复启动拒绝均通过。脚本原有未提交修改保留；真实设备待 fastboot 后验证。
+详情 D:/Projects/UniXNU/migration/20261028-m3-lun4-keymaster-v2/REVIEW.md。
