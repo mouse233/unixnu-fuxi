@@ -3592,3 +3592,18 @@ D:/Projects/UniXNU/migration/20261027-m3-bridge-call-v1/attempt-01。
 UFS `stop=1 db=tdb=run=0 poisoned=0 smmu-configured=1`；SMMU `GFSR=0 FSR=400
 FAR=1BBBE7FD98DF`；M2 仍 `file-sha256=14f3d867…0991`；PARK，无密钥、无 TA、无解密。
 镜像 e711317c585a20cf66bd97ec119972bacafe4db54a823297b7c1342115f0dd28（提交 0a45414530d03676a53915ecd613ae6cd306dd54 的 52 个源码文件绑定）。
+
+### 2026-10-28：M3 C1 bridge blob 候选（待实机）
+
+恢复 2026-10-27 会话后新增 UEFI DXE C1：8 KiB 桥 create 成功后，用只读 F2FS
+读取 version=1 和 208 字节 keymaster_key_blob，绑定昨日 SHA256 9a57f01a…2321e；
+缓存同步后页内哈希一致才打印前 32 字节，擦净后 delete。create 未知完成或 delete
+失败保留页，不重试 SMC；无 TA、装钥或解密。ASan/UBSan 覆盖 inline/块文件及
+分配/读取/哈希/缓存/桥调用错误路径，14 项交付检查退出 0。镜像 SHA256
+20a31268b23ce12417be75593b5fff6116edb0bf4a7d2afac94f846339fdce15；UEFI 提交 4c1915205660ad340334d8466210799275737fae 的 54 个源码文件绑定通过。
+候选位于 uefi-twrp-data/out/m3-bridge-blob-v1；本机实测尚待照片。
+
+同时完成 C2 KeyMint 固定输入静态映射：convert cmd=0x311d，QCBOR label=23，
+优先 keymaster64、回退 keymaster，用户态 QSEECom buffer=0xa000。
+更正：keymint_set_version 发送 cmd=0x3121 的固定整数 200，不能当作 Android
+release 17；configure 的参数序列化是另一路 cmd=0x2116。无 C2 invoke 实机结果。
