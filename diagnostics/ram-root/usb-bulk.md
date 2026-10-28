@@ -3660,3 +3660,20 @@ uefi-twrp-data/out/m3-smci-root-v1/attempt-01 与
 D:/Projects/UniXNU/migration/20261028-m3-smci-root-v1/attempt-01。
 待照片确认 INFO/SMCI bridge-create、register a0..a3/消息头/返回对象、release、
 bridge-delete/released 或 retained、UFS/SMMU/PARK；目前不宣称 root invoke、TA 或解密成功。
+
+### 2026-10-28：C2 root register attempt-01 照片 — 失败
+
+照片 SHA256 `e67f0676e695c34315f36457bcb2f2af4fbff9d7a34dc47a10331322b0e6bdfe`。C2 root register **未通过**：
+8 KiB 页 `phys=C697D000`，bridge enable a0=a1=0，create a0=0/a1=5C。
+register `x0=72000600 x1=224 in=C697D000 out=C697E000 handle=1 op=5 counts=1100`
+返回 `a0=FFFFFFFF80000001 a1=a2=a3=0`；可见头 `1/5/1100`、OI=0/0、OO=0/0，
+输出页前四个 word 为 0。未取得对象句柄；非零 a0 时不能把其余寄存器的零解释为对象调用成功。
+`retained bridge=5C object=0`、`result=Not Ready retained=1`；按失败分支未发 release/delete、
+未 free 页、无自动重试。无 TA、key 或解密。
+UFS `stop=1 db=tdb=run=0 hcs=0000010F is=0 poisoned=0 ready=0`，
+最终 stage=m3-smci-root；SMMU `GFSR=0 FSR=400` 残留，完整恢复未证明。
+报告 `INCOMPLETE dropped=1 truncated=0`，cached end 可见；照片无 PARK 行，
+诊断驻留仅按代码路径推断，不写成照片已确认的 PARK/HALTED。
+14 项主机检查及镜像/提交绑定仍成立：镜像 `91775bf92a86b949488a157521304b3bb1a002cb2bf9e1195a4f612060a5dbe3`，提交 041f3d12 的 55 个源码文件。
+SMC 包装仅保存 raw 寄存器；当前没有准确错误码映射，不能归因权限、内存或 KeyMint。
+下一步核对 legacy/object 入口选择和运行态调用约定；报告容量另需修复，避免关键尾行丢失。
