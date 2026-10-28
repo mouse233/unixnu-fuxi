@@ -3648,3 +3648,15 @@ op5/counts1100) 和远端 release(opffff/counts0)，终态/消息完整性校验
 27 个 ASan/UBSan 生命周期向量、C1 回归、固定模块审计和篡改拒绝通过；14 项交付检查退出 0。
 镜像 SHA256 91775bf92a86b949488a157521304b3bb1a002cb2bf9e1195a4f612060a5dbe3；提交 041f3d1258844acebb7ff3dc7dc92627be6cd5af 的 55 个交付源码文件绑定通过。
 候选位于 uefi-twrp-data/out/m3-smci-root-v1，实机待照片。
+
+### 2026-10-28：C2 root register attempt-01 — 待照片
+
+用户授权 C2 后，互斥、fcde91e/fuxi/unlocked、usb-ram profile、14 项交付检查、
+27 个生命周期向量与固定模块审计，以及提交 041f3d1258844acebb7ff3dc7dc92627be6cd5af
+的 55 个源码文件绑定核验通过。镜像 SHA256 `91775bf92a86b949488a157521304b3bb1a002cb2bf9e1195a4f612060a5dbe3`。
+只执行一次 fastboot boot：Sending/Booting 均 OKAY，退出 0；无 flash、擦除或 slot 写入。
+命令完成 UTC：2026-10-28T04:47:00.987854+00:00。原始记录位于
+uefi-twrp-data/out/m3-smci-root-v1/attempt-01 与
+D:/Projects/UniXNU/migration/20261028-m3-smci-root-v1/attempt-01。
+待照片确认 INFO/SMCI bridge-create、register a0..a3/消息头/返回对象、release、
+bridge-delete/released 或 retained、UFS/SMMU/PARK；目前不宣称 root invoke、TA 或解密成功。
