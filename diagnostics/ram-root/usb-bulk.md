@@ -3677,3 +3677,14 @@ UFS `stop=1 db=tdb=run=0 hcs=0000010F is=0 poisoned=0 ready=0`，
 14 项主机检查及镜像/提交绑定仍成立：镜像 `91775bf92a86b949488a157521304b3bb1a002cb2bf9e1195a4f612060a5dbe3`，提交 041f3d12 的 55 个源码文件。
 SMC 包装仅保存 raw 寄存器；当前没有准确错误码映射，不能归因权限、内存或 KeyMint。
 下一步核对 legacy/object 入口选择和运行态调用约定；报告容量另需修复，避免关键尾行丢失。
+
+### 2026-10-28：C2 object 命令 2 对照候选（待实机）
+
+v1 的 FFFFFFFF80000001 仍未准确归类；核对公开固定参考驱动的
+qcom,support-legacy_smc 选择逻辑及 kalama.dtsi 节点无该属性后，新增显式 object
+模式 `72000602/224`，不在运行中 fallback/retry。未取得本机部署 DT，仍属对照实验。
+沿用 root/null/register→release→bridge delete 与未知态保留；无 TA/blob/装钥/解密。
+修复报告容量 96→128 行，新增实测 raw 错误回归。双模式 56 个 ASan/UBSan 向量、
+C1 回归、固定模块/篡改审计通过；14 项交付检查退出 0。
+镜像 SHA256 6d119c131fafaee0d30530c70f471ead075e85aca7589ed66899a7a105b07eeb；提交 69ba2ae922e32411957cb2730682345770878e41 的 55 个源码文件绑定通过。
+候选位于 uefi-twrp-data/out/m3-smci-root-object-v2，实机待照片。
