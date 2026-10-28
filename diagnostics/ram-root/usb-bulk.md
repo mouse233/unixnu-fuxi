@@ -3607,3 +3607,15 @@ FAR=1BBBE7FD98DF`；M2 仍 `file-sha256=14f3d867…0991`；PARK，无密钥、�
 优先 keymaster64、回退 keymaster，用户态 QSEECom buffer=0xa000。
 更正：keymint_set_version 发送 cmd=0x3121 的固定整数 200，不能当作 Android
 release 17；configure 的参数序列化是另一路 cmd=0x2116。无 C2 invoke 实机结果。
+
+### 2026-10-28： C1 bridge blob attempt-01 — 待照片
+
+互斥检查未发现其他设备任务；fcde91e/fuxi/unlocked、usb-ram profile、
+14 项交付检查、镜像 SHA256 20a31268b23ce12417be75593b5fff6116edb0bf4a7d2afac94f846339fdce15 与
+提交 4c1915205660ad340334d8466210799275737fae 的 54 个源码文件绑定核验通过。
+仅执行一次 fastboot boot，Sending/Booting 均 OKAY，命令退出 0；无 flash、擦除或 slot 更改。
+命令完成 UTC：2026-10-28T04:35:11.476907+00:00。
+原始 device-test.json 与辅助工具归档到 uefi-twrp-data/out/m3-bridge-blob-v1/attempt-01
+及 D:/Projects/UniXNU/migration/20261028-m3-bridge-blob-v1/attempt-01。
+等待照片核对 bridge create、页内 SHA/prefix32、blob result/delete/released、
+UFS stop/db/tdb/run/poisoned、SMMU 和 PARK。当前不宣称 C1 实机通过或 TA/解密成功。
