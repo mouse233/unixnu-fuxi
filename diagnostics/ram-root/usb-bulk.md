@@ -3821,3 +3821,18 @@ UFS stop=1、db=tdb=run=0、hcs=10F、is=0、poisoned=0、ready=0；SMMU GFSR=0/
 15项检查、24个双配置桥向量及C1/C2/INFO回归，镜像5818cd8079bca6f3096b2f061fc4b1351b777b22699774bdddb8563629239c6c与提交29d85a3894a48659a0cec4393330d1c89b5c474f的56个源码绑定有效。
 本次没有root/对象、TA、blob/key读取或解密；C2未测试，不能写成C2通过。
 后续可在已验证HLOS桥配置上独立复测最小root register/release，并保留原未知态不重试/不free策略。
+
+### 2026-10-28：M3并行静态收敛与HLOS C2交付（未上机）
+
+用户要求多做后续静态分析并行推进至必须上机。本轮未查询/重启/启动手机。
+三路root/TA/storage契约审计完成，固定输入/反汇编/来源绑定及变异拒绝通过；
+root消息null/op5/count1100/OO+20与cmd2未发现静态矛盾，不能由此证明真实client-env权限或返回。
+TA链补出lookup优先、loadFromBuffer与send counts424；40KiB用户缓冲典型封送需86016字节（21页）加callback区，
+lookup不证明is64且本机keymaster分片未恢复。convert请求23/返回36不透明bstr；
+ICE三索引、六参扩展区、未初始化evict可不clear，以及UFS会重建清crypto字段等约束已记录，未接入密钥/TA运行。
+HLOS最小C2候选out/m3-smci-root-hlos-v3已构建：明确72000602/224，桥HLOS配置，register→release→delete，
+补完整raw/参数与只读CurrentEL/DAIF日志，未知态保留不重试。
+16项完整检查退出0，148个C2生产向量、24个桥向量、TA离线46/存储无秘密26向量通过。
+镜像SHA256 571a652ae7036524fad7a4ecf99d544def2716ee3bb006e111afe84cb5327992；源码提交fdeefb5852b5943a2fb6d03604eb6bfc9d8bbb78的56个交付源码及14个辅助源码绑定。
+独立报告out/m3-static-advance-v1；规范专题docs/fuxi-m3-static-advance-20261028.md。
+下一决定性步骤必须是在已验证HLOS桥上观察真实root register/release终态；C2仍未上机/未通过，TA/装钥/解密未验证。
