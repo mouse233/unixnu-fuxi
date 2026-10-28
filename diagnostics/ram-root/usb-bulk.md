@@ -3948,3 +3948,27 @@ TA 元数据（0x5a000）为 keymaster64 / 1.0 / "B=true;U=true;n=keymaster64;o=
 这解释了 lookup 返回 2：临时启动发生在 Android 之前，loader 里没有可复用的 app；
 固定实现的顺序正是 lookup 失败后 loadFromBuffer。名字不是问题。
 下一步是从该分区读 ELF 走 loadFromBuffer（约 405 KiB、100 页消息），仍不发送 KeyMint 命令。
+
+### 2026-10-28：M3 KeyMint 输入与 UFS 路径静态复核（更正，未上机）
+
+此前条目将 lookup 的 a2=2 断言为“没有可复用 app”、排除名称问题，证据不足；
+它仍是对象层拒绝，未确定名称、授权、调用形状或真实应用状态。Android 未启动
+不能证明 TZ 应用表为空。分区文件中的 n=keymaster64 是名称线索，不证明 lookup 命名空间。
+固定参考支持 lookup 后走 loadFromBuffer，但不证明当前部署环境的装载来源。
+
+本轮纯静态：A17 历史报告 /metadata 为 sda17，新取证 keymaster_a 为 sde13；
+现有 FnuTestUnitReady/ReadCapacity/ReadBlocks 普通 LUN 均固定 0，GPT 只选 metadata/userdata。
+故只加分区名不够；sde 到 UFS LUN 必须查设备映射，不能按字母猜。历史 `_b` 不是当前槽证据，
+本地只存 `_a`。原生 DMA 每次最多 131072 字节，读取 512 KiB 至少四次。
+镜像 SHA256 2fc838a8f0ed572ec77b7db2fe39ab4e81d0aa038bfad482b88087a27bf43cc6；
+最后 PT_NULL 声明 0x62000+0x1058=0x63058，其后至 0x80000 全零，前缀哈希
+9af72dfb96687f5d85874422ac944a4a070471be552db006ae445a30a262fb62；
+这不是有效加载长度或签名验证。PT_DYNAMIC/PT_LOAD 和 GNU_RELRO/PT_LOAD 有重叠，
+现有合成分片保守规划器会拒绝假造分片；不等于该镜像不能由固件加载。
+固定参考根据实际分片长度和偏移拼装；无法从分区段表推定真实 bXX 长度。
+纯主机模型分别以 0x63058 / 0x80000 为假设，输入消息页对齐 0x64000 / 0x81000，
+另加最少 0x1000 callback 输出；参考允许更大 callback 区，不能把一页视为通用充分条件。
+本轮未操作设备/SMC、未加载 TA 或解密，未重跑候选交付检查。
+下一步需只读取当前槽、系统身份、sde 的 sysfs UFS LUN 映射和 A/B 设备分区哈希，
+然后决定多 LUN 读取及 TA 输入/接口验证；不得因名字或全零尾部直接认定加载输入。
+详细复核：D:/Projects/UniXNU/migration/20261028-m3-static-review/REVIEW.md。
