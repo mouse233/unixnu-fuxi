@@ -3783,3 +3783,14 @@ SMMU GFSR=0、FSR=400残留，完整恢复未证明；PARK和cached report end�
 未调用root/对象、TA、密钥或解密。15项检查、镜像59ef12959f32ef2869f328eaf258abeeca5c6f2b1f2880c56303756f701d2ad8及提交33e50f3aefb23346e407a25302efab7c44dfe3cc的56个源码绑定仍有效。
 本次把未验收点定位到对象调用之前的桥创建契约；准确5C含义及VM/DT/permission/pool要求仍待静态核对。
 C2仍未通过，不继续猜句柄或进入对象调用。
+
+### 2026-10-28：显式HLOS桥对照候选（待实机）
+
+固定模块probe/register和仓库DTB支持新增显式HLOS桥对照：一个VM、VMID3、NS/TZ权限6，
+四参phys|6/phys|6/size|200/3；8KiB时size字=2200，hyp-flags=0。
+DTB不是部署态证明；完整Linux DMA/pool/VM契约仍未复现，5C未准确归类。
+本机probe使用普通页、DMA映射和gen_pool，追加更正早期“必须DT carveout”的说法。
+UEFI DXE/工具层默认关闭开关，限定桥诊断，无对象/TA/blob/key/解密/分区写入。
+24个双配置生产桥生命周期、固定模块/DTB审计及篡改拒绝、C2 56向量、C1与INFO回归通过；
+15项交付检查退出0。镜像SHA256 5818cd8079bca6f3096b2f061fc4b1351b777b22699774bdddb8563629239c6c，源码提交29d85a3894a48659a0cec4393330d1c89b5c474f的56个交付源码绑定。
+目录uefi-twrp-data/out/m3-bridge-hlos-v1。用户已重新进入fastboot，实机pending，C2仍未通过。
