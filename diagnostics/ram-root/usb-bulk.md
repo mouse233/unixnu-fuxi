@@ -4078,3 +4078,12 @@ D:/Projects/UniXNU/migration/20261028-m3-lun4-large-bridge-v1/attempt-01/device-
 一次 fastboot boot：Sending OKAY、Booting FAILED，Windows usb_read error 31，退出 1；
 无 flash/擦除/slot 更改；设备是否进入固件和桥阶段未知，不自动重试，等待屏幕照片。
 原始记录保存在候选及 D:/Projects/UniXNU/migration/20261028-m3-lun4-large-bridge-v1/attempt-02/。
+
+### 2026-10-28：LUN4 大桥 attempt-03 临时启动（待照片）
+
+用户要求再启动，重新确认 fcde91e 在 fastboot 且设备互斥后创建独立 attempt-03；
+核验 fuxi、unlocked=yes、current-slot=a、usb-ram profile、15 项资格和 56 项源码/镜像绑定。
+镜像 SHA256 7681d106b26714ef296859999d794b728a22dee1c52ecff2cccba16eae0ca04c；
+一次 fastboot boot Sending/Booting OKAY，退出 0；无 flash/擦除/slot 改动。
+主机成功不证明 LUN4 或大桥生命周期成功，等待照片。原始记录在候选及
+D:/Projects/UniXNU/migration/20261028-m3-lun4-large-bridge-v1/attempt-03/device-test.json。
