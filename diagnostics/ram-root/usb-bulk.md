@@ -3715,3 +3715,14 @@ UFS `stop=1 db=tdb=run=0 hcs=0000010F poisoned=0 ready=0`；SMMU GFSR=0/FSR=400
 镜像 `6d119c131fafaee0d30530c70f471ead075e85aca7589ed66899a7a105b07eeb`，提交 69ba2ae9 的 55 个交付源码文件绑定及 14 项检查有效。
 raw 错误仍未准确归类，不能归因权限/内存/KeyMint；下一步核对共同调用上下文
 （异常级、中断屏蔽、standard SMC 路径）与桥内存契约，保持未完成状态而不宣称 C2 通过。
+
+### 2026-10-28：SMC context INFO-only 诊断交付（未上机）
+
+按两次 C2 register 同样失败的证据，新增默认关闭 CTX 控制：只读 CurrentEL/DAIF，
+在已有 fast INFO gate 成功后单次 standard INFO 自查询 42000601/1/02000601。
+编译排除桥/对象执行，无缓冲指针、密钥或 TA；不改异常级/中断状态、不重试。
+fast 与 standard 查询处于不同阶段，standard INFO 自身支持未知，不据结果泛化所有调用。
+5 个 CTX 生产主机向量、既有 56 项 root 回归及 15 项完整交付检查通过；
+镜像 SHA256 409a877bd1df680ac4827c3e7dd0edd8e96ba2c948d3e2c0d7b84f99335f7a7b；提交 d179b77ff7136eefd93a77ec6dcfac0b96f9d80d 的 56 个交付源码文件绑定通过。
+目录 uefi-twrp-data/out/m3-smc-context-v1。本候选尚未上机；C2 仍未通过。
+用户要求“完成后提交”，已按本诊断阶段完成范围提交，未将诊断交付写成 C2 修复。
