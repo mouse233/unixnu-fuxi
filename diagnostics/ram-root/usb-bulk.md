@@ -4199,3 +4199,26 @@ m3_smci_ta_bytes=0x63058、19 项检查），未放宽其他条件。
 - 结论：这次是**探针自身的读取上限**，不是固件拒绝 TA；`a2` 仍无样本。
   原始记录与照片在候选 attempt-01；报告
   D:/Projects/UniXNU/migration/20261028-m3-smci-load-v2/REVIEW.md。
+
+### 2026-10-28：m3-smci-load-v3 attempt-01 照片 — 加载被拒 a2=0xFFFFFFF0（-16）
+
+照片 IMG_7184..JPG，SHA256 886e05b5ec0cf7be41a23930bc0a184d5f9e048f0aa2a9b9b630587b033a65cf。
+
+- 分块读取修复生效：`TA read=Success bytes=63058`；两槽哈希均 Success。
+  设备打印的 extent 摘要 9AF72DFB96687FD5D85874422AC9444A070471BE552DB006AE445A30A262FB62
+  与本地对 keymaster-partition.img 前 0x63058 重算结果**逐字相同**，送进去的确实是审计过的字节。
+- load 调用：object=3、op=1、counts=1012、in=C6478000、out=C64F9000；
+  描述符 00000030/00063058、00063088/0000000B、00063098/00000040、oo=00000000。
+  返回 a0=0、a1=0、**a2=FFFFFFF0**、a3=0。
+- out 页全零，没有此前每次调用都出现的 00010002/0000FFFD piggyback 头 —— 在产生响应之前就被拒。
+- 批处理 stop=loader-load、passed=3、env=2、loader=3、retained=1、result=Device Error；
+  桥与对象按策略保留，TA 缓冲擦除释放（released bytes=64000）。
+- UFS stop=1、db=run=0、hcs=0000010F、is=0、poisoned=0；SMMU gfsr=0、fsr=0x400 残留。
+
+-16 不在对象错误表（1..4、-90..-99）、也不是 AppLoader 的 10..26，本轮不解释其含义。
+与之前四次成功调用相比唯一的结构差异：那四次 out 都紧跟在 in 之后（in_len=0x1000、out=in+0x1000），
+本次 out 在 in+0x81000，且 in_len=0x630D8 既非页对齐也不与 out 相邻。
+下一候选只改这一项：in_len 取 0x64000（页对齐），out 移到 in+0x64000。
+
+未验证：-16 语义、TZ 内是否留下应用状态、能否发送 KeyMint 命令。
+原图与 assessment 在候选 attempt-01；报告 D:/Projects/UniXNU/migration/20261028-m3-smci-load-v3/REVIEW.md。
