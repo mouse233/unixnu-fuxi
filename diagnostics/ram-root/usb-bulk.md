@@ -4143,3 +4143,27 @@ ASan/UBSan 通过。56 项固件来源与 UEFI 提交 8f9a6771 绑定验证通�
 未做 lookup、TA 加载、KeyMint 命令、密钥、ICE 或解密；slot 仍 unknown；桥成功不证明 TA
 输入长度、签名被设备接受或回调行为。原图与 assessment 在候选 attempt-01，报告
 D:/Projects/UniXNU/migration/20261028-m3-large-loader-v1/REVIEW.md。
+
+### 2026-10-28：m3-smci-load-v2 — 大桥上加一次 loadFromBuffer（未上机）
+
+用户要求推进下一步技术动作。在已实机通过的 0x82000 桥与 root/open UID122 之上只加一步
+`loadFromBuffer`，不发送 KeyMint 命令、不取密钥、不写 ICE、不解密。
+
+- 契约：op=1、counts=0x1012（BI2/BO1/OO1）；头 12 + 4×8 描述符 = 44，载荷对齐 48；
+  BI0=ELF(off 48, 0x63058)、BI1=`keymaster64`(11B)、BO=64B distName、OO=app；消息 0x630D8。
+- **输出页从 in+0x1000 移到桥尾 0x81000**：原布局下 100 页输入会覆盖输出页。输入上限相应 0x81000。
+- 输入取 `keymaster_a` 开头 0x63058（MBNv7 段结束/元数据/哈希/签名/证书声明端点），
+  在 LUN4 队列停止前读取，并在设备内计算该区间 SHA-256 打印（`FUXIM3 TA extent bytes=... sha256=...`），
+  成功或失败都擦除并释放该缓冲。
+- 失败记录 v1：构建命令已带 `-D FUXI_M3_SMCI_LOAD=1`，但 `fuxi.dsc` 只转发既有宏到
+  `CC_FLAGS`，新宏未加入，C 侧仍按 0 编译，镜像是旧 batch；交付检查按缺失 marker 正确拒绝。
+  补上 DSC 默认值与转发后重做为 v2。这说明新增 FUXI 宏必须同时改 DSC，不能只看 `-D` 出现在命令行。
+- 构建：GUI 监视器退出 0（`run-build.sh` 增加可选第 3 参数指定仓库，UEFI 候选须指向
+  `uefi-twrp-data`，此前默认只找设备仓库会报 candidate not found）；19 项资格检查退出 0。
+  新增 23 个 load 向量（ASan/UBSan：成功、分配失败、无镜像、loader status、描述符/偏移篡改、
+  输出页脏、句柄非法、各释放失败），既有 loader 82 向量与 root 向量回归通过。
+- 镜像 SHA256 3892da87e48998547cc51ac99b5ec26d9b5f660ff07c90b4562414e717e8c1df，
+  1880064 字节；UEFI 提交 bcc72b8e 已推送 origin/feat/twrp-data-uefi。
+- 未上机。边界不变：slot=unknown、SMMU FSR 0x400 残留；固件是否接受该输入长度、签名与
+  TA 名仍是未知；`passed=7F` 是探针完成掩码，不是固件接受 TA 的证据。
+  记录：D:/Projects/UniXNU/migration/20261028-m3-smci-load-v2/REVIEW.md。
