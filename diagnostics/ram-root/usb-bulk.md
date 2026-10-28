@@ -3936,3 +3936,15 @@ lookup 未命中只在 a0=a1=a3=0 且 a2≠0 时解释为对象错误并原样�
 - 下一步应先把“名字是否存在”和“调用形状是否被接受”分开：需要独立证据确认部署固件里
   keymaster 分片的准确名字（例如从设备只读查看 /vendor/firmware_mnt/image），
   再决定是恢复分片走 loadFromBuffer，还是先做一次可区分的接口校准实验。
+
+### 2026-10-28：KeyMint TA 来源与名字（Android 只读取证，未上机）
+
+设备在 Android 17 下用自带 su 做只读检查：/vendor/firmware_mnt 对 shell 拒绝访问，
+改用 su 列目录与 dd 到标准输出。找到专用 keymaster 分区 /dev/block/sde13（524288 字节），
+内容是 ELF64 AArch64 TA（e_phnum=9、依赖 libcmnlib.so、含 KEYMINT_BEGIN/IMPORT_WRAPPED_KEY）。
+TA 元数据（0x5a000）为 keymaster64 / 1.0 / "B=true;U=true;n=keymaster64;o=100;p=...;s=..."。
+/vendor/firmware_mnt/image 只有 UUID 命名的分片，没有 keymaster64.bXX；含 keymaster 字符串的
+只有 fingerpr.b01 与 seccammi.b01。镜像 SHA256 2fc838a8f0ed572ec77b7db2fe39ab4e81d0aa038bfad482b88087a27bf43cc6。
+这解释了 lookup 返回 2：临时启动发生在 Android 之前，loader 里没有可复用的 app；
+固定实现的顺序正是 lookup 失败后 loadFromBuffer。名字不是问题。
+下一步是从该分区读 ELF 走 loadFromBuffer（约 405 KiB、100 页消息），仍不发送 KeyMint 命令。
