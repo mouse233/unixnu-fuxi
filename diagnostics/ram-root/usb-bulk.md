@@ -4005,3 +4005,12 @@ GUI 自检、真实构建以及独立成功/失败状态测试通过。v1 因默
 标准单次启动入口已适配 parked 诊断、Windows fastboot 和源码/资格绑定；模拟成功、篡改拒绝、
 重复启动拒绝均通过。脚本原有未提交修改保留；真实设备待 fastboot 后验证。
 详情 D:/Projects/UniXNU/migration/20261028-m3-lun4-keymaster-v2/REVIEW.md。
+
+### 2026-10-28：LUN4 keymaster v2 attempt-01 — Booting USB 读取失败，待照片
+
+用户已进入 fastboot。互斥检查无活动任务；fcde91e、fuxi、unlocked=yes、current-slot=a，
+profile=usb-ram，镜像 22586f4458b1e8e65527e2139b3ec5e9d1aa472d152994206240c703f2ac8e93。
+已完成 12 项检查及 56 项源码提交绑定验证。独立 attempt-01 一次 fastboot boot，
+Sending OKAY，Booting FAILED：usb_read failed（Windows device error 31），退出 1；
+无 flash/擦除/slot 更改，无重试。命令失败不证明设备当前阶段或 UEFI 结果，等待照片。
+原始记录 D:/Projects/UniXNU/migration/20261028-m3-lun4-keymaster-v2/attempt-01/device-test.json。
