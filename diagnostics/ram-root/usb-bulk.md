@@ -3805,3 +3805,19 @@ Sending/Booting均OKAY，退出0；无flash/擦除/slot写入。完成UTC：2026
 D:/Projects/UniXNU/migration/20261028-m3-bridge-hlos-v1/attempt-01。
 待照片核对profile=hlos、参数phys|6/phys|6/2200/3、enable/create/delete的a0..a3、64位句柄、released/retained、UFS/SMMU及PARK。
 主机启动命令成功不代表桥生命周期成功；C2仍未通过，本次没有执行对象调用。
+
+### 2026-10-28：HLOS桥attempt-01照片 — 创建删除释放通过
+
+照片IMG_7171..JPG，SHA256 f1898e745c651b22ff7705a964eb59bc711bc54ee18a25c32863f11f00a3e288。显式HLOS桥创建/删除/释放闭环通过：
+profile=hlos，vm-count=1、vmid=3、ns-perm=6、tz-perm=6、hyp-flags=0。
+8KiB页phys=C6A40000；enable x0=42000C1C返回a0=a1=a2=a3=0。
+create x0=42000C1E，参数C6A40006/C6A40006/2200/3，返回a0=0/a1=0/a2=33A0E7BD/a3=0。
+delete使用完整句柄33A0E7BD，返回a0=a1=a2=a3=0；result=Success、released bytes=2000。
+PARK与cached report end均可见。页清零/cache操作由源码顺序保证，照片不独立证明擦除效果。
+对比零VM候选的a1=5C/a2=0，本次HLOS配置给出成功服务结果和a2句柄；
+这证明该配置本次被接受，不将其推成旧5C的精确错误码映射或完整固件等价。
+UFS stop=1、db=tdb=run=0、hcs=10F、is=0、poisoned=0、ready=0；SMMU GFSR=0/FSR=400仍残留，
+不宣称完整路由恢复。M2的10527字节文件及SHA256 14f3d867…0991仍一致。
+15项检查、24个双配置桥向量及C1/C2/INFO回归，镜像5818cd8079bca6f3096b2f061fc4b1351b777b22699774bdddb8563629239c6c与提交29d85a3894a48659a0cec4393330d1c89b5c474f的56个源码绑定有效。
+本次没有root/对象、TA、blob/key读取或解密；C2未测试，不能写成C2通过。
+后续可在已验证HLOS桥配置上独立复测最小root register/release，并保留原未知态不重试/不free策略。
