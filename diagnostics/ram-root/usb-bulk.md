@@ -4104,3 +4104,17 @@ SMMU GFSR=0、FSR=400 仍残留，完整恢复未证明。15 项资格、镜像
 本轮仅证明 0x82000 桥生命周期；未调用对象、加载 TA、使用密钥、解密或 XNU handoff，
 不证明 TA 输入长度/信任、UEFI 槽位或 callback 行为。原图及 assessment 在候选与
 D:/Projects/UniXNU/migration/20261028-m3-lun4-large-bridge-v1/attempt-03/。
+
+### 2026-10-28：M3 大桥 root/loader 组合候选（未上机）
+
+m3-large-loader-v1 在 LUN0 M2 文件及 LUN4 两槽哈希通过、UFS 未 poisoned、
+INFO/invoke 可用后，以 130 页 0x82000 HLOS 桥执行 root register → open UID122
+→ release loader → release environment → bridge delete；对象调用输入输出仍各 4096 字节。
+失败或未知状态保留资源并停止。无 lookup、TA 加载、密钥操作或解密；slot=unknown。
+GUI 构建退出 0，18 项资格检查退出 0；生产对象生命周期小桥、大桥分别 82 个模拟向量，
+ASan/UBSan 通过。56 项固件来源与 UEFI 提交 8f9a6771 绑定验证通过；
+镜像 SHA256 b0de5540f72692556694d77febca7f92439e14fdfc3c7159e414c6e55fdc704b。
+初次资格检查因校验器固定要求 8192 字节失败，校验器修正并增强大桥测试后全套重跑通过。
+该候选未上机，TA 输入长度、信任、加载及回调仍未验证；SMMU 旧 FSR 残留待调查。
+设备当前未在 fastboot 列表；未发启动命令。
+记录：D:/Projects/UniXNU/migration/20261028-m3-large-loader-v1/REVIEW.md。
