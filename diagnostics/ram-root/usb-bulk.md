@@ -4024,3 +4024,19 @@ Sending OKAY，Booting FAILED：usb_read failed（Windows device error 31），�
 无 flash/擦除/slot 更改。主机命令成功不证明 LUN4 读取、GPT、哈希或完整 SMMU 恢复；
 待照片检查 M2、FUXILUN4、UFS/SMMU 与 PARK。原始记录在候选及
 D:/Projects/UniXNU/migration/20261028-m3-lun4-keymaster-v2/attempt-02/device-test.json。
+
+### 2026-10-28：LUN4 keymaster v2 attempt-02 照片 — 两槽只读哈希通过
+
+照片 IMG_7180..JPG，SHA256 4059c6e898239721a30e24449825abd215ff01a44c62ad4d33b8a63a538de95c。
+LUN0 M2 文件 10527 字节，SHA256 14f3d8675423917e383a71c936f4d9a81a29480f34ae3c550e0f4c34e53a0991。
+LUN4 tur/capacity/GPT=Success，last=8FBFF、block=4096；GPT a=24606..24685、b=68493..68512
+（上述 LBA 为十六进制），各 128 块，与 Android 只读记录的 512B 扇区换算一致。
+a 哈希 2fc838a8f0ed572ec77b7db2fe39ab4e81d0aa038bfad482b88087a27bf43cc6，
+b 哈希 fe18a467cbbd9457cc8e2e4a05822ff056238342881cfc558a045aea6d467eac；
+hash-a/hash-b=Success，与 Android 全分区哈希一致。slot=unknown，不自动选择；
+上机前 fastboot current-slot=a 不能代替 UEFI 侧槽位证明。
+UFS stop=1、db=tdb=run=0、hcs=10F、is=0、poisoned=0、ready=0；PARK、cached report end 可见。
+SMMU GFSR=0、FSR=400 残留，不宣称完整恢复。镜像 22586f4458b1e8e65527e2139b3ec5e9d1aa472d152994206240c703f2ac8e93
+的 12 项资格与提交 cbde65ffe97601431b9d0a99d90ec8153a36d60a 的 56 项源码绑定重新核验通过。
+仅证明限定诊断的 LUN4 只读/哈希，不证明 TA 加载输入、签名、KeyMint 会话或解密；无 XNU handoff。
+原图和 assessment 在候选及 D:/Projects/UniXNU/migration/20261028-m3-lun4-keymaster-v2/attempt-02/。
