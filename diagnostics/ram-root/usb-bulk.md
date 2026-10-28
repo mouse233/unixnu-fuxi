@@ -4040,3 +4040,22 @@ SMMU GFSR=0、FSR=400 残留，不宣称完整恢复。镜像 22586f4458b1e8e655
 的 12 项资格与提交 cbde65ffe97601431b9d0a99d90ec8153a36d60a 的 56 项源码绑定重新核验通过。
 仅证明限定诊断的 LUN4 只读/哈希，不证明 TA 加载输入、签名、KeyMint 会话或解密；无 XNU handoff。
 原图和 assessment 在候选及 D:/Projects/UniXNU/migration/20261028-m3-lun4-keymaster-v2/attempt-02/。
+
+### 2026-10-28：KeyMint MBNv7 静态验签与 LUN4 大桥候选（未上机）
+
+Android keymaster_a 副本全分区 SHA256 2fc838a8f0ed572ec77b7db2fe39ab4e81d0aa038bfad482b88087a27bf43cc6。
+离线按 MBNv7 头解析哈希段：header 40 + common 24 + OEM metadata 224 + hash table 432 +
+签名槽 104 + 证书槽 3360 = 0x1058，结束 0x63058。8 个 ELF 范围 SHA384 匹配，
+hash 段对应项为零；ECDSA SHA384 镜像签名及两级证书签名数学验证通过，五处篡改被拒绝。
+这不认证设备根信任或 loader 授权，不证明正确加载长度或槽位；分区尾部全零不证明可截断。
+
+独立候选 m3-lun4-large-bridge-v1：保留 LUN0 M2 与 LUN4 a/b 哈希阶段；两槽通过且
+UFS 未 poisoned、INFO 可用后，HLOS 大桥 enable/create/delete，130 页 0x82000，
+size 字 0x82200、VMID3、权限6；未知态保留页、不自动重试。桥中全零，无对象调用、
+TA、key、解密或分区写入。slot=unknown；不把上一轮 fastboot 槽位当 UEFI 当前槽。
+GUI 构建退出0，15 项交付检查退出0；36 个桥生命周期向量包含 12 个大桥配置，
+LUN4 分阶段成功/七个失败路径以及生产哈希测试通过；56 项源码绑定提交
+ ee04d068f4cfc3e7f81fac973ea8db944f64fbb1。镜像 SHA256
+7681d106b26714ef296859999d794b728a22dee1c52ecff2cccba16eae0ca04c。
+未上机；大桥是否被接受、TA 是否可加载和 SMMU 完整恢复均未知。详情
+D:/Projects/UniXNU/migration/20261028-m3-lun4-large-bridge-v1/REVIEW.md。
