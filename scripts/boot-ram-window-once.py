@@ -87,7 +87,7 @@ def main():
                     'b0de5540f72692556694d77febca7f92439e14fdfc3c7159e414c6e55fdc704b': (
                         ['root-register-null', 'open-loader-uid122', 'loader-release',
                          'environment-release'], False, 18),
-                    '3892da87e48998547cc51ac99b5ec26d9b5f660ff07c90b4562414e717e8c1df': (
+                    'c37a1945a997483ce6b25b615b48bbfc0e23d1535e68933b1a586335bd4583a0': (
                         ['root-register-null', 'open-loader-uid122', 'loadfrombuffer-keymaster64',
                          'ta-release', 'loader-release', 'environment-release'], True, 19),
                 }
