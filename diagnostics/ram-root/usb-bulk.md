@@ -4014,3 +4014,13 @@ profile=usb-ram，镜像 22586f4458b1e8e65527e2139b3ec5e9d1aa472d152994206240c70
 Sending OKAY，Booting FAILED：usb_read failed（Windows device error 31），退出 1；
 无 flash/擦除/slot 更改，无重试。命令失败不证明设备当前阶段或 UEFI 结果，等待照片。
 原始记录 D:/Projects/UniXNU/migration/20261028-m3-lun4-keymaster-v2/attempt-01/device-test.json。
+
+### 2026-10-28：LUN4 keymaster v2 attempt-02 临时启动（待照片）
+
+用户明确要求再次启动；先确认 fcde91e 重新出现在 fastboot、设备互斥，再创建独立 attempt-02。
+核验 fuxi、unlocked=yes、current-slot=a、usb-ram profile、12 项资格及 56 项源码/镜像绑定；
+镜像 SHA256 22586f4458b1e8e65527e2139b3ec5e9d1aa472d152994206240c703f2ac8e93。
+一次 fastboot boot：Sending/Booting OKAY，退出 0；UTC 2026-10-28T12:33:37.557851+00:00；
+无 flash/擦除/slot 更改。主机命令成功不证明 LUN4 读取、GPT、哈希或完整 SMMU 恢复；
+待照片检查 M2、FUXILUN4、UFS/SMMU 与 PARK。原始记录在候选及
+D:/Projects/UniXNU/migration/20261028-m3-lun4-keymaster-v2/attempt-02/device-test.json。
