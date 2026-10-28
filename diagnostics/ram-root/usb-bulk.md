@@ -3972,3 +3972,19 @@ TA 元数据（0x5a000）为 keymaster64 / 1.0 / "B=true;U=true;n=keymaster64;o=
 下一步需只读取当前槽、系统身份、sde 的 sysfs UFS LUN 映射和 A/B 设备分区哈希，
 然后决定多 LUN 读取及 TA 输入/接口验证；不得因名字或全零尾部直接认定加载输入。
 详细复核：D:/Projects/UniXNU/migration/20261028-m3-static-review/REVIEW.md。
+
+### 2026-10-28：M3 Android 槽位与 UFS LUN 只读取证
+
+用户启用 ADB，序列号 fcde91e、device fuxi。Android 当前 ro.boot.slot_suffix=_a；
+ro.build.version.release=17、display CP2A.260605.016；fingerprint 自身包含 16，原样记录，
+不把属性不一致解释为构建已核验。kernel 5.15.220-g6513a0d19135。
+metadata -> sda17；sysfs sda SCSI 0:0:0:0、sde 0:0:0:4，属于同一 1d84000.ufshc；
+Android 层显示分别为 LUN 0 和 4。sde 逻辑块 4096，keymaster_a -> sde13，
+keymaster_b -> sde43，sysfs start/size（512 字节单位）分别 1191984/1024、3417240/1024。
+换算 4096 字节 LBA 为 148998/427155，长度均 128 块；仅作对照，不硬编码，UEFI 需独立验证容量及 GPT。
+a、b 分区均 524288 字节，全分区 SHA256 分别为
+2fc838a8f0ed572ec77b7db2fe39ab4e81d0aa038bfad482b88087a27bf43cc6 和
+fe18a467cbbd9457cc8e2e4a05822ff056238342881cfc558a045aea6d467eac；
+a 与此前保存副本一致，b 不同且未提取，原因未知。后续启动时仍需核实槽位。
+未写分区、未重启、未调用 UEFI/SMC、未加载 TA/解密；未证明 UEFI 跨 LUN 成功或 load 输入正确。
+原始输出和详情：D:/Projects/UniXNU/migration/20261028-m3-adb-lun-slot/。
