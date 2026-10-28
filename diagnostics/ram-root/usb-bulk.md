@@ -3726,3 +3726,22 @@ fast 与 standard 查询处于不同阶段，standard INFO 自身支持未知，
 镜像 SHA256 409a877bd1df680ac4827c3e7dd0edd8e96ba2c948d3e2c0d7b84f99335f7a7b；提交 d179b77ff7136eefd93a77ec6dcfac0b96f9d80d 的 56 个交付源码文件绑定通过。
 目录 uefi-twrp-data/out/m3-smc-context-v1。本候选尚未上机；C2 仍未通过。
 用户要求“完成后提交”，已按本诊断阶段完成范围提交，未将诊断交付写成 C2 修复。
+
+### 2026-10-28：SMC context attempt-01 — INFO 控制成功，C2 未通过
+
+用户确认重新进入 fastboot 后，互斥、fcde91e/fuxi/unlocked、usb-ram profile、15 项交付检查及
+提交 `d179b77ff7136eefd93a77ec6dcfac0b96f9d80d` 的 56 个交付源码文件绑定核验通过。镜像 SHA256 `409a877bd1df680ac4827c3e7dd0edd8e96ba2c948d3e2c0d7b84f99335f7a7b`。
+独立 attempt-01 仅执行一次 fastboot boot，Sending/Booting 均 OKAY，退出 0；无 flash/擦除/slot 写入。
+完成时间（Asia/Shanghai）：2026-10-28T14:19:39.562847+08:00。原始命令与设备查询记录保留在 attempt-01/device-test.json。
+
+照片 IMG_7169..JPG，SHA256 `6d09a3a33e20a0df38610b84f3001cc05f6e6f114138092ac39124bbe5953c6e`。可见：
+`CTX CurrentEL=4 DAIF=200 fast-info=1`；standard INFO `x0=42000601 x1=1 subject=2000601`，
+返回 `a0=0 a1=1 a2=0 a3=0`，`decode=Success available=1`；CTX END、PARK 与 cached report end 均可见。
+本次只证明 UFS 停队列后的该 standard 标量 INFO 控制返回成功，排除了“此环境中所有 standard SMC 都失败”
+的笼统判断；不证明 owner32 对象调用、共享页访问或此前两次运行的上下文一致。C2 仍未通过。
+按交付代码与照片 END，无桥/对象/TA/密钥/解密/重试。
+UFS `stop=1 db=tdb=run=0 hcs=0000010F is=0 poisoned=0 ready=0 stage=m3-smc-context`。
+SMMU GFSR=0、FSR=400 仍残留，不能宣称完整恢复。M2 文件 10527 字节及 SHA256 14f3d867…0991 一致。
+本次 CP version=5788EAC1、userdata 首块 SHA256=7ac3edafc83d6b29583e726f58f6e6f640d5b8cddf77477f491f68bed56233ed，
+与之前候选照片不同，记录为跨启动观测变化；不据此推断变化来源，也不写成该候选写入。
+后续优先静态核对 owner32 调用封装、共享内存和固件契约；暂不由 INFO 成功直接重复 root 或加载 TA。
