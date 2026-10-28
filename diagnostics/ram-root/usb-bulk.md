@@ -4069,3 +4069,12 @@ usb-ram profile，15 项资格检查及 56 项源码绑定通过；镜像 SHA256
 （Windows 错误 31），退出 1；无 flash/擦除/slot 更改，不自动重试。设备实际执行阶段未知，
 待屏幕照片，不能宣称大桥或 UFS 测试通过。原始记录位于候选及
 D:/Projects/UniXNU/migration/20261028-m3-lun4-large-bridge-v1/attempt-01/device-test.json。
+
+### 2026-10-28：LUN4 大桥 attempt-02 — 再次 Booting USB 读取错误（待照片）
+
+用户要求再次启动，重新确认 fcde91e 处于 fastboot 且无其他设备任务后，建立独立 attempt-02。
+校验 fuxi、unlocked=yes、current-slot=a、usb-ram profile、15 项资格及 56 项源码绑定；
+镜像 SHA256 7681d106b26714ef296859999d794b728a22dee1c52ecff2cccba16eae0ca04c。
+一次 fastboot boot：Sending OKAY、Booting FAILED，Windows usb_read error 31，退出 1；
+无 flash/擦除/slot 更改；设备是否进入固件和桥阶段未知，不自动重试，等待屏幕照片。
+原始记录保存在候选及 D:/Projects/UniXNU/migration/20261028-m3-lun4-large-bridge-v1/attempt-02/。
