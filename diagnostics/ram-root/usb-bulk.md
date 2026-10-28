@@ -3901,3 +3901,15 @@ v3 只放开 out 页前 8 字节（version/op），仍要求 +8..end 全零、�
 - UFS stop=1、db=tdb=run=0、hcs=0000010F、is=0；M2的10527字节与SHA256 14f3d867…0991仍一致。
 - 镜像44660291c87e2ed5d3695998e89ab8baa61ad5ec1e19d8b5fc0bbb835507ca94与提交863010bd755edfa15b1309e30f9f50c885119ca8的56个源码绑定、18项检查、82/148/24向量仍有效。
   本次只证明该通路上桥、对象注册/打开/释放与桥清理闭环；未加载TA、未使用密钥、未转换、未写ICE、未解密。
+
+### 2026-10-28：KeyMint TA lookup 候选（未上机）
+
+在已通过的 root/loader 批处理上加一次 loader lookup：keymaster64 → （仅对象错误时）keymaster。
+固定 AppLoader 头定义 lookupTA=op2/counts1001，名字为 ASCII BI，上限 64；本机模块 @1f18..1f84
+的 mov w1,#0x2 / mov w3,#0x1001 与失败后 firmware_request_from_smcinvoke 分支一致；
+命中分支绕过 EI_CLASS 读取，因此 lookup 成功不证明 is64。7 份固定输入逐一篡改均被拒绝。
+lookup 未命中只在 a0=a1=a3=0 且 a2≠0 时解释为对象错误并原样记录，再回退第二个名字；
+两次都未命中仍完成 loader/env release 与桥删除，最终 stop=lookup-missing、result=Not Found。
+11 个 lookup 向量、82 个 loader 向量、148 个 C2 向量、24 个桥向量及 20 项检查全部通过；
+镜像 SHA256 e252d7d308318a64d4ba06e9fccf45ec9f14b85508fb689a984170a5e6ddbfa1，56 个交付源码绑定；hardware=pending。
+下一步一次实机：读 lookup 返回的原始 a2 与句柄；命中则释放 TA 对象，未命中则保留该值用于判断。
