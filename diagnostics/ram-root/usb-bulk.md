@@ -4087,3 +4087,20 @@ D:/Projects/UniXNU/migration/20261028-m3-lun4-large-bridge-v1/attempt-01/device-
 一次 fastboot boot Sending/Booting OKAY，退出 0；无 flash/擦除/slot 改动。
 主机成功不证明 LUN4 或大桥生命周期成功，等待照片。原始记录在候选及
 D:/Projects/UniXNU/migration/20261028-m3-lun4-large-bridge-v1/attempt-03/device-test.json。
+
+### 2026-10-28：LUN4 大桥 attempt-03 照片 — 0x82000 桥闭环通过
+
+照片 IMG_7181..JPG，SHA256 71c60b6ebbe2dea5beec1f691bff2bc9c7514b46382c7a1a1dd2b95d1098c46b。
+LUN0 M2 文件 10527 字节、SHA256 14f3d8675423917e383a71c936f4d9a81a29480f34ae3c550e0f4c34e53a0991；
+LUN4 TUR/capacity/GPT、a/b 两槽全分区哈希均 Success，与 Android 对照一致，slot=unknown。
+HLOS bridge 1VM/VMID3、NS/TZ权限6；page phys=C64E4000、bytes=82000。
+enable a0..a3=0；create 参数 C64E4006/C64E4006/82200/3，返回 a0=0、a1=0、a2=64676AA2、a3=0；
+delete 用完整句柄 64676AA2，返回 a0..a3=0；result=Success、released bytes=82000。
+PARK 和 cached report end 可见；清零/cache 为源码顺序结论，照片不独立证明擦除。
+UFS stop=1、db=tdb=run=0、hcs=10F、is=0、poisoned=0、ready=0；
+SMMU GFSR=0、FSR=400 仍残留，完整恢复未证明。15 项资格、镜像
+7681d106b26714ef296859999d794b728a22dee1c52ecff2cccba16eae0ca04c 和提交
+ ee04d068f4cfc3e7f81fac973ea8db944f64fbb1 的 56 项源码绑定重新核验通过。
+本轮仅证明 0x82000 桥生命周期；未调用对象、加载 TA、使用密钥、解密或 XNU handoff，
+不证明 TA 输入长度/信任、UEFI 槽位或 callback 行为。原图及 assessment 在候选与
+D:/Projects/UniXNU/migration/20261028-m3-lun4-large-bridge-v1/attempt-03/。
