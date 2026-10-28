@@ -3756,3 +3756,14 @@ create a0=SCM状态、a1=服务结果、a2=64位句柄。
 固定模块审计及篡改拒绝、12个桥生命周期、C2 56向量、C1与INFO回归通过；
 15项完整检查退出0。镜像SHA256 59ef12959f32ef2869f328eaf258abeeca5c6f2b1f2880c56303756f701d2ad8；提交 33e50f3aefb23346e407a25302efab7c44dfe3cc，56个交付源码绑定。
 目录uefi-twrp-data/out/m3-bridge-standard-v1。VM/DT/pool全契约仍未复现，实机pending，C2仍未通过。
+
+### 2026-10-28：标准桥attempt-01临时启动（待照片）
+
+用户确认已进入fastboot后，互斥、fcde91e/fuxi/unlocked、usb-ram profile、15项交付检查、
+标准桥固定模块审计和12个生命周期向量、提交33e50f3aefb23346e407a25302efab7c44dfe3cc的56个源码文件绑定重新核验通过。
+镜像SHA256 59ef12959f32ef2869f328eaf258abeeca5c6f2b1f2880c56303756f701d2ad8。独立attempt-01只执行一次fastboot boot，
+Sending/Booting均OKAY，退出0；无flash/擦除/slot写入。完成UTC：2026-10-28T06:41:15.548879+00:00。
+原始记录保留于uefi-twrp-data/out/m3-bridge-standard-v1/attempt-01及
+D:/Projects/UniXNU/migration/20261028-m3-bridge-standard-v1/attempt-01。
+待照片核对ABI=standard64、enable/create/delete的a0..a3、64位句柄、released/retained、UFS/SMMU及PARK。
+主机启动命令成功不代表桥生命周期成功；C2仍未通过，本次没有执行对象调用。
