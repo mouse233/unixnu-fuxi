@@ -4180,3 +4180,22 @@ m3_smci_ta_bytes=0x63058、19 项检查），未放宽其他条件。
 主机成功不证明 load 成功，等待屏幕照片判读；不自动重试。
 原始记录：D:/Projects/UniXNU/migration/20261028-m3-smci-load-v2/attempt-01-device-test.json
 与候选 attempt-01/。
+
+### 2026-10-28：m3-smci-load-v2 attempt-01 照片 — 停在 TA 读取（未进入对象批处理）
+
+照片 IMG_7183..JPG，SHA256 7fb623494b8331e1fa437b32f311fe8f337228ee39b351a6b985780ee4a70b88。
+
+- M2 文件 Success；LUN4 tur/capacity/GPT Success，a=24606..24685、b=68493..68512，
+  a-sha256=2FC838A8…3CC6、hash-a=Success；slot=unknown。
+- 新步骤失败：`FUXIM3 TA read=Invalid Parameter bytes=0`。随后 `RunLun4Keys` 返回 FALSE，
+  `mLun4Passed` 未置位，整段 M3 被跳过（`FUXIM3 SMCI skipped: UFS/INFO/invoke availability not ready`），
+  `final stage=lun4-keymaster`。**本次没有任何对象调用，load 请求没有送达安全世界。**
+- 设备收尾干净：stop=1、db=run=0、hcs=0000010F、is=0；SMMU gfsr=0、fsr=0x400 残留照旧。
+- 原因：`FdpReadPartition` 限制单次 `Blocks > FDP_MAX_GPT_BYTES / BlockSize` = 16 块；
+  本次一次请求 100 块（409600 字节），被该上限以 EFI_INVALID_PARAMETER 拒绝。
+  既有哈希循环按 16 块调用，所以此前从未触发。
+- 附带问题：读取放在 hash-a 与 hash-b 之间，失败后 b 槽哈希没有评估。
+- 修复：同一区间改为 16 块分块读取，并把读取移到两槽哈希之后；不改变 load 消息与停止条件。
+- 结论：这次是**探针自身的读取上限**，不是固件拒绝 TA；`a2` 仍无样本。
+  原始记录与照片在候选 attempt-01；报告
+  D:/Projects/UniXNU/migration/20261028-m3-smci-load-v2/REVIEW.md。
