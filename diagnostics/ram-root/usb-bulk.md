@@ -3637,3 +3637,14 @@ SMMU `GFSR=0 FSR=400` 残留，sid60 matches=1、slot=104、bank=68、SCTLR=0；
 镜像 `20a31268b23ce12417be75593b5fff6116edb0bf4a7d2afac94f846339fdce15`（提交 4c191520 的 54 个源码文件绑定）；14 项主机检查通过。
 未执行 TA、装钥或解密。此结果只证明真实 wrapped blob 可读入注册页并完成桥删除，
 不证明安全世界/TA 已读取此页。用户已重新进入 fastboot，并授权完成核对后进入 C2。
+
+### 2026-10-28：M3 C2 root register/release 候选（待实机）
+
+用户在 C1 照片后明确授权进入 C2。新增默认关闭 UEFI 最小对象调用：
+INFO invoke availability 与 UFS 停队列后，用 8 KiB 桥运行 root register(null input,
+op5/counts1100) 和远端 release(opffff/counts0)，终态/消息完整性校验后才 delete/free。
+本机 qcom-scm.ko owner=32/arginfo224/type2 推出 standard SMC64 `72000600`。
+未知/中断/回调/非零对象状态或损坏缓冲均保留资源驻留，无重试、无 TA、无 blob/装钥/解密。
+27 个 ASan/UBSan 生命周期向量、C1 回归、固定模块审计和篡改拒绝通过；14 项交付检查退出 0。
+镜像 SHA256 91775bf92a86b949488a157521304b3bb1a002cb2bf9e1195a4f612060a5dbe3；提交 041f3d1258844acebb7ff3dc7dc92627be6cd5af 的 55 个交付源码文件绑定通过。
+候选位于 uefi-twrp-data/out/m3-smci-root-v1，实机待照片。
