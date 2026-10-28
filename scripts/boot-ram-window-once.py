@@ -80,15 +80,28 @@ def main():
                 candidate.get('m3_bridge_ops') == ['enable','create','delete']) if large else (
                 candidate.get('m3_scm_info') is False and candidate.get('m3_bridge_call') is False)
             if large and candidate.get('m3_smci_root') is True:
-                bridge_allowed = (a.expected_sha256 == 'b0de5540f72692556694d77febca7f92439e14fdfc3c7159e414c6e55fdc704b' and
+                # Hash-pinned loader profiles. Each entry fixes the accepted op
+                # set, whether the batch loads a TA, and the delivery-check
+                # count; any other image is rejected before it is sent.
+                profiles = {
+                    'b0de5540f72692556694d77febca7f92439e14fdfc3c7159e414c6e55fdc704b': (
+                        ['root-register-null', 'open-loader-uid122', 'loader-release',
+                         'environment-release'], False, 18),
+                    '3892da87e48998547cc51ac99b5ec26d9b5f660ff07c90b4562414e717e8c1df': (
+                        ['root-register-null', 'open-loader-uid122', 'loadfrombuffer-keymaster64',
+                         'ta-release', 'loader-release', 'environment-release'], True, 19),
+                }
+                ops, loads_ta, expected_checks = profiles.get(a.expected_sha256, ([], False, 0))
+                bridge_allowed = (bool(ops) and
                     candidate.get('m3_scm_info') is True and candidate.get('m3_scm_bridge') is True and
                     candidate.get('m3_scm_invoke') is True and candidate.get('m3_bridge_call') is True and
                     candidate.get('m3_bridge_hlos') is True and candidate.get('m3_bridge_bytes') == 0x82000 and
                     candidate.get('m3_bridge_blob') is False and candidate.get('m3_smci_loader') is True and
                     candidate.get('m3_smci_lookup') is False and candidate.get('m3_smci_mode') == 'object' and
                     candidate.get('m3_smci_no_keys') is True and
-                    candidate.get('m3_smci_ops') == ['root-register-null', 'open-loader-uid122', 'loader-release', 'environment-release'])
-                expected_checks = 18
+                    bool(candidate.get('m3_smci_load')) == loads_ta and
+                    candidate.get('m3_smci_ta_bytes') == (0x63058 if loads_ta else None) and
+                    candidate.get('m3_smci_ops') == ops)
             else:
                 expected_checks = 15 if large else 12
             expected_smc = {'FuxiNativeUfsDxe.efi': 1 if large else 0,

@@ -4167,3 +4167,16 @@ D:/Projects/UniXNU/migration/20261028-m3-large-loader-v1/REVIEW.md。
 - 未上机。边界不变：slot=unknown、SMMU FSR 0x400 残留；固件是否接受该输入长度、签名与
   TA 名仍是未知；`passed=7F` 是探针完成掩码，不是固件接受 TA 的证据。
   记录：D:/Projects/UniXNU/migration/20261028-m3-smci-load-v2/REVIEW.md。
+
+### 2026-10-28：m3-smci-load-v2 attempt-01 临时启动（待照片）
+
+设备 fcde91e / fuxi / unlocked=yes / current-slot=a，互斥检查通过；profile usb-ram。
+确认镜像 SHA256 3892da87e48998547cc51ac99b5ec26d9b5f660ff07c90b4562414e717e8c1df，
+19 项资格检查与 56 项源码绑定（UEFI 提交 bcc72b8e2051138f4a58414febc24bd6499f20a6）通过。
+启动助手新增该镜像的精确白名单条目（op 序列含 loadfrombuffer-keymaster64、m3_smci_load=true、
+m3_smci_ta_bytes=0x63058、19 项检查），未放宽其他条件。
+
+一次 `fastboot boot`：Sending OKAY、Booting OKAY，退出 0；无 flash/擦除/slot 更改。
+主机成功不证明 load 成功，等待屏幕照片判读；不自动重试。
+原始记录：D:/Projects/UniXNU/migration/20261028-m3-smci-load-v2/attempt-01-device-test.json
+与候选 attempt-01/。
