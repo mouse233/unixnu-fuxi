@@ -4118,3 +4118,28 @@ ASan/UBSan 通过。56 项固件来源与 UEFI 提交 8f9a6771 绑定验证通�
 该候选未上机，TA 输入长度、信任、加载及回调仍未验证；SMMU 旧 FSR 残留待调查。
 设备当前未在 fastboot 列表；未发启动命令。
 记录：D:/Projects/UniXNU/migration/20261028-m3-large-loader-v1/REVIEW.md。
+
+### 2026-10-28：m3-large-loader-v1 attempt-01 照片 — 0x82000 桥上对象链闭环
+
+照片 IMG_7182..JPG，SHA256 7bae77cdb56662c04c794f944eae882b21804e0c1838f84281f77e82c68d0d6c。
+主机启动记录 status 此前仍为 awaiting screen evidence，本轮按 EXIF 方向 6 旋转后逐行裁切、
+原尺寸判读补齐（缩略图会让 b-sha256 一类长十六进制读错，勿据缩略图归档）。
+
+- 门槛：M2 文件 nid=12、10527 字节、SHA256 14f3d867…0991、result=Success；
+  LUN4 tur/capacity/GPT 均 Success，last=8FBFF、逻辑块4096，a=24606..24685、b=68493..68512，
+  a-sha256=2FC838A8…3CC6、b-sha256=FE18A467…7EAC，与 Android 侧对照一致；slot=unknown。
+- 桥：in=C64DC000、out=C64DD000（输出页仍为输入页+0x1000）、bytes=82000、130页；
+  enable 全零；create 返回句柄 426FF842；delete 用 426FF842 返回 a0..a3=0；released bytes=82000。
+- 对象：plan=root/open122/release-loader/release-env/delete；root register 成功；
+  open UID122 得远端对象3；loader-release=Success handle=3；object-release=Success handle=2；
+  BATCH stop=complete passed=1F env=0 loader=0 retained=0；
+  result=Success retained=0; no TA, no key, no decrypt。
+- UFS：stop=1、db=tdb=run=0、hcs=0000010F、is=00000000、poisoned=0、ready=0。
+  SMMU：gfsr=00000000、fsr=00000400、far=1BBBE7FF98DFF、smmu-configured=1；fsr 残留仍未解释。
+
+判读：本轮新信息是对象链在 0x82000 桥上成立；同一条链在 8 KiB 桥上已由 IMG_7177
+（m3-smci-loader-hlos-v3）证明，因此不是新功能里程碑，而是 TA 通道所需容量级别的桥被固件
+接受并完成闭环。passed=1F 是探针完成掩码，不是固件返回的 TA 成功。
+未做 lookup、TA 加载、KeyMint 命令、密钥、ICE 或解密；slot 仍 unknown；桥成功不证明 TA
+输入长度、签名被设备接受或回调行为。原图与 assessment 在候选 attempt-01，报告
+D:/Projects/UniXNU/migration/20261028-m3-large-loader-v1/REVIEW.md。
