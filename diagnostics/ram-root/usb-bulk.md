@@ -3836,3 +3836,14 @@ HLOS最小C2候选out/m3-smci-root-hlos-v3已构建：明确72000602/224，桥HL
 镜像SHA256 571a652ae7036524fad7a4ecf99d544def2716ee3bb006e111afe84cb5327992；源码提交fdeefb5852b5943a2fb6d03604eb6bfc9d8bbb78的56个交付源码及14个辅助源码绑定。
 独立报告out/m3-static-advance-v1；规范专题docs/fuxi-m3-static-advance-20261028.md。
 下一决定性步骤必须是在已验证HLOS桥上观察真实root register/release终态；C2仍未上机/未通过，TA/装钥/解密未验证。
+
+### 2026-10-28：root+loader 组合批处理候选（未上机）
+
+按“一次构建覆盖一组相关验证、一次开机逐级推进”的方案，把已验证 HLOS 桥、最小 C2 与 loader open/release
+串成同一镜像 out/m3-smci-loader-hlos-v2：enable→create(HLOS)→root register(op5/1100)→open UID122(op0/1001)
+→release loader→release env→delete；每步独立校验缓冲区并打印 a0..a3，未知态停在 stop=<stage> 并保留页面/句柄。
+loader 契约由固定 smcinvoke_dlkm.ko @1e38..1e94 与 IClientEnv_open/线格式参考固定，6 项输入篡改均被拒绝；
+UID122、BI 偏移32/长度4、OO 偏移20。仍不加载 TA、不读密钥、不转换、不写 ICE、不解密、无回调与重试。
+18 项完整检查退出0；78 个批处理 ASan/UBSan 生产向量、148 个仅 C2 向量、24 个桥向量通过；报表缓存提到 192 行。
+镜像 SHA256 12b094bf368046687ee6b9851ff843758d5c3069f8c58420f5fcdb0af8a99c91，56 个交付源码绑定；hardware=pending，C2/C3 均未上机。
+下一步需一次实机：核对桥 create、root 原始返回、loader 句柄、两个 release、delete 与 PARK；出现未知态即停止。
