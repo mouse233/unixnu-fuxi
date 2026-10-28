@@ -3688,3 +3688,15 @@ qcom,support-legacy_smc 选择逻辑及 kalama.dtsi 节点无该属性后，新�
 C1 回归、固定模块/篡改审计通过；14 项交付检查退出 0。
 镜像 SHA256 6d119c131fafaee0d30530c70f471ead075e85aca7589ed66899a7a105b07eeb；提交 69ba2ae922e32411957cb2730682345770878e41 的 55 个源码文件绑定通过。
 候选位于 uefi-twrp-data/out/m3-smci-root-object-v2，实机待照片。
+
+### 2026-10-28：C2 object root register attempt-01 — 待照片
+
+用户确认重新进入 fastboot，命令 2 object 模式 72000602/224、互斥、fcde91e/fuxi/unlocked、usb-ram profile、14 项交付检查、
+双模式 56 个生命周期向量与固定模块审计，以及提交 69ba2ae922e32411957cb2730682345770878e41
+的 55 个源码文件绑定核验通过。镜像 SHA256 `6d119c131fafaee0d30530c70f471ead075e85aca7589ed66899a7a105b07eeb`。
+只执行一次 fastboot boot：Sending/Booting 均 OKAY，退出 0；无 flash、擦除或 slot 写入。
+命令完成 UTC：2026-10-28T04:57:39.863705+00:00。原始记录位于
+uefi-twrp-data/out/m3-smci-root-object-v2/attempt-01 与
+D:/Projects/UniXNU/migration/20261028-m3-smci-root-object-v2/attempt-01。
+待照片确认 INFO/SMCI bridge-create、register a0..a3/消息头/返回对象、release、
+bridge-delete/released 或 retained、UFS/SMMU/PARK；目前不宣称 root invoke、TA 或解密成功。
