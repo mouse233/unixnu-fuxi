@@ -3745,3 +3745,14 @@ SMMU GFSR=0、FSR=400 仍残留，不能宣称完整恢复。M2 文件 10527 字
 本次 CP version=5788EAC1、userdata 首块 SHA256=7ac3edafc83d6b29583e726f58f6e6f640d5b8cddf77477f491f68bed56233ed，
 与之前候选照片不同，记录为跨启动观测变化；不据此推断变化来源，也不写成该候选写入。
 后续优先静态核对 owner32 调用封装、共享内存和固件契约；暂不由 INFO 成功直接重复 root 或加载 TA。
+
+### 2026-10-28：标准桥ABI纠正候选（待实机）
+
+固定 qcom-scm.ko（8932f020…79a5）确认桥type=0，入口42000c1c/1e/1d；
+create a0=SCM状态、a1=服务结果、a2=64位句柄。
+更正旧fast调用和a1句柄解释：a0=0/a1=5C/a2=0不能证明标准桥handle5C已注册；
+历史记录保留并追加本更正，文件读取/hash仍是独立观测，C2失败根因仍未确定。
+本候选UEFI DXE/工具层仅测UFS/M2停队列后的8KiB标准桥闭环，无对象/blob/TA/key/解密。
+固定模块审计及篡改拒绝、12个桥生命周期、C2 56向量、C1与INFO回归通过；
+15项完整检查退出0。镜像SHA256 59ef12959f32ef2869f328eaf258abeeca5c6f2b1f2880c56303756f701d2ad8；提交 33e50f3aefb23346e407a25302efab7c44dfe3cc，56个交付源码绑定。
+目录uefi-twrp-data/out/m3-bridge-standard-v1。VM/DT/pool全契约仍未复现，实机pending，C2仍未通过。
