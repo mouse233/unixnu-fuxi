@@ -4260,3 +4260,17 @@ v4 将输入长度改为 0x64000 并将 out 页放在其后，这是可能的兼
 19 项资格、56 项源码和镜像绑定验证通过；一次 fastboot boot Sending/Booting OKAY，
 退出 0；无 flash、擦除或槽位更改。主机结果不能证明 TA 加载或资源恢复；待照片。
 原始记录 attempt-01/device-test.json。
+
+### 2026-10-29：m3-smci-load-v4 attempt-01 照片
+## attempt-01 照片：零状态与输出对象，探针在返回长度校验停止
+
+照片 IMG_7191..JPG，SHA256 `cd1416481056e85ac1e1e1c801a9beed0cf437499735d50f5116844662f1486d`。M2 与 LUN4 a/b 哈希成功，TA 读取 bytes=63058，
+extent 摘要与固定输入一致。load 输出 in=C6478000、out=C64DC000，消息长度 0x64000；
+返回 a0=a1=a2=a3=0，描述符 ELF=30/63058、name=63088/B、BO=63098/8，OO=4，
+out=00010002/0000FFFF、nz=4。随后 stop=loader-load passed=3 env=2 loader=3 retained=1，
+result=Compromised Data。UFS stop=1、db=tdb=run=0、poisoned=0；SMMU FSR=400 仍残留。
+
+源码要求 BO 返回长度必须等于请求容量 64；固定参考 smcinvoke.c marshal_out_invoke_req
+采用安全世界返回的 BO 长度。此次 8 小于 64，过严的固定长度判断解释了可见停点（其他未打印
+的校验内容不能仅凭照片完全排除）。零状态与返回对象为重要进展，但对象未由探针接受或释放，
+未执行 KeyMint 命令，不能据此宣称 TA 可用或完整生命周期成功。
