@@ -4352,3 +4352,7 @@ UEFI 默认关闭的续调在对象 SMC 返回 x0=1 时，以原始 x1..x5、前
 IMG_7211..JPG SHA256 8e7020af36e14cf08a153bc188493b68e8fa073d411502aedc3909d28e502814。LUN4 a/b 和 TA extent 固定摘要检查成功；TA load app=4，getVersion a0..a3=0、BO 长 9FFC、原始字段 4/1/4/3F4。app=4、loader=3、环境对象=2 的 release 均 Success；bridge-delete handle=16D82C5E a0..a3=0；BATCH stop=complete passed=FF env=0 loader=0 retained=0，result=Success。桥和 TA 缓冲报告释放，清零仅为源码推断。
 
 本次所有对象调用 resume-count=0、final-a0=0；**实机没有触发 SCM 中断续调分支**，闭环不证明中断时续调成功，也不能解释 v3 的 a0=1。UFS stop=1、db=tdb=run=0、poisoned=0；SMMU FSR=400 残留。未执行 KeyMint 配置/转换、ICE、解密或系统交接。原图、assessment 和 REVIEW 在 D:/Projects/UniXNU/migration/20261029-m3-resume-v1/。
+
+### 2026-10-29：m3-smci-setversion-v1 — 一次 setVersion(200) 受限探针（未上机）
+
+在 getVersion 之后、释放之前增加默认关闭的 `setVersion`：SMCI op0/counts=0424，命令 0x3121 + CBOR map `{11:200}`（字节 a1 0b 18 c8），is64=1；响应必须是已知空输出页形式且 status 为零，异常或未知状态停止并保留桥、loader 与环境对象，不重试。CBOR 字节由本机 libqtikeymint/libqcbor 反汇编推导，未执行厂商编码器。镜像 SHA256 3b9a8810c1c6fa4390ff34f3ba0844138c75be9efbeba74b2db0c47003cf6363；监视器 finalize 退出 0，23 项主机检查退出 0，setVersion 58 个向量及续调 46、查询 40、加载 25、TA 读取 11 个向量在 ASan/UBSan 下通过，56 项源码绑定提交 253b5349ed4b4a5e738e8e5015fd4f2fdeadc246。未上机，现有启动助手白名单不含本镜像；`setVersion` 是否被 TA 接受、是否改变后续 KeyMint 行为均未验证。历史 SMMU FSR=400 未解释。详见 D:/Projects/UniXNU/migration/20261029-m3-setversion-v1/REVIEW.md。
