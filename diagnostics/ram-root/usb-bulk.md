@@ -4274,3 +4274,11 @@ result=Compromised Data。UFS stop=1、db=tdb=run=0、poisoned=0；SMMU FSR=400 
 采用安全世界返回的 BO 长度。此次 8 小于 64，过严的固定长度判断解释了可见停点（其他未打印
 的校验内容不能仅凭照片完全排除）。零状态与返回对象为重要进展，但对象未由探针接受或释放，
 未执行 KeyMint 命令，不能据此宣称 TA 可用或完整生命周期成功。
+
+### 2026-10-29：m3-smci-load-v5 修正 BO 返回长度（未上机）
+
+v4 照片显示 BO 实际输出长度 8，小于原始容量 64；固定参考会接受返回长度。
+v5 接受 BO 长度 <=64，保持其他返回和缓冲检查，拟继续释放 TA、loader、env 和删除桥。
+25 个加载模拟向量及 19 项资格检查退出 0；GUI 构建成功。
+镜像 SHA256 ddf35cbdf5723e1fbe13e417b108c3c085be3aee9a606cca5166d5ca4ad9a658，56 项源码绑定 UEFI 提交 5b40ec3c14306b3298916f6dd4ae9392f4252aa9。
+未上机，不证明 TA 命令、解密或 SMMU 完整恢复；报告 D:/Projects/UniXNU/migration/20261029-m3-smci-load-v5/REVIEW.md。
