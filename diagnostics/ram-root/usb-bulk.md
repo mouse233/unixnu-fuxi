@@ -4310,3 +4310,13 @@ UFS stop=1、db=tdb=run=0、poisoned=0；SMMU FSR=0x400 仍残留，不宣称完
 
 这证明本轮 loader 接受输入并返回对象，且探针的对象与桥释放调用闭环；未发 KeyMint 命令，
 不证明对象可执行预期命令、密钥转换、ICE、userdata 解密、UEFI 当前槽或系统交接。
+
+### 2026-10-29：KeyMint getVersion 与命令外壳离线准备（未上机）
+
+依用户要求延后实机验收，先推进离线协议：固定本机库和模块支持 getVersion 命令 0x200、请求 4 字节、响应容量 0x9ffc、SMCI op=0/counts=0x0424；已审计 TA 是 ELF64。固定参考中 null TZ handle 为 0。构造只在主机运行的 getVersion 消息与返回检查模型，及版本协商/配置/转换共有的命令外壳模型；无设备、无真实密钥、无生产固件接入。固定输入和指令审计退出 0，10 个主机测试方法通过。终态、piggyback、设备 ABI 和具体序列化仍未通过实机或厂商编码器验证；不宣称 KeyMint 命令执行成功。详细证据及边界见 D:/Projects/UniXNU/migration/20261029-m3-getversion-static/REVIEW.md。
+
+补充：固定 libqtikeymint 的 serializeInteger 使用 map 和整数标签 11，结合调用点参数 200，离线模型给出 CBOR 候选 a1 0b 18 c8；尚未与厂商编码器或设备核对。扩展后的固定输入审计及 11 个主机测试方法退出 0；本条更新前述 10 项测试数，不增加实机结论。
+
+### 2026-10-29：m3-smci-version-v2 — getVersion 受限候选（未上机）
+
+UEFI DXE 增加默认关闭的 getVersion 调用：root/open/load 后使用 op0/counts=0424、命令 0x200；仅处理已观察的空输出页形式，异常或未知状态停止并保留桥和对象。TA 需为 ELF64/小端，不执行 callback、版本配置、密钥转换、ICE 或解密。镜像 SHA256 c244ffe7e3eed02c72e9d43af8f1e65517c61d59c1120ddb9b85a388a0e1100c；监视器构建成功，20 项主机检查退出 0，新增 40 个及加载回归 25 个模拟向量通过，56 个源码绑定提交 5aa32739c50ab123f773aa7c25ea1b927eb100b9。未上机；TA 二次读取摘要未在设备端直接对照固定值，历史 SMMU FSR 0x400 未解释。未来实机前需建立本镜像精确启动资格。详见 D:/Projects/UniXNU/migration/20261029-m3-getversion-uefi/REVIEW.md。
