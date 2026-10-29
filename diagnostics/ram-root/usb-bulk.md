@@ -4371,3 +4371,19 @@ smcinvoke_dlkm.ko、固定参考源码与 keymaster 分区镜像不在本机：b
 contract、TA 实际读取模拟和最终 UFS 交付检查未完成；交付检查因缺少 bridge ABI 报告
 退出 1。没有精确启动资格或实机操作。补齐固定输入并完成全部绑定检查前不得上机。
 独立候选记录：ramdisk-test/uefi-twrp-data/out/m3-setversion-macos-20261029/REVIEW.md。
+
+### 2026-10-29：恢复 setVersion 候选审计输入与补检
+
+本机 A16 TWRP 原镜像 SHA256 68f3829b…f87da5，离线提取 qcom-scm.ko 和
+smcinvoke_dlkm.ko，分别与固定 A17 参考 SHA256 8932f020…79a5、831a6db7…9348
+一致。LineageOS SM8550 modules 固定提交 9e897228 的七个参考文件逐项匹配记录哈希。
+设备互斥检查无活动任务；ADB 确认 fcde91e / fuxi / Android 17，su 只读确认
+keymaster_a -> sde13、524288 字节。只读导出到主机：原始输出多含 80 字节 dd 状态，
+前 524288 字节 SHA256 2fc838a8f0ed572ec77b7db2fe39ab4e81d0aa038bfad482b88087a27bf43cc6
+与固定参考一致；保留原输出并另存精确长度副本，不入 Git。无设备写入或启动。
+
+候选 a4fa6e2e…5594c31 补齐对照模块后，19 项顺序交付检查全部退出 0；桥 ABI、
+loader 合约、TA 读取 11 向量及 setVersion/续调/getVersion 模拟通过；交付镜像
+56 项源码绑定与 SMC 指令检查通过。首次顺序检查因容器缺 OpenSSL 头而退出 1，安装
+依赖后重跑通过，失败日志保留。框架工作树仍报告子模块脏；现有启动助手无此镜像的
+精确资格，仍未实机验收，SMMU FSR=0x400 未解释。详见候选 REVIEW.md。
