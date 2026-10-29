@@ -4356,3 +4356,18 @@ IMG_7211..JPG SHA256 8e7020af36e14cf08a153bc188493b68e8fa073d411502aedc3909d28e5
 ### 2026-10-29：m3-smci-setversion-v1 — 一次 setVersion(200) 受限探针（未上机）
 
 在 getVersion 之后、释放之前增加默认关闭的 `setVersion`：SMCI op0/counts=0424，命令 0x3121 + CBOR map `{11:200}`（字节 a1 0b 18 c8），is64=1；响应必须是已知空输出页形式且 status 为零，异常或未知状态停止并保留桥、loader 与环境对象，不重试。CBOR 字节由本机 libqtikeymint/libqcbor 反汇编推导，未执行厂商编码器。镜像 SHA256 3b9a8810c1c6fa4390ff34f3ba0844138c75be9efbeba74b2db0c47003cf6363；监视器 finalize 退出 0，23 项主机检查退出 0，setVersion 58 个向量及续调 46、查询 40、加载 25、TA 读取 11 个向量在 ASan/UBSan 下通过，56 项源码绑定提交 253b5349ed4b4a5e738e8e5015fd4f2fdeadc246。未上机，现有启动助手白名单不含本镜像；`setVersion` 是否被 TA 接受、是否改变后续 KeyMint 行为均未验证。历史 SMMU FSR=400 未解释。详见 D:/Projects/UniXNU/migration/20261029-m3-setversion-v1/REVIEW.md。
+
+### 2026-10-29：setVersion 本机独立重建，交付检查未完成
+
+UEFI 提交 253b5349，macOS 主机通过 Linux ARM64 Docker 独立构建，固定设备 board
+1d071dae，框架 7e237de（工作树报告子模块脏）。镜像 1880064 字节，SHA256
+`a4fa6e2e483fcaa2b86053ea110323a314fe393c8e62d6cb45a65ff035594c31`；与 Windows
+候选不同，不能沿用其资格。改动层 UEFI，pre-USB 诊断驻留，不做系统交接。
+
+基础镜像检查、13 项记录的主机检查、独立 F2FS mkfs/sload 样本及 setVersion 58、
+续调 46、查询 40、加载 25 项 ASan/UBSan 模拟通过。容器首次模拟因 sanitizer 运行库
+缺失失败，改在主机完成，后安装容器运行库；保留失败事实。固定 TWRP 的 qcom-scm.ko、
+smcinvoke_dlkm.ko、固定参考源码与 keymaster 分区镜像不在本机：bridge ABI、loader
+contract、TA 实际读取模拟和最终 UFS 交付检查未完成；交付检查因缺少 bridge ABI 报告
+退出 1。没有精确启动资格或实机操作。补齐固定输入并完成全部绑定检查前不得上机。
+独立候选记录：ramdisk-test/uefi-twrp-data/out/m3-setversion-macos-20261029/REVIEW.md。
