@@ -4414,3 +4414,18 @@ UFS stop=1、db=tdb=run=0、hcs=10F、is=0、poisoned=0；SMMU gfsr=0、fsr=400
 残留，不宣称完整恢复。无解密和系统交接。照片后再次通过交付镜像/56 项源码绑定；
 19 项顺序检查与候选匹配。下一步离线核对厂商编码器、响应与状态语义，保留保护，
 不能凭错误码猜测根因或宣称 setVersion 已成功。详细记录见候选 REVIEW.md。
+
+### 2026-10-29：setVersion 非零状态离线核对
+
+固定本机厂商 `libqtikeymint.so`、A16 TWRP `libqcbor.so` 和 deviceutils 在 Unicorn
+隔离模拟：真实 serializeInteger(200) 返回 `a1 0b 18 c8`，与交付源码相同；三库哈希
+及篡改拒绝通过。厂商 getVersion 处理字段顺序与照片 4/1/4/3F4 对应的推论下，
+实际 isLegacy 函数对 (4,1) 返回 false；对照 4/0、3/0、5/0 返回 1/1/0。独立参考
+消息模型的 op/counts、六项 BI/BO 描述符、消息页长及 is64 与当前源码一致；A16
+libQSEEComAPI 的发送路径同样提供这些参数。均不证明设备 TA 收到的字节或上下文。
+
+Android 公开 Keymaster 将 -40 命名为 INVALID_TAG，但设备私有固件的错误表及具体原因
+未确认；不能以此推断标签错误。未改变诊断固件或放宽保护，未操作设备。新可复现
+审计与边界见 UEFI docs/fuxi-m3-setversion-encoder-audit-20261029.md；提交
+450bf09c、ea1c4acf 已推送 origin/feat/twrp-data-uefi。继续核对 TA 输入、上下文及
+响应路径；在根因明确前不臆造修复或自动重发。
