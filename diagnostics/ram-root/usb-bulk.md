@@ -4429,3 +4429,17 @@ Android 公开 Keymaster 将 -40 命名为 INVALID_TAG，但设备私有固件�
 审计与边界见 UEFI docs/fuxi-m3-setversion-encoder-audit-20261029.md；提交
 450bf09c、ea1c4acf 已推送 origin/feat/twrp-data-uefi。继续核对 TA 输入、上下文及
 响应路径；在根因明确前不臆造修复或自动重发。
+
+### 2026-10-29：QSEECom 用户态执行与 TA 错误指令只读核对
+
+A16 TWRP 的固定 libQSEEComAPI SHA256 5c996c50…e65ed，Unicorn 隔离执行
+QSEECom_send_cmd，模拟 object invoke 捕获参数：op0/counts424、请求8字节、响应
+容量9ff8、ELF class2 的 is64=1、四个空输入对象，输出请求/响应指针与输入别名；
+class1 对照为 is64=0。固定内核参考在编排消息时复制 BI/BO 为独立区间，公开参考
+TZ null=0，与候选源码一致。独立线格式模型六项描述符相符；不证明设备实际调用。
+
+SHA256 2fc838a8…43cc6 的只读 keymaster_a 镜像可执行段扫描 MOVN Wd,#39（-40）
+的特定编码出现16次；可执行段可含数据，也有其他编码，尚未将任一位置与照片返回
+或可达性关联，因此不能定位 -40 根因。两项脚本检查通过，未改 UEFI/未操作设备。
+详见 UEFI docs/fuxi-m3-qsee-send-audit-20261029.md，提交 193bb3bc 已推送。
+继续追踪实际 TA 分派与调用上下文；不得忽略非零状态或猜测修改标签。
