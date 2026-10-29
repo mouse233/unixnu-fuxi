@@ -4282,3 +4282,12 @@ v5 接受 BO 长度 <=64，保持其他返回和缓冲检查，拟继续释放 T
 25 个加载模拟向量及 19 项资格检查退出 0；GUI 构建成功。
 镜像 SHA256 ddf35cbdf5723e1fbe13e417b108c3c085be3aee9a606cca5166d5ca4ad9a658，56 项源码绑定 UEFI 提交 5b40ec3c14306b3298916f6dd4ae9392f4252aa9。
 未上机，不证明 TA 命令、解密或 SMMU 完整恢复；报告 D:/Projects/UniXNU/migration/20261029-m3-smci-load-v5/REVIEW.md。
+
+### 2026-10-29：m3-smci-load-v5 attempt-01 临时启动（待照片）
+## attempt-01：临时启动完成，待照片
+
+设备 fcde91e、fuxi、unlocked=yes、current-slot: a；镜像 SHA256
+ddf35cbdf5723e1fbe13e417b108c3c085be3aee9a606cca5166d5ca4ad9a658。
+19 项资格、56 项源码和镜像绑定验证通过；一次 fastboot boot Sending/Booting OKAY，
+退出 0；无 flash、擦除或槽位更改。主机结果不能证明 TA 加载或资源恢复；待照片。
+原始记录 attempt-01/device-test.json。
