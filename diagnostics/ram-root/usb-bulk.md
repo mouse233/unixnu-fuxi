@@ -4338,3 +4338,11 @@ app-release handle=4 Success；loader-release handle=3 返回 a0=1、a1=224、a2
 ### 2026-10-29：v3 loader-release a0=1 静态定位（未续调）
 
 固定本机 A17/TWRP qcom-scm.ko SHA256 8932f0206f8a0083af352684cd64de8c9406346dd639606d045136cf27b079a5：__scm_smc_call 在 SMC 返回 x0=1 时进入继续循环，x0=1、原始 x1..x5、quirk 状态 x6、x7=0；与公开 Android Qualcomm SCM 的 QCOM_SCM_INTERRUPTED/A6 行为一致，但并未证明固件和参考完全等价。EDK2 ArmCallSmc 会保存返回 x6，v3 探针只记录 x0..x3 且未续调；原照片没有 x6，不能恢复本次调用，也不能推断最终释放成功。x0=2/3 的 waitqueue 与 SMCI callback 属独立处理。下一候选可在同一上下文有界续调并模拟测试，未知状态保留资源；不对当前设备盲目重试。静态审计退出 0，无设备操作。详情 D:/Projects/UniXNU/migration/20261029-scm-interrupt-audit/REVIEW.md。
+
+### 2026-10-29：m3-smci-resume-v1 — 有界 SCM 中断续调（上机前）
+
+UEFI 默认关闭的续调在对象 SMC 返回 x0=1 时，以原始 x1..x5、前次返回 x6、x7=0、x0=1 在同一调用内继续，最多 8 次；其他未知状态、waitqueue 或超过上限停止并保留资源，不实现 callback/listener。模拟生产流程 46 个向量覆盖 x6 链、上限和保留；22 项主机检查退出 0，56 项源码绑定提交 6427e44aa3017cb5cd7bc5cab3d6556691e70477。镜像 SHA256 b29467074225f3a942ec87577a7df41452a7385309c49cb5ff95f960e13f2a7c。设备成功与完整清理仍待照片；见 D:/Projects/UniXNU/migration/20261029-m3-resume-v1/REVIEW.md。
+
+### 2026-10-29：m3-smci-resume-v1 attempt-01 临时启动（待照片）
+
+12:26 Asia/Shanghai，互斥检查通过；fcde91e、fuxi、unlocked=yes、current-slot=a。镜像 SHA256 b29467074225f3a942ec87577a7df41452a7385309c49cb5ff95f960e13f2a7c，22 项检查与 56 项源码绑定通过。一次 fastboot boot Sending/Booting OKAY，退出 0；无 flash、擦除或槽位修改。续调和对象、桥释放结果待照片，不自动重试；记录 D:/Projects/UniXNU/migration/20261029-m3-resume-v1/attempt-01/device-test.json。
