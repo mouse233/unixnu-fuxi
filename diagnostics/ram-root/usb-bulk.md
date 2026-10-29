@@ -4222,3 +4222,32 @@ m3_smci_ta_bytes=0x63058、19 项检查），未放宽其他条件。
 
 未验证：-16 语义、TZ 内是否留下应用状态、能否发送 KeyMint 命令。
 原图与 assessment 在候选 attempt-01；报告 D:/Projects/UniXNU/migration/20261028-m3-smci-load-v3/REVIEW.md。
+
+### 2026-10-28：M3 大桥 loader attempt-01 临时启动（待照片）
+
+## attempt-01：临时启动成功，待屏幕证据
+
+设备 fcde91e，product=fuxi、unlocked=yes、fastboot current-slot=a；镜像 SHA256
+b0de5540f72692556694d77febca7f92439e14fdfc3c7159e414c6e55fdc704b。
+18 项资格检查、56 项提交来源及镜像绑定验证通过。第一次启动助手资格检查在任何设备查询或
+启动之前拒绝了不在旧白名单的组合；为本次镜像建立精确限定的独立助手后执行一次 fastboot boot，
+Sending/Booting 均 OKAY，退出 0；无 flash、擦除或 slot 更改。设备结果待照片，不能把命令成功
+当作对象生命周期或 SMMU 恢复成功。记录见 attempt-01/device-test.json。
+
+
+### 2026-10-29：更正 v3 照片返回值及 v4 现状
+
+IMG_7184..JPG 原图按 EXIF 方向转正放大后，loader-load 返回 a0=0、a1=0、
+a2=FFFFFFFFFFFFFFA0、a3=0；下方 loader-status=FFFFFFA0。低 32 位有符号值为 -96，
+不是前述 -16/FFFFFFF0，之前记录的错误码及据此排除对象错误表的结论作废。
+固定参考 smcinvoke_object.h SHA256 46fcdb259980ea248a8adacae5008983628cc7018d2022ab76c7a11722b85aba
+将 -96 定义为 OBJECT_ERROR_UNAVAIL（请求无法处理）；参考与本机固件并未证明完全等价，
+具体失败原因和安全世界内部状态仍未知。out 页全零不能独立证明请求未到达哪一层。
+
+v4 将输入长度改为 0x64000 并将 out 页放在其后，这是可能的兼容性试验而非已证实的修复。
+镜像 SHA256 77b199d807f8139982c3781158abb4bbec270aaad20069e2ea3182cde4ceb0bd，
+56 项源码与 UEFI 提交 cfded2f1c4fd2b4b8e2d2c85ea41c9ca3cb3c80b 绑定，19 项资格检查通过，
+未上机。报告 D:/Projects/UniXNU/migration/20261028-m3-smci-load-v4/REVIEW.md。
+
+此外上一条「大桥 loader attempt-01 待照片」是旧启动记录的延迟补记；IMG_7182 的照片结论
+已在上方 m3-large-loader-v1 条目归档，且后续 v2/v3 已完成，不代表仍在等待该旧照片。
