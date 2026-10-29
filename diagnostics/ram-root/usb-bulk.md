@@ -4398,3 +4398,19 @@ fcde91e、product=fuxi、unlocked=yes、current-slot=a；候选镜像 SHA256
 一次 fastboot boot：Sending OKAY、Booting OKAY，退出 0；无 flash 或分区写入。
 UEFI pre-USB 诊断，不启动 XNU。照片待判读，主机成功不证明 setVersion、对象/桥释放、
 UFS 停止或 SMMU 恢复，不自动重试。原始记录在候选 attempt-01/device-test.json。
+
+### 2026-10-29：本机 setVersion attempt-01 照片——非零状态，资源保留
+
+原图归档 attempt-01/photo-original.jpg，SHA256 96845704610e1ee2c0622a87ba2c2de860a442fe63c7ff0f69c0fff30d89360a。
+M2 文件、LUN4 a/b 哈希及 TA extent 固定摘要成功；TA load app=4，getVersion 的
+SMC a0..a3=0。set-version 的 SMC a0..a3=0，响应日志 status=FFFFFFD8（按 32 位有符号
+值为 -40）、bytes=9FF8、payload=9FF0；状态含义及产生层尚未确定，长度字段不等于
+已确认有效载荷。交付源码对非零 status 返回 EFI_DEVICE_ERROR；照片显示
+BATCH stop=set-version passed=A3 env=2 loader=3 retained=1、result=Device Error。
+源码路径在 app/loader/env release 和 bridge-delete 前跳至 Done；未证实这些释放。
+TA extent 缓冲报告 released，擦除仅是源码推断；不重试。
+
+UFS stop=1、db=tdb=run=0、hcs=10F、is=0、poisoned=0；SMMU gfsr=0、fsr=400
+残留，不宣称完整恢复。无解密和系统交接。照片后再次通过交付镜像/56 项源码绑定；
+19 项顺序检查与候选匹配。下一步离线核对厂商编码器、响应与状态语义，保留保护，
+不能凭错误码猜测根因或宣称 setVersion 已成功。详细记录见候选 REVIEW.md。
