@@ -4328,3 +4328,9 @@ v2 及之前 TA 读取按 16 块一组读取 100 块时，最后一次仍读 16 
 ### 2026-10-29：m3-smci-version-v3 attempt-01 临时启动（待照片）
 
 12:13 Asia/Shanghai，设备互斥检查通过，fcde91e、fuxi、unlocked=yes、current-slot=a；镜像 SHA256 59dbddf4ac04074771bf38df26995348d65f519e021277ed790ee0e485157df0。21 项资格检查及 56 项源码绑定通过，单次 fastboot boot Sending/Booting 均 OKAY、退出 0；无 flash、擦除或槽位修改。设备结果待照片，不能由主机成功推断 getVersion 或释放成功；不自动重试。原始记录 D:/Projects/UniXNU/migration/20261029-m3-version-v3/attempt-01/device-test.json。
+
+### 2026-10-29：m3-smci-version-v3 attempt-01 照片 — getVersion 返回，loader 释放停住
+
+IMG_7208..JPG SHA256 018340805948588a662a4b6cd70852201a27b08901a155420ceab294fd7e3062。M2 文件、LUN4 a/b 哈希及 TA extent 固定摘要校验成功；TA load 成功，app=4。getVersion op=0/counts=424，a0..a3=0；探针通过响应检查并打印 BO 长度 9FFC、四个原始字段 00000004/00000001/00000004/000003F4；长度不能直接等同实际有意义负载，字段语义未核验。
+
+app-release handle=4 Success；loader-release handle=3 返回 a0=1、a1=224、a2=C6467000、a3=1000，out 全零；stop=loader-release passed=E3 env=2 loader=3 retained=1，result=Not Ready，桥 633C4CD4 保留，未释放环境或删除桥。a0=1 的含义、终态及安全恢复尚未证实，不重试。TA 缓冲报告释放，清零仅由源码推断。UFS stop=1、db=tdb=run=0、poisoned=0；SMMU FSR=400 残留。未验证配置、密钥转换、解密或系统交接。原图、assessment 和 REVIEW 在 D:/Projects/UniXNU/migration/20261029-m3-version-v3/。
