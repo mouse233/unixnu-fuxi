@@ -4443,3 +4443,25 @@ SHA256 2fc838a8…43cc6 的只读 keymaster_a 镜像可执行段扫描 MOVN Wd,#
 或可达性关联，因此不能定位 -40 根因。两项脚本检查通过，未改 UEFI/未操作设备。
 详见 UEFI docs/fuxi-m3-qsee-send-audit-20261029.md，提交 193bb3bc 已推送。
 继续追踪实际 TA 分派与调用上下文；不得忽略非零状态或猜测修改标签。
+
+### 2026-10-29：固定 TA 命令表与 PixelOS OTA 版本路径复核
+
+固定 keymaster_a SHA256 2fc838a8…43cc6，独立 Unicorn 限界执行实际 TA 请求
+包装/分派：在初始化桩成功前提下，0x3121 扫描89项命令表未命中，返回响应头
+`d8 ff ff ff f0 9f 00 00`，与照片 status=FFFFFFD8/payload=9FF0 一致；0x200、
+0x3120 分别命中第19/18项；初始化桩失败则未扫描、返回 -1000。外部函数与 PAC
+均模型化，不能证明实际手机的运行控制流，也不能把 0x3120 当作 setVersion。
+
+只读解析本地 PixelOS OTA（zip SHA256 a281cb54…01a9c0，payload 校验启用）：
+OTA keymaster.img 409600字节与实机 keymaster_a 前409600字节完全一致，其余为零。
+OTA libqtikeymint 与 TWRP 相关函数代码区间相同；隔离模拟厂商 configure 表明，
+非 legacy 路径在 setVersion 返回 -40 后仍发 0x2116，并以该发送结果为返回值。
+此为厂商流程线索，不能据此放宽本探针的未知失败保留策略。TA 的 0x2116 路径对
+OS 版本/补丁参数调用写状态函数，持久性与安全世界副作用尚未充分确认。
+
+OTA system 属性 release=17、system patch=2026-10-01，vendor patch=2026-08-01；
+手机当前 vendor/system 是否与该 OTA 完全一致未核验，不能将这些值直接用于调用。
+只读 Android 采集工具已准备并用模拟 ADB 验证成功/错误机型拒绝：只收非秘密属性与
+四项厂商库 SHA，不写设备。当前 ADB 无设备（手机在诊断镜像），须返回 Android 才能
+绑定当前版本；没有构建新上机候选。详见 UEFI docs/fuxi-m3-ta-dispatch-20261029.md，
+提交 ec65e411 已推送 origin/feat/twrp-data-uefi。
