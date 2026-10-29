@@ -4387,3 +4387,14 @@ loader 合约、TA 读取 11 向量及 setVersion/续调/getVersion 模拟通过
 56 项源码绑定与 SMC 指令检查通过。首次顺序检查因容器缺 OpenSSL 头而退出 1，安装
 依赖后重跑通过，失败日志保留。框架工作树仍报告子模块脏；现有启动助手无此镜像的
 精确资格，仍未实机验收，SMMU FSR=0x400 未解释。详见候选 REVIEW.md。
+
+### 2026-10-29：本机 setVersion 候选 attempt-01 临时启动（待照片）
+
+19:52 Asia/Shanghai，用户确认设备已进入 fastboot 并授权启动。设备互斥检查通过，
+fcde91e、product=fuxi、unlocked=yes、current-slot=a；候选镜像 SHA256
+`a4fa6e2e483fcaa2b86053ea110323a314fe393c8e62d6cb45a65ff035594c31`。独立助手
+精确绑定此镜像、setVersion 操作序列和 19 项检查，逐项核验 56 个源码与提交
+253b5349、交付绑定及 setVersion/续调/getVersion/TA 读取报告。profile usb-ram，
+一次 fastboot boot：Sending OKAY、Booting OKAY，退出 0；无 flash 或分区写入。
+UEFI pre-USB 诊断，不启动 XNU。照片待判读，主机成功不证明 setVersion、对象/桥释放、
+UFS 停止或 SMMU 恢复，不自动重试。原始记录在候选 attempt-01/device-test.json。
