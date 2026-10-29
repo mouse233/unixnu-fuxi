@@ -4491,3 +4491,22 @@ UTRD 的 DUN 会被当前提交函数覆盖。
 保留。无模块源码修改/构建或上机；历史 SMMU FSR400 未解释。下一具体门槛为现存
 storage key 只读恢复契约，而非继续追加版本查询；详见 UEFI
 `docs/fuxi-m3-metadata-read-prerequisites-20261030.md` 与本轮 REVIEW。
+
+### 2026-10-30：M3 现存 metadata 密钥恢复核心（主机阶段）
+
+B 线 uefi-twrp-data/out/m3-key-recovery-v1：新增独立 UEFI C 库，固定四文件只读
+F2FS读取、personalized SHA512/application ID、有界 begin/update/finish/abort。
+绑定上下文须调用者独立核验并显式传 seed；没有生产调用入口/真实 KeyMint后端。
+finish认证成功且操作关闭前不公开结果；未知完成隔离保留，不重试/清理远端归属。
+不生成、升级或持久化密钥；未发送 configure，未构建启动镜像或操作设备，M3未通过。
+
+40项 ASan/UBSan（hashlib摘要和OpenSSL合成GCM独立对照）、固定输入静态审计、
+默认/query两套AARCH64模块构建及源码/EFI/编译对象依赖检查退出0。默认两个EFI
+SMC数均0；query DataProbe为既有1条INFO，NativeUfs仍0。库无live安全调用。
+TA表有210f/2111/2112/2113而无对应25xx；厂商选择涉及SecurityLevel/isLegacy，
+命令存在不代替运行时分支/线格式验证。主机成功不是真实KeyMint恢复或解密证据。
+
+下一步核验本机绑定seed与真实后端请求/响应、operation/共享缓冲区关闭，恢复现存
+storage key后再接convert/HWKM自有槽/六参SCM/UFS提交层DUN，最后做一次有界
+userdata metadata块明文哈希对照。历史SMMU FSR400仍未解释。详见UEFI
+docs/fuxi-m3-key-recovery-20261030.md与本轮REVIEW；硬件查询基线仍为date-support-v1。
