@@ -4346,3 +4346,9 @@ UEFI 默认关闭的续调在对象 SMC 返回 x0=1 时，以原始 x1..x5、前
 ### 2026-10-29：m3-smci-resume-v1 attempt-01 临时启动（待照片）
 
 12:26 Asia/Shanghai，互斥检查通过；fcde91e、fuxi、unlocked=yes、current-slot=a。镜像 SHA256 b29467074225f3a942ec87577a7df41452a7385309c49cb5ff95f960e13f2a7c，22 项检查与 56 项源码绑定通过。一次 fastboot boot Sending/Booting OKAY，退出 0；无 flash、擦除或槽位修改。续调和对象、桥释放结果待照片，不自动重试；记录 D:/Projects/UniXNU/migration/20261029-m3-resume-v1/attempt-01/device-test.json。
+
+### 2026-10-29：m3-smci-resume-v1 attempt-01 照片 — 查询与释放闭环，续调未触发
+
+IMG_7211..JPG SHA256 8e7020af36e14cf08a153bc188493b68e8fa073d411502aedc3909d28e502814。LUN4 a/b 和 TA extent 固定摘要检查成功；TA load app=4，getVersion a0..a3=0、BO 长 9FFC、原始字段 4/1/4/3F4。app=4、loader=3、环境对象=2 的 release 均 Success；bridge-delete handle=16D82C5E a0..a3=0；BATCH stop=complete passed=FF env=0 loader=0 retained=0，result=Success。桥和 TA 缓冲报告释放，清零仅为源码推断。
+
+本次所有对象调用 resume-count=0、final-a0=0；**实机没有触发 SCM 中断续调分支**，闭环不证明中断时续调成功，也不能解释 v3 的 a0=1。UFS stop=1、db=tdb=run=0、poisoned=0；SMMU FSR=400 残留。未执行 KeyMint 配置/转换、ICE、解密或系统交接。原图、assessment 和 REVIEW 在 D:/Projects/UniXNU/migration/20261029-m3-resume-v1/。
