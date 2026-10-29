@@ -4334,3 +4334,7 @@ v2 及之前 TA 读取按 16 块一组读取 100 块时，最后一次仍读 16 
 IMG_7208..JPG SHA256 018340805948588a662a4b6cd70852201a27b08901a155420ceab294fd7e3062。M2 文件、LUN4 a/b 哈希及 TA extent 固定摘要校验成功；TA load 成功，app=4。getVersion op=0/counts=424，a0..a3=0；探针通过响应检查并打印 BO 长度 9FFC、四个原始字段 00000004/00000001/00000004/000003F4；长度不能直接等同实际有意义负载，字段语义未核验。
 
 app-release handle=4 Success；loader-release handle=3 返回 a0=1、a1=224、a2=C6467000、a3=1000，out 全零；stop=loader-release passed=E3 env=2 loader=3 retained=1，result=Not Ready，桥 633C4CD4 保留，未释放环境或删除桥。a0=1 的含义、终态及安全恢复尚未证实，不重试。TA 缓冲报告释放，清零仅由源码推断。UFS stop=1、db=tdb=run=0、poisoned=0；SMMU FSR=400 残留。未验证配置、密钥转换、解密或系统交接。原图、assessment 和 REVIEW 在 D:/Projects/UniXNU/migration/20261029-m3-version-v3/。
+
+### 2026-10-29：v3 loader-release a0=1 静态定位（未续调）
+
+固定本机 A17/TWRP qcom-scm.ko SHA256 8932f0206f8a0083af352684cd64de8c9406346dd639606d045136cf27b079a5：__scm_smc_call 在 SMC 返回 x0=1 时进入继续循环，x0=1、原始 x1..x5、quirk 状态 x6、x7=0；与公开 Android Qualcomm SCM 的 QCOM_SCM_INTERRUPTED/A6 行为一致，但并未证明固件和参考完全等价。EDK2 ArmCallSmc 会保存返回 x6，v3 探针只记录 x0..x3 且未续调；原照片没有 x6，不能恢复本次调用，也不能推断最终释放成功。x0=2/3 的 waitqueue 与 SMCI callback 属独立处理。下一候选可在同一上下文有界续调并模拟测试，未知状态保留资源；不对当前设备盲目重试。静态审计退出 0，无设备操作。详情 D:/Projects/UniXNU/migration/20261029-scm-interrupt-audit/REVIEW.md。
