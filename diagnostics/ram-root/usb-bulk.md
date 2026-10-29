@@ -4320,3 +4320,11 @@ UFS stop=1、db=tdb=run=0、poisoned=0；SMMU FSR=0x400 仍残留，不宣称完
 ### 2026-10-29：m3-smci-version-v2 — getVersion 受限候选（未上机）
 
 UEFI DXE 增加默认关闭的 getVersion 调用：root/open/load 后使用 op0/counts=0424、命令 0x200；仅处理已观察的空输出页形式，异常或未知状态停止并保留桥和对象。TA 需为 ELF64/小端，不执行 callback、版本配置、密钥转换、ICE 或解密。镜像 SHA256 c244ffe7e3eed02c72e9d43af8f1e65517c61d59c1120ddb9b85a388a0e1100c；监视器构建成功，20 项主机检查退出 0，新增 40 个及加载回归 25 个模拟向量通过，56 个源码绑定提交 5aa32739c50ab123f773aa7c25ea1b927eb100b9。未上机；TA 二次读取摘要未在设备端直接对照固定值，历史 SMMU FSR 0x400 未解释。未来实机前需建立本镜像精确启动资格。详见 D:/Projects/UniXNU/migration/20261029-m3-getversion-uefi/REVIEW.md。
+
+### 2026-10-29：m3-smci-version-v3 — 有界读取和固定摘要（上机前）
+
+v2 及之前 TA 读取按 16 块一组读取 100 块时，最后一次仍读 16 块，可能写出 100 页缓冲；v3 修正最后一组为 4 块，且在加载前对第二次读取的 TA extent 强制校验 SHA256 9af72dfb96687f5d85874422ac944a4a070471be552db006ae445a30a262fb62。原 v3 照片条目中的摘要文字转录与固定输入实算不同；不据此推断原照片的字符。11 个实际生产读取函数模拟向量及 ASan/UBSan 通过；21 项资格检查退出 0，56 项源码与提交 90d18099823deee8ea214947cd699468401844d7 绑定，镜像 SHA256 59dbddf4ac04074771bf38df26995348d65f519e021277ed790ee0e485157df0。用户授权一次临时启动；照片前不作设备结论。见 D:/Projects/UniXNU/migration/20261029-m3-version-v3/REVIEW.md。
+
+### 2026-10-29：m3-smci-version-v3 attempt-01 临时启动（待照片）
+
+12:13 Asia/Shanghai，设备互斥检查通过，fcde91e、fuxi、unlocked=yes、current-slot=a；镜像 SHA256 59dbddf4ac04074771bf38df26995348d65f519e021277ed790ee0e485157df0。21 项资格检查及 56 项源码绑定通过，单次 fastboot boot Sending/Booting 均 OKAY、退出 0；无 flash、擦除或槽位修改。设备结果待照片，不能由主机成功推断 getVersion 或释放成功；不自动重试。原始记录 D:/Projects/UniXNU/migration/20261029-m3-version-v3/attempt-01/device-test.json。
