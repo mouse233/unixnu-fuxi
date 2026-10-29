@@ -4465,3 +4465,29 @@ OTA system 属性 release=17、system patch=2026-10-01，vendor patch=2026-08-01
 四项厂商库 SHA，不写设备。当前 ADB 无设备（手机在诊断镜像），须返回 Android 才能
 绑定当前版本；没有构建新上机候选。详见 UEFI docs/fuxi-m3-ta-dispatch-20261029.md，
 提交 ec65e411 已推送 origin/feat/twrp-data-uefi。
+
+### 2026-10-30：M3 单块 metadata 明文读取前置条件离线核验
+
+B 线独立审计 `uefi-twrp-data/out/m3-metadata-read-audit-20261030/`，改动为主机
+工具与文档；无新固件镜像、SMC、真实密钥输入或设备操作。最新硬件查询基线仍为
+m3-date-support-v1；本轮不宣称 M3 通过、装钥/解密或免 USB 重传。
+
+固定 recovery 9aa603b1…2e4b0 的参数流表明：retrieveOrGenerateKey 输出向量再交
+wrapped-key export；此前读到的 208 字节 keymaster_key_blob 不能直接当作已恢复
+storage key。retrieveKey 另读 encrypted_key/secdiscardable 并有 Keymaster 处理，
+辅助流程存在 writeStringToFile；后续 UEFI 必须实现现存密钥只读恢复，拒绝生成、
+升级/持久化和未知状态，不照搬 recovery 的写入补救分支。
+
+固定 TA 2fc838a8…43cc6 真实 CBOR/版本指令的合成输入执行确认：存储表示 FBE 标签
+设置 +0x1d4 时，局部版本检查提前返回；非 FBE 对照会检查版本/补丁。导出在服务入口
+前停止，未伪造导出成功。此结果不证明实际 storage key 的认证属性，也不证明整个
+恢复链可跳过 configure；未发送 0x2116。HWKM 本轮初始化/自有槽与清理、六参 SCM
+扩展区、UFS 实际提交的 crypto context、可比较状态的明文摘要仍缺失；外层预填
+UTRD 的 DUN 会被当前提交函数覆盖。
+
+四项顺序检查退出 0：固定输入审计、6 个二进制篡改拒绝与 13 项反例/执行边界、
+生产 DUN 规划器及 UFS 核心 ASan/UBSan。初次主机 Unicorn 在沙箱内初始化 SIGILL，
+沙箱外通过；初次 DUN 头文件路径错误退出 1，改用既有顶层 EDK2 后通过，失败记录
+保留。无模块源码修改/构建或上机；历史 SMMU FSR400 未解释。下一具体门槛为现存
+storage key 只读恢复契约，而非继续追加版本查询；详见 UEFI
+`docs/fuxi-m3-metadata-read-prerequisites-20261030.md` 与本轮 REVIEW。
