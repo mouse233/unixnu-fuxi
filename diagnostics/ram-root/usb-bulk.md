@@ -4510,3 +4510,22 @@ TA表有210f/2111/2112/2113而无对应25xx；厂商选择涉及SecurityLevel/is
 storage key后再接convert/HWKM自有槽/六参SCM/UFS提交层DUN，最后做一次有界
 userdata metadata块明文哈希对照。历史SMMU FSR400仍未解释。详见UEFI
 docs/fuxi-m3-key-recovery-20261030.md与本轮REVIEW；硬件查询基线仍为date-support-v1。
+
+### 2026-10-30：M3 恢复后端 wire/SMCI 封装（主机阶段）
+
+B线uefi-twrp-data/out/m3-recovery-backend-v1：新增M3KeyMintBackend独立C库，
+CBOR编解码、op0/counts424内联报文、TA/transport分层校验及操作归属，接入恢复核心
+主机调用链。未提供live交换回调/固件入口、未操作设备或发送configure，M3未通过。
+
+沿A17实际AIDL链确认begin/update/finish发310f/3111/3112，abort经通用TEE路径2113；
+固定TA中31xx与对应21xx共用handler。application ID/nonce标签按有符号32位扩展为
+负数CBOR label。12请求+3响应厂商/QCBOR合成对照、53项ASan/UBSan及3个独立SMCI
+完整报文对照通过；默认/query AARCH64构建、4个实际对象及源码/EFI/SMC检查退出0。
+反例修正abort失败时后端未同步隔离的问题；未知完成保留共享页/请求/操作，不重试。
+
+固定recovery绑定对象初始化空state、首次未设置时转state2；未证明实际手机现存
+密钥绑定上下文，BindingChecked/SessionVerified均不自动置真。无新FD/boot image，
+没有真实TA/GCM、convert/装钥或userdata明文证据。旧查询缓冲区日志不能直接用于
+带秘密恢复。下一步核实本机绑定并接无秘密日志的真实交换、验证会话/共享区关闭，
+再进convert/HWKM/ICE/DUN/单块明文对照。历史SMMU FSR400未解释。详见UEFI
+docs/fuxi-m3-recovery-backend-20261030.md与本轮REVIEW。
