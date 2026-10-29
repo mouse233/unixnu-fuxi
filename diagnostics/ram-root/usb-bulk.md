@@ -4291,3 +4291,22 @@ ddf35cbdf5723e1fbe13e417b108c3c085be3aee9a606cca5166d5ca4ad9a658。
 19 项资格、56 项源码和镜像绑定验证通过；一次 fastboot boot Sending/Booting OKAY，
 退出 0；无 flash、擦除或槽位更改。主机结果不能证明 TA 加载或资源恢复；待照片。
 原始记录 attempt-01/device-test.json。
+
+### 2026-10-29：m3-smci-load-v5 attempt-01 照片 — 加载与释放闭环
+## attempt-01 照片：加载与对象释放闭环通过
+
+照片 IMG_7192..JPG，SHA256 `9221f7284699fb67650090c2f9ed7a25b8f6df35dcd392279773db6aabd0102e`。M2 文件与 LUN4 两槽哈希成功；
+TA extent 0x63058 字节读取成功、摘要与既有对照一致；slot=unknown。
+loadFromBuffer 返回 a0=a1=a2=a3=0，输出 BO 长度 0x0B、对象句柄 4。
+app-release handle=4、loader-release handle=3、object-release handle=2 均 Success；
+bridge-delete handle=C68D0873 返回 a0..a3=0；BATCH stop=complete passed=7F、
+env=0 loader=0 retained=0，result=Success；reported bridge released bytes=82000、
+TA extent released bytes=64000。清零由源码流程推断，照片不单独证明内存擦除。
+UFS stop=1、db=tdb=run=0、poisoned=0；SMMU FSR=0x400 仍残留，不宣称完整恢复。
+19 项资格检查、56 项源码绑定及交付镜像摘要重新核验通过。
+
+更正：v4 的 IMG_7191 原图 BO 长度同样为十六进制 0x0B（11 字节），不是此前误读的 8。
+两者均小于原容量 64；v5 修复接受有界返回长度的结论不变。
+
+这证明本轮 loader 接受输入并返回对象，且探针的对象与桥释放调用闭环；未发 KeyMint 命令，
+不证明对象可执行预期命令、密钥转换、ICE、userdata 解密、UEFI 当前槽或系统交接。
