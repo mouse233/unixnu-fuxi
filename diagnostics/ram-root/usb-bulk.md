@@ -4251,3 +4251,12 @@ v4 将输入长度改为 0x64000 并将 out 页放在其后，这是可能的兼
 
 此外上一条「大桥 loader attempt-01 待照片」是旧启动记录的延迟补记；IMG_7182 的照片结论
 已在上方 m3-large-loader-v1 条目归档，且后续 v2/v3 已完成，不代表仍在等待该旧照片。
+
+### 2026-10-29：m3-smci-load-v4 attempt-01 临时启动（待照片）
+## attempt-01：临时启动完成，待照片
+
+设备 fcde91e、fuxi、unlocked=yes、current-slot: a；镜像 SHA256
+77b199d807f8139982c3781158abb4bbec270aaad20069e2ea3182cde4ceb0bd。
+19 项资格、56 项源码和镜像绑定验证通过；一次 fastboot boot Sending/Booting OKAY，
+退出 0；无 flash、擦除或槽位更改。主机结果不能证明 TA 加载或资源恢复；待照片。
+原始记录 attempt-01/device-test.json。
