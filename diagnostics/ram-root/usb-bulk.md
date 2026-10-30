@@ -5203,3 +5203,37 @@ TA实例延续和-62返回PC未观察到。下一步可离线核对匹配SDK服�
 和三份evidence归档，旧专题与总入口追加。UEFI提交
 5f492c8227ec35970a3b8d85d02b28e813e0582c，16文件/当前树/提交/报告来源绑定通过。
 不据局部结果设boot、拼造启动状态、试发208/setVersion或放宽隔离，M3/M4/M5未通过。
+
+## 2026-10-30 — 匹配SDK服务边界与UEFI同App生命周期，继续离线
+
+用户要求下一步，主机包uefi-twrp-data/out/m3-sdk-lifecycle-audit-v1。无手机访问、
+新固件/构建/安全命令/生成/升级/写回。TA2fc838a8…43cc6与TZ d4b8afbe…60d418
+继续绑定前轮slot A身份；旧A/B各91源绑定不变，不需重跑无关固件资格。
+
+真实指令片段在Unicorn私有内存运行，只映射该SDK三段和固定TA，TLS/帧公开合成。
+SDK未做完整加载重定位，不推断完整初始化。cmnlib_init在输入对象调用或未覆盖
+本地辅助函数前停；GPAppLib_init在56字节分配前停。appInit从TLS+58对象对发出
+op1/count10/BO4，在19f0调用前停；两次从1095c注入负返回-1/-65536，真实收尾仍
+返回0，TLS+90=ffff0000/+94=3。因此入口返回0不证明外部服务成功。负返回仅为
+反事实，不是实际手机错误，片段boot未写不证明完整SDK后实机boot0。
+
+208前置194fc→PLT310/GOT5a190→qsee_is_sw_fuse_blown，固定fuse1/输出1，准备
+UID22服务，在2e014解析器前停。未读熔丝或发送208。收尾404b4→18d4c→PLT2b0/
+GOT5a160→qsee_cfg_getpropval，enable_spu_uefi/名字16/输出12/syscall -95，
+在86b00封装前停，不执行SVC1400。其负返回点对照缓存fallback0，合成缓存0/1
+均不访问服务；缓存5b588/58c与boot5b4f4不同，不推断实际SPU或省略收尾。
+9片段/4 SMC-SVC-循环-改TZ边界通过，所有外部对象/分配/系统调用均停止。
+
+新增主机观察器只在临时目录给既有集成测试插桩，不改原测试或生产代码，保留
+原断言。实际生产流程的load/version/configure/recovery、FSE/后端及清理代码
+在filesystem/monitor合成下运行，两日期各27场景、合计54/52批次轨迹，ASan/
+UBSan通过。新增提交前检查一次load、同App、version→configure→恢复、release后
+无新App请求、隔离/未清理批次无release/delete。模拟-62同样release=delete=0。
+隔离后的SmciReleaseTaImage清CPU私有输入镜像，不是卸载远端App或释放隔离共享页。
+
+已收窄源码/模拟中的configure→恢复换句柄、隔离后卸载疑点。lookup=2只证明
+对象请求拒绝，不能证明不存在；loadFromBuffer返回对象不证明新建/复用或ABL
+上下文继承，历史文档相关推断追加更正。真实服务返回、实例关联、boot值与-62
+返回PC仍缺证，M3/M4/M5未通过。未放宽隔离或接入208/setVersion/升级。
+专题docs/fuxi-m3-sdk-lifecycle-20261030.md、两份evidence与REVIEW已归档，UEFI提交
+862f883bf8883c003feb353ddbd63585f82e43be，32文件/当前树/提交/报告来源绑定通过。
