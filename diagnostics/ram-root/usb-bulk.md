@@ -5169,3 +5169,37 @@ GPAppLib_init1071c/GPAppLib_appInit1091c（模块相对地址）；后者有TLS�
 提交/报告来源绑定通过。下一门槛绑定当前ABL/TZ身份并核对SDK服务与TA实例
 加载/卸载链；不直接设置boot、拼造启动状态、重发208/setVersion或放宽隔离。
 实际错误返回PC、M3/M4/M5及免USB重传仍未通过。
+
+## 2026-10-30 22:31 — TWRP固件身份：slot A ABL/TZ匹配ROM，当前ABL重核验
+
+用户确认进入TWRP，先检查设备互斥无活动任务，再确认fcde91e/recovery/fuxi/
+root/slot_a/release17及固定KeyMint库。沙箱ps受限后用获准只读检查，无设备任务。
+采集22:31:38 Asia/Shanghai完成，两轮四分区sha256sum一致，身份/启动连续性/
+库哈希/映射/几何前后稳定。固件内部哈希48MiB，只传摘要，原始固件字节传输0；
+连续性UUID仅内存比较。不读userdata/metadata/进程内存或日志，无重启、挂载、
+切槽、flash、安全命令、生成/升级/写回。主机包uefi-twrp-data/out/m3-firmware-identity-v1。
+
+abl_a 8388608 SHA eddd52b961aea860ed7a04f27b4e6f7976e04ee30ca1113b0e3b867aa919431d；
+abl_b 8388608 SHA 78595f9a5fbaba528b894fa7f3991db37fe1bcd03be3036e5cb3c254405655f3；
+tz_a 4194304 SHA 072574e20b5f00aad08a4da503b5ee1d64c1edda370b3b1bcb6b799cdbc79fd3；
+tz_b 4194304 SHA e4b39c030e17c7294adfcc2f7fe07218973851ea3e8c3ea900b876a5602b8207。
+当前TZ A匹配前轮ROM TZ补零，ABL A不同于历史B；采集器all_references_match=false
+如实反映四分区对两份旧参考的结果，不是采集失败。随后同一ROM中233472字节ABL
+补零后与当前abl_a全分区SHA匹配，独立审计闭合active A的ABL/TZ两项身份。
+
+仅从本地ROM提取ABL A/PE，无手机二进制导出。新PE1134592字节 SHA
+48de0c341840c30e99d483ebbbdc0df4de67bc971d76bd05477587ace87aab3b，与历史B不同；
+没有改动旧输入或沿用其地址。当前2d0d0→41d28，头回退2cd24、构造41f60..41fb0，
+请求常量a9da0=[208,0,16,48]，发送跳板423e0未执行。两旧候选头仍220001a7，
+明确进入当前ABL头回退→公开合成构造→固定TA边界/转换后均为boot202607。
+3坏版本/2头格式/1合成日期/2外部服务拒绝及2候选链共10组控制通过。
+16组采集器模拟通过，覆盖固定身份/几何/库、传输错误、格式错误、固件/启动/
+库/几何竞态与稳定差异报告；身份或几何不符先停，不继续分区哈希。
+
+当前slot A分区版本身份已闭合，不是安全世界已加载RAM或TA状态证明。三项SDK
+定义函数有当前TZ分区版本依据，服务仍未执行；实际字段来源选择、boot运行值、
+TA实例延续和-62返回PC未观察到。下一步可离线核对匹配SDK服务与实例加载/卸载链。
+无新固件，各旧候选91源绑定仍完整。规范docs/fuxi-m3-firmware-identity-20261030.md
+和三份evidence归档，旧专题与总入口追加。UEFI提交
+5f492c8227ec35970a3b8d85d02b28e813e0582c，16文件/当前树/提交/报告来源绑定通过。
+不据局部结果设boot、拼造启动状态、试发208/setVersion或放宽隔离，M3/M4/M5未通过。
