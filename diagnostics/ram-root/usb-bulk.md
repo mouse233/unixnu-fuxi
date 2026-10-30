@@ -4962,3 +4962,19 @@ configure三个公开值/状态、恢复state/stage/km/bytes/commands/resumes/re
 response-header和最终PARK。当前TWRP属性不证明构造采样，两组局部TA解析成功
 不证明实机-62解除；历史FSR400、-33/-62根因、真实密钥恢复/ICE/DUN/userdata
 明文及M3/M4/M5均未通过，没有免USB重传声明。
+
+## 2026-10-30 17:00 — B线 configure A attempt-01 已临时启动，等待照片
+
+用户确认已进入fastboot，互斥ps无活动设备任务，fcde91e fastboot可见。
+A候选m3-configure-context-a-v1（169e7401d2fa3fcce8347f50232b253c11bf884773b474fb2365b3b52185e44b）
+--verify-only再次exit0，91文件当前树/源码提交09bc89e1…e11a36b/镜像/29项资格及
+公开配置证据一致。固定启动脚本再检查product fuxi、unlocked yes、current-slot a、
+max-download-size805306368后，只执行一次fastboot -s fcde91e boot。
+
+17:00:11–17:00:13 Asia/Shanghai，Sending0.040s、Booting1.889s、总1.930s，exit0；
+没有flash、分区写、slot变更、USB RAM传输或启动重试。原始查询/命令/输出已保存在
+uefi-twrp-data/out/m3-configure-context-a-v1/attempt-01/device-test.json，REVIEW
+已追加本次启动；可提交摘要docs/evidence/fuxi-m3-configure-a-attempt01-20261030.json。
+目前只有fastboot运输/启动命令返回，没有照片，不能判断UFS停机、configure、
+恢复或PARK，更不能判定真实-62解除或M3/M4/M5通过。保持当前画面待用户拍照，
+B候选未启动，不自动串联或复用当前会话。
