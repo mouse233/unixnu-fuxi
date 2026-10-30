@@ -4776,3 +4776,22 @@ current-slot a、镜像SHA256 32383e41…8a9e、84文件提交281459f6绑定与2
 out/m3-key-recovery-configured-v4/attempt-01/device-test.json。待屏幕确认
 CONFIGURE header、CHARACTERISTICS status/present与原值，以及后续begin停点。
 不能由boot成功推断探针被接受或恢复成功。M3/M4/M5仍未通过。
+
+### 2026-10-30：configured-v4 attempt-01 照片与白名单根因；v5（修正后，未上机）
+
+v4 attempt-01照片（out/m3-key-recovery-configured-v4/attempt-01/screen-01.jpeg，
+SHA256 4488456d…a1a39c）确认：CONFIGURE仍status=0/Success；但
+CHARACTERISTICS result=Not Ready status=00000000 payload=0 wire=0 scanned=0、
+os-version/present全0；随后RECOVERY fault=2 exchange=3 commands=0 resumes=0，
+begin未发送，最终PARK。
+
+根因在UEFI侧：FseExchange对命令号有固定白名单(0x310f/0x3111/0x3112/0x2113)，
+其他命令在ArmCallSmc之前即隔离；0x2109未列入，因此该次启动没有任何SMC/TA证据。
+修复为仅在FUXI_M3_CHARACTERISTICS_PROBE=1时允许0x2109，并新增“启用接受/
+关闭拒绝”的交换层用例（26项，三种编译变体全过）。
+
+新候选out/m3-key-recovery-configured-v5：镜像SHA256
+636ca1a41f4749c210329ceaa1f9bf5bd7728151defdb9c7e796216b9761ae94，
+1888256字节；29项资格exit0、84源码与提交5e144a1c绑定。未上机、无设备命令。
+上机判据：若CHARACTERISTICS返回status=0则读两整数并与170000/20261005对照；
+若仍是payload=0/wire=0则说明另有传输层拦截。M3/M4/M5仍未通过。
