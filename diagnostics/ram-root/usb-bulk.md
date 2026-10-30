@@ -5336,3 +5336,28 @@ UEFI实机规范证据docs/evidence/fuxi-m3-lookup-arch-device-20261030.json、�
 port入口已更新，提交fc598637；候选REVIEW已追加照片结论，历史pending记录保留。
 后续先沿lookup所得对象单独核验只读版本方法并保持响应/隔离/清理门控，
 版本响应也不能代替boot/初始化或实际-62分支证据，不直接接恢复/208/升级。
+
+
+## 2026-10-30 — -62全链路调查报告与六条并行静态任务
+
+按用户要求整理独立报告，证据截止23:35 lookup实机结果。报告为
+uefi-twrp-data/docs/fuxi-m3-minus62-investigation-report-20261030.md，配套
+规范输入清单docs/evidence/fuxi-m3-minus62-report-inputs-20261030.json。
+UEFI提交c2d1a36c；本轮仅整理/核验已有材料，无手机访问、固件构建或新安全调用。
+
+报告覆盖-64→configure→-62的实验演进、A/B原始状态分层、实际UEFI/TWRP链路、
+四文件/application ID/GCM/wire、begin直接解包/版本门与认证错误传播、boot/client/
+ABL/SDK初始化、部署loader格式修正/缓存与23:35有限查询成功。单列所有已撤回
+归因，不把公开快照、局部模拟、代码路径和实机返回PC混为一层。
+-62、boot/真实实例、历史FSR400与M3/M4/M5仍未解决，报告不新增通过声明。
+
+六个独立任务为A错误来源/返回链，B版本字段/选择上下文，C ABL/SDK初始化，
+D loader实例/环境，E TWRP/keystore2/HAL差异，F状态/传输/归属反证。附共用
+提示词、独立输出目录和交付格式，限制为主机离线、共享输入只读，不发起设备
+或升级/生成/写回操作，不覆盖共享源码/历史out/规范证据。
+
+110个所选输入文件SHA/存在性、12项固定二进制pin、TA前缀/补零与TZ补零身份、
+A/B各91源及lookup96源对各自历史提交的绑定通过；报告17条绝对文件链接、
+命名工具和六份任务段检查通过。原始验证位于out/m3-minus62-report-20261030/。
+当前未提交date-support文档与其他会话文件保留，未把新当前树当历史镜像来源。
+交付为报告和任务书，静态分析的新发现留待各agent单独回报，不预填根因结论。
