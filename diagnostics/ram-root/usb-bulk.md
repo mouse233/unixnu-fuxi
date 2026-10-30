@@ -4529,3 +4529,23 @@ CBOR编解码、op0/counts424内联报文、TA/transport分层校验及操作归
 带秘密恢复。下一步核实本机绑定并接无秘密日志的真实交换、验证会话/共享区关闭，
 再进convert/HWKM/ICE/DUN/单块明文对照。历史SMMU FSR400未解释。详见UEFI
 docs/fuxi-m3-recovery-backend-20261030.md与本轮REVIEW。
+
+### 2026-10-30：本机无seed绑定证据与无日志真实SMC适配
+
+B线uefi-twrp-data/out/m3-secret-exchange-v1。用户确认Android/TWRP后ADB恢复，实际
+Android17/fuxi/fcde91e/slot_a；无活动传输。只读取得当前vold（SHA9c20de9c…ed418）并
+固定指令布局，只读取两次全局指针/28字节绑定头（总72字节），不跟随seed/vector指针。
+PID/starttime/maps稳定，state2且vector空；/data=dm-47/F2FS。空seed选择现在有本机
+运行时上下文依据。四包装文件stat大小仍1/16384/208/276，没有读取内容/摘要或秘密。
+
+新增默认关闭M3SecretExchange：真实ArmCallSmc/cache适配、同一SMC最多8次续接、
+19命令预算、未知完成保留；已知共享页CPU擦除须WriteBackInvalidate后才撤销权限。
+它不释放app/bridge。24项绑定采集器合成、25项Linux ASan/UBSan及默认关闭检查通过；
+默认/query/显式enabled三套AARCH64构建、6个EFI与4恢复对象/3模式交换对象绑定通过。
+启用对象仅ArmCallSmc及两缓存依赖，关闭对象无依赖，无日志或分配API。
+
+无固件恢复入口/已注册会话调用者，无新FD/boot image、UEFI上机或真实TA/GCM；未重启、
+未flash/改slot/写分区命令、未configure，M3未通过。下一步接四文件读取/停队列后的
+同次启动恢复入口及会话收尾，再进convert/HWKM/ICE/DUN和单块明文对照。历史SMMU
+FSR400未解释。实机非秘密证据docs/evidence/fuxi-m3-android-binding-20261030.json，
+接口与限制见UEFI docs/fuxi-m3-secret-exchange-20261030.md及本轮REVIEW。
