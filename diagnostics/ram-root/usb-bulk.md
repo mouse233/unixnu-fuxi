@@ -4581,3 +4581,24 @@ status/长度，km0是未解析默认值，不能说认证成功或推成缺conf
 handle/输出，无update/finish/abort或会话清理。下一步只读核对固定vendor/TA错误
 envelope，并准备只打印非秘密status/length的新候选；未知状态保持隔离，不复用本会话。
 M3/M4/M5均未通过。详见UEFI docs/fuxi-m3-key-recovery-live-20261030.md。
+
+### 2026-10-30：恢复首条begin非秘密状态诊断 v2（资格通过，未上机）
+
+B线out/m3-key-recovery-status-v2，镜像SHA256
+c32884767117277ff89beb68b2fe2c4eedb6b7e675805ad0eafaf908320fc83e，1884160字节。
+源码f17f2196704dc8b6eb7c14d34b4a977eca5a74f9，76文件与提交/镜像逐项绑定exit0。
+在v1 fault7失败后，只增加经过既有边界/envelope校验的公开status/length日志，
+不打印payload/密钥/摘要/operation handle，不改变故障分类或隔离/预算/清理门槛。
+固定vendor sendCmd在非零status直接返回，只有零status取payload长度；此证据不能
+代替v1具体返回码或证明operation已关闭，因此未放宽fault7，也不归因缺configure。
+
+默认/query模块和完整固件顺序构建exit0；27项资格全部exit0，含新增17项生产入口、
+55项后端、25项交换ASan/UBSan及实际6对象/链接map/默认关闭依赖检查。新增负status
+带payload与正status两组反例保持第一调用后隔离，共享页快照不变、无明文、无后续
+调用。模拟仍不是TA/GCM认证。无新设备命令/SMC、configure、flash或分区写。
+
+v1照片及失败观察已回填其REVIEW；新候选REVIEW、独立attempt-01固定SHA/ops/27项
+检查/76源码启动脚本均准备好。当前尚未上机，需要人工离开诊断驻留并回fastboot，
+重新核对设备身份/解锁/slot_a后临时boot；不复用v1保留会话、不自动重试。
+下一实机读取response-header/status/payload-bytes/wire-bytes，才可确定错误码及
+后续最小必要条件。历史FSR400未解释，M3/M4/M5均未通过。
