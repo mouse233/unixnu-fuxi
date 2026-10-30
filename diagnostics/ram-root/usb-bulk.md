@@ -4814,3 +4814,17 @@ map{23:blob, 29:bstr(map{0x90000259:appid})}，内层沿用begin相同的符号�
 （三变体）/其余不变。未上机、无设备命令。判据：status=0则读两整数对照
 170000/20261005；仍-33则还有其它绑定参数；-62则偏向版本过低。
 M3/M4/M5仍未通过。
+
+### 2026-10-30：configured-v6 attempt-01 照片（仍-33，key id 不在表）
+
+v6照片（out/m3-key-recovery-configured-v6/attempt-01/screen-01.jpeg，SHA256
+3ae96f79…9a75d0ff）：CONFIGURE仍status=0/Success；CHARACTERISTICS
+result=Device Error status=FFFFFFDF(-33) payload=40660 wire=40668 scanned=0，
+os-version/present全0；随后begin仍FFFFFFC2，fault=7 commands=2 resumes=2。
+补application ID只改变了长度，未改变-33。
+
+静态归属：0x2109处理函数可达范围内唯一-33站点在km_check_key_id(0x1a4ac)：
+加载0x600项key-id表后线性查找当前blob的keyId，未命中即打印
+"key id %llu is not present"并返回-33。因此该命令对本keyId不被允许，
+与请求编码无关；该探针无法读取blob版本字段。begin的-62仍在后续
+键blob版本/参数校验处。M3/M4/M5仍未通过。
