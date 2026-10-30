@@ -4860,3 +4860,27 @@ docs/fuxi-m3-characteristics-isolation-20261030.md及候选REVIEW。
 
 本轮无设备操作、无新实机证据；下一次需验证失败后只保留并PARK、不再begin。
 M3/M4/M5仍未通过，不能宣称userdata明文或免USB重传。
+
+### 2026-10-30：characteristics-isolation-v1 attempt-01（-33后跳过begin，PARK）
+
+15:55 Asia/Shanghai，B线固定候选80c605a1194bbc81593bcdac0ec1ef56e2996e8c827c81cd9afb4d84362b9541。
+用户首次确认fastboot时devices为空，未启动；用户重新进入并连接后仅重试发现，
+fcde91e可见。互斥ps无活动任务，verify-only复核30项资格/86源码及提交5354bef3/
+configure证据/13项特性入口exit0，脚本SHA256为1ee2aab3…f0b2ed5。
+再核对product fuxi/unlocked yes/current-slot a后，以独立attempt-01脚本、固定SHA、
+--profile usb-ram单次临时boot：Sending0.040s、Booting1.640s、总1.681s、exit0。
+无flash/分区写/slot变更/启动重试，无USB对象传输。原始查询和输出已归档。
+
+用户照片attempt-01/screen-01.jpg（SHA256
+8fa93c39ed6301c498056d78bbcbcd3808abb2754d87123daec51c2bfd9d4ada）及转录已归档，
+同步回填REVIEW。CONFIGURE status0/payload40912/wire40920/Success；CHARACTERISTICS
+仍FFFFFFDF(-33)/payload40660/wire40668/scanned0，两个版本字段present0。
+随后明确RECOVERY skipped，Device Error/state1/stage0/km0/bytes0/retained1；
+fault7/exchange1/commands1/resumes0，response-header仍为特性请求的-33。
+BATCH stop=key-recovery/passed4A3/retained1，END attempted0/retained1，最终
+stage=m3-characteristics、ready0、decryptUNIMPLEMENTED/handoff0，PARK。
+
+这确认本次-33失败分支不再发送begin；保留会话并PARK。照片不能直接回读证明
+共享注册页内容不变或覆盖全部未知完成分支；这些仍以绑定源码及主机快照反例
+为依据。UFS stop1/db0/tdb0/run0可见，历史SMMU FSR400仍未解释。没有定位-33，
+无密钥恢复/userdata明文；M3/M4/M5仍未通过。
