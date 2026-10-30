@@ -5000,3 +5000,40 @@ A在关闭特性探针后仍复现-62，未取得恢复明文；不唯一定位�
 画面证实保留/PARK停点，不单独证明注册页物理字节或全部后续调用缺席；TA extent
 释放不等于注册共享页释放。B尚未启动，需手机重新进入fastboot后独立临时启动，
 不复用当前保留会话。M3/M4/M5未通过，无免USB重传声明。
+
+## 2026-10-30 19:54 — configure B attempt-01及A/B实机对照完成，日期变更未解除-62
+
+用户确认已重新进入fastboot。互斥ps无活动设备任务，fcde91e fastboot可见；B候选
+m3-configure-context-b-v1，SHA256
+81e1abd43ec63d27abd970be69943557d388b61e72ce6274f1684b9a977474f5，--verify-only
+再次exit0，91文件/源码提交09bc89e1…e11a36b/镜像/29项资格/公开证据一致。
+脚本再核验product fuxi、unlocked yes、current-slot a、max-download-size805306368，
+19:54:16–19:54:19 Asia/Shanghai仅执行一次fastboot boot，Sending0.040s、Booting3.296s、
+总3.337s，exit0；无flash、分区写、slot变更或自动重试。原始查询/命令/输出在
+uefi-twrp-data/out/m3-configure-context-b-v1/attempt-01/device-test.json。
+
+用户照片IMG_7285.HEIC原图归档同attempt的screen-01.HEIC，SHA256
+9bf467c6b99cb118a4cc30c691dcfdf448af00b243ac8c5547ae425497aa14b5；沙箱外系统ImageIO
+仅转换主机临时PNG供查看，查看PNG与逐项转录也已归档，没有新增设备操作。
+照片确认：UFS stop1/db0/tdb0/run0/hcs10F/is0，gfsr0，历史SID60/FSR400仍在。
+CONFIGURE 170000/20991231/20991231、evidence3CC89865、a0–a3均0、resumes0；
+status0/payload40912/wire40920并被接受。随后直接RECOVERY begin，无特性探针。
+RECOVERY Not Ready/state5/stage1/km0/bytes0/retained1；fault7/exchange1/commands1/
+resumes1，response-header1/statusFFFFFFC2（-62）/payload40616/wire40624。
+BATCH stop key-recovery/passed4A3/env2/loader3/retained1，SMCI retained/no retry；
+END attempted1/retained1，最终m3-key-recovery/poisoned0/ready0/smmu-configured1，
+decrypt UNIMPLEMENTED/handoff0，PARK no USB receiver/no handoff。
+
+A（20261005）与B（20991231）各一次独立新启动、同源同其余构建输入；两组配置
+均成功，首条恢复status/state/stage/bytes/fault/exchange/commands/resumes/retained
+和最终停点完全相同。仅改公开OS/vendor patch日期未解除本轮-62；不能据此唯一
+认定blob格式、boot patch、其他配置槽或中间层上下文。没有generate/upgrade/写回，
+不复用保留会话，不再重复相同启动猜根因；后续先补实际begin到版本校验的参数/
+上下文绑定。照片不独立证明物理共享页保留或全部后续调用缺席；TA extent释放
+不等于注册共享页释放。真实密钥恢复、ICE/DUN/userdata明文及M3/M4/M5未通过。
+
+B的REVIEW、原始照片和转录已完成，A的REVIEW也追加完整对照；各out目录保存
+pair-live-observation.json。可提交的B单次摘要、完整对照分别为UEFI仓库
+ docs/evidence/fuxi-m3-configure-b-attempt01-20261030.json、
+ docs/evidence/fuxi-m3-configure-pair-live-20261030.json；总入口及专题已回填。
+UEFI本轮文档/证据提交20a6e782；原图和out产物未入库，无免USB重传声明。
