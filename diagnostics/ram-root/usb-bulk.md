@@ -4795,3 +4795,22 @@ begin未发送，最终PARK。
 1888256字节；29项资格exit0、84源码与提交5e144a1c绑定。未上机、无设备命令。
 上机判据：若CHARACTERISTICS返回status=0则读两整数并与170000/20261005对照；
 若仍是payload=0/wire=0则说明另有传输层拦截。M3/M4/M5仍未通过。
+
+### 2026-10-30：configured-v5 attempt-01 照片（探针到达TA，-33）与 v6
+
+v5照片（out/m3-key-recovery-configured-v5/attempt-01/screen-01.jpeg，
+SHA256 fd183e46…e9b91884）确认白名单修复生效：CHARACTERISTICS
+result=Device Error status=FFFFFFDF(-33,KM_ERROR_INVALID_KEY_BLOB)
+payload=40736 wire=40744 scanned=0；随后begin仍FFFFFFC2(-62)，
+fault=7 commands=2 resumes=2，无handle，PARK。该次Booting 24.05s，与新增
+TA往返一致。同一blob在begin可解析，故-33更像缺少解包所需的application ID，
+而非blob损坏。
+
+新候选out/m3-key-recovery-configured-v6：特性请求改为厂商序列化器对应的
+map{23:blob, 29:bstr(map{0x90000259:appid})}，内层沿用begin相同的符号扩展
+标签(3a 6f ff fd a6)，app id取自FkrPrepare的64字节应用ID。镜像SHA256
+61ffc4e26b1072271fbf366dfe5a3f18575f9875a9c1b0c340605bdfc597c582，
+1888256字节；29项资格exit0、84源码与提交e58175ba绑定；探针13项/交换26项
+（三变体）/其余不变。未上机、无设备命令。判据：status=0则读两整数对照
+170000/20261005；仍-33则还有其它绑定参数；-62则偏向版本过低。
+M3/M4/M5仍未通过。
