@@ -4766,3 +4766,13 @@ status=FFFFFFC2则偏向blob版本过低。M3/M4/M5仍未通过。
 
 上条目录名更正：候选目录为 `out/m3-key-recovery-configured-v4`（文中写成了
 characteristics-v4，以目录与 REVIEW 路径为准）。
+
+### 2026-10-30：configured-v4 attempt-01 临时启动（待照片）
+
+互斥ps无活动任务；fastboot可见fcde91e。启动脚本核对product fuxi/unlocked yes/
+current-slot a、镜像SHA256 32383e41…8a9e、84文件提交281459f6绑定与29项资格后，
+单次`--profile usb-ram`临时boot：Sending0.040s OKAY、Booting1.140s OKAY、
+总1.181s、exit0；无flash/分区写/slot变更/重试。记录
+out/m3-key-recovery-configured-v4/attempt-01/device-test.json。待屏幕确认
+CONFIGURE header、CHARACTERISTICS status/present与原值，以及后续begin停点。
+不能由boot成功推断探针被接受或恢复成功。M3/M4/M5仍未通过。
