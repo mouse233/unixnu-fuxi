@@ -5037,3 +5037,50 @@ pair-live-observation.json。可提交的B单次摘要、完整对照分别为UE
  docs/evidence/fuxi-m3-configure-b-attempt01-20261030.json、
  docs/evidence/fuxi-m3-configure-pair-live-20261030.json；总入口及专题已回填。
 UEFI本轮文档/证据提交20a6e782；原图和out产物未入库，无免USB重传声明。
+
+## 2026-10-30 20:22 — begin直接解包链、当前公开版本与有条件分支重放
+
+用户要求继续定位实际-62校验分支。本轮主机审计先按机器码闭合六条直接边：
+8984在89e0调用35154，后者352d8调用310a8，310b4尾跳31040，31068调用30d9c；
+30d9c在30e74解码304dc公开授权map，算法/认证后在31010调用98c0。begin的操作
+函数指针在解包成功之后，故旧记录“直接BL图不可达、只能经间接操作回调到版本门”
+错误；旧“-62只可能来自两处立即数”也撤回，尚未穷尽被调函数的状态传播。
+30efc/30f58返回点可原样传播合成-62/-33/-38，但未证明认证实际产生这些状态。
+
+采集器完成24项有界流式/身份/库/竞态/坏CBOR/重复tag/无材料输出检查后，用户
+手动进入TWRP并确认USB连接。互斥无活动设备任务，固定fcde91e/recovery/fuxi/root/
+slot_a/release17与libqtikeymint SHA匹配。最终20:22:25 Asia/Shanghai的两个稳定
+公开前缀快照：208字节blob每次只按CBOR编码长度读取前四item至142字节处，
+后续66字节不请求，不保存原始前缀/材料摘要/加密尾部。只保留允许的公开整数：
+格式0x400000005（与固定TA最低格式相同）、algorithm32、OS170000、OS patch202610、
+vendor patch20260801、boot patch202610，hardware map未出现FBE tag，software为空。
+没有KeyMint API、进程内存读、挂载/remount、写回或重启命令。
+
+初版采集误把第三个未知语义外层整数命名flags并列入本地摘要；该整数已删除，
+初版标记invalidated；修正采集器后重采有效报告并绑定新源码。初版和重采各两个
+142字节公开快照，本轮共568字节读取，均未请求后续加密item；最终发布摘要不含
+该未知整数。当前字段尚未认证，也未证明与先前A/B启动时文件逐字节相同，不能
+将当前值倒填为当时TA真实输入。TWRP进入时自身可能有的行为不属于采集器。
+
+真实getter中b850读取独立全局5b4f4；三字段public configure不设置boot patch。
+固定表208→bb7c的处理链包含bdf4写该全局，本轮仅静态绑定，没有发送208或伪造
+启动参数。其他三个getter受client选择影响，真实client及运行时boot值尚未采集。
+将当前公开整数装入合成envelope、真实解析在25d4算法查找前停止，再独立进入版本门：
+明确client0/新鲜boot0假设下，A首个不匹配在9968的boot比较、B在9944的OS patch；
+均在9a1c返回-62。额外假设A的boot已匹配，仍在9970发现vendor不符；仅匹配vendor
+仍因boot失败；同时匹配二者才局部返回0。这些局部槽改动仅为离线反事实，不是
+新固件/命令或修复建议，不代表实机认证/返回PC已观察到。
+
+六条直接边、14组真实公开解码/版本控制、4组同合成输入A/B控制、2组坏输入、
+6组错误后缀传播、6组边界拒绝、5组采集值重放及24项采集器模拟均通过。Unicorn
+使用既有Python在沙箱外私有内存运行，认证/分配/导出边界、SMC与指令数上限受限。
+未改生产固件或构建新镜像，旧A/B的各91源绑定仍一致；无需重跑无关固件资格。
+
+主机包uefi-twrp-data/out/m3-begin-version-audit-v1/REVIEW.md记录命令、真实捕获、
+汇编和边界。专题docs/fuxi-m3-begin-version-20261030.md，规范证据
+ docs/evidence/fuxi-m3-blob-public-20261030.json、
+ docs/evidence/fuxi-m3-begin-version-audit-20261030.json；总入口与旧归因已加更正。
+UEFI提交f95c0131b6dce44d78da72b331592121fddfa5f5，11文件/当前树/提交/审计输入
+及有效collector SHA绑定通过。下一步审计真实boot/client初始化来源、封装及生命周期，
+设计同轮UEFI仅公开字段对照；不靠换日期、补发208/setVersion、升级或放宽隔离过门。
+实际返回PC、认证、真实密钥恢复及M3/M4/M5仍未通过，无免USB重传声明。
