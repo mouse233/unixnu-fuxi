@@ -4602,3 +4602,14 @@ v1照片及失败观察已回填其REVIEW；新候选REVIEW、独立attempt-01�
 重新核对设备身份/解锁/slot_a后临时boot；不复用v1保留会话、不自动重试。
 下一实机读取response-header/status/payload-bytes/wire-bytes，才可确定错误码及
 后续最小必要条件。历史FSR400未解释，M3/M4/M5均未通过。
+
+### 2026-10-30：status-v2 attempt-01 临时启动（待照片）
+
+12:00:50 Asia/Shanghai，用户确认重回fastboot，互斥ps无活动任务；
+fcde91e/product fuxi/unlocked yes/current-slot a核对。镜像c3288476…fc83e、
+启动脚本SHA、27资格exit0、76文件提交绑定均复核通过。使用该候选独立
+attempt-01/boot-ram-window-once.py --profile usb-ram临时boot，Sending0.040s、
+Booting1.694s均OKAY，总1.735s、exit0，无flash/分区写/slot变更或自动重试。
+命令、查询和输出归档UEFI out/m3-key-recovery-status-v2/attempt-01/device-test.json，
+REVIEW与专题文档已追加；目前等待response-header/status/length及最终状态照片，
+不能从boot命令成功推断恢复/认证或会话关闭。M3/M4/M5仍未通过。
