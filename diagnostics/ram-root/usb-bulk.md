@@ -5276,3 +5276,34 @@ TA契约/SDK文档与总入口追加部署差异。UEFI提交
 77f1551554122f9a17eacdc198aa65243e1339cc，10文件/当前树/提交/报告来源绑定通过。
 下一具体修正是仅查询已有TA的1011/BO4独立候选，先验架构/对象再安全释放；
 真实实例关联、初始化服务、boot值、-62分支和M3/M4/M5仍未通过。
+
+
+## 2026-10-30 — 部署TZ新格式lookup-only候选已交付，实机待测
+
+B线uefi-twrp-data/out/m3-lookup-arch-v1，UEFI/构建与资格层。新增显式默认关
+FUXI_M3_SMCI_LOOKUP_ARCH，op2/count1011、BI40/11、架构BO56/4、OO28；一次
+keymaster64查询，无keymaster后备、TA加载/版本/configure/208/setVersion或密钥
+恢复/生成/升级。仍先只读M1/M2已知metadata文件诊断并停UFS，再有限查询，
+最后USB接收器前PARK，无userdata解密/ICE/RAM交接或DarwinBoot。
+
+完整形状与句柄/架构验证；返回句柄与env/loader别名、脏错误、未知回调/响应
+或SMC中断均保留并停。干净无对象/架构的对象错误只清理，记录原始状态，
+内部EFI_NOT_FOUND不证明TA不存在。成功仅release TA/loader/env、delete bridge；
+查询取得短句柄仍不证明ABL同实例、实际boot或SDK初始化。
+
+最终镜像1,880,064字节，SHA256
+2c140f174ed784b398bbcd9cb3b73b09ea4cb484c87de53917c183366b75b542。
+Docker完整构建与默认/query模块退出0，21项顺序资格全部exit0：38项新格式
+生产入口ASan/UBSan（含别名与失败清理）、五项NS结构断言、旧11项lookup回归、
+M0/M1/M2/独立F2FS/USB/SMMU/FD-EFI-镜像等。实际默认/query EFI无SMC，显式
+诊断EFI1条SMC。96项构建源码/当前树/提交内容绑定通过，UEFI提交
+530596c2ebf83dba03c04882b61ffc69609a5414，已推origin feat/twrp-data-uefi至mouse233。
+旧A/B继续使用历史原提交/报告，不把新当前树等同旧镜像。
+
+attempt-01启动脚本固定镜像/源码提交/96源/21检查/38用例/操作集，--verify-only
+实际exit0；隔离副本5项错误配置/资格/提交/源摘要拒绝通过，未发设备命令。
+候选REVIEW、docs/fuxi-m3-lookup-arch-20261030.md与规范候选evidence已归档。
+已请求用户手动进入FASTBOOT后再做仅一次临时启动，尚无本候选device-test/照片。
+没有自动重启手机、flash/分区写入或新安全调用；硬件结果pending。
+NS实际解包/已有TA是否可得、实例与boot/-62真实分支、M3/M4/M5和免USB重传均
+未通过，主机查询模型不替代实机结果。
