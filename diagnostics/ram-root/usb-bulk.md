@@ -5307,3 +5307,32 @@ attempt-01启动脚本固定镜像/源码提交/96源/21检查/38用例/操作�
 没有自动重启手机、flash/分区写入或新安全调用；硬件结果pending。
 NS实际解包/已有TA是否可得、实例与boot/-62真实分支、M3/M4/M5和免USB重传均
 未通过，主机查询模型不替代实机结果。
+
+
+## 2026-10-30 23:35 — 新格式lookup实机成功，完整有限清理后PARK
+
+用户确认FASTBOOT，操作前互斥检查无其他设备任务。m3-lookup-arch-v1/attempt-01
+固定镜像2c140f174ed784b398bbcd9cb3b73b09ea4cb484c87de53917c183366b75b542、
+源码530596c2ebf83dba03c04882b61ffc69609a5414、96源/21资格/38用例预检通过。
+fcde91e/product fuxi/unlocked yes/slot_a/max-download-size805306368均通过，
+仅一次fastboot boot，15:35:29 UTC返回0；未flash/写分区/自动重试或重启。
+
+用户照片IMG_7296.HEIC（SHA256
+e8af1bce1d4b7e6604eb10a5d1611ce7f674873153914b64988d6849b7e602af）
+已归档原件、查看JPEG、人工转录、原始启动报告与hardware-result.json。
+屏幕回绕，下部查询return接上部reply/清理；转录按源码顺序整理，非串口原日志。
+新1011/BO4查询a0..a3全0，reply BI28/B、BO38/4（十六进制）、OO4/0、arch2，
+lookup对象4成功。TA4/loader3/env2释放Success，bridge-delete全0，batch complete/
+passed31F/env0/loader0/ta0/retained0，released bytes2000，最终PARK/handoff0。
+共享日志"no TA"表示本候选未加载或调用TA方法，不否认返回的查询对象。
+
+本轮有限已有对象查询与清理实机通过；没有loadFromBuffer/GetVersion/configure/
+208/setVersion/密钥恢复/生成/升级/ICE/userdata解密或RAM交接。对象4/arch2不证明
+ABL同一底层实例、实际boot值或SDK完整初始化，-62未重试/定位，M3/M4/M5未过。
+M2已知10527字节文件哈希匹配，UFS stop1/db0/tdb0/run0/is0可见；历史SMMU
+FSR400仍在，不扩大为故障已清、路由恢复或M5完整DMA归属证明。
+
+UEFI实机规范证据docs/evidence/fuxi-m3-lookup-arch-device-20261030.json、专题及
+port入口已更新，提交fc598637；候选REVIEW已追加照片结论，历史pending记录保留。
+后续先沿lookup所得对象单独核验只读版本方法并保持响应/隔离/清理门控，
+版本响应也不能代替boot/初始化或实际-62分支证据，不直接接恢复/208/升级。
