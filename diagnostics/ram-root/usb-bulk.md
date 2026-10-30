@@ -4742,3 +4742,24 @@ b89a264c…0965faf0，转录已改）。基于-14的km_check_key_id/KM分区归�
 故直接bl图不可见。命中(a)还是(b)从HLOS不可观测；TWRP在同设备能解密，说明blob
 本身可用，嫌疑偏向配置槽内容或版本索引0x5a308（可能与缺失的0x3121 setVersion
 有关）。未证明resumes=1与-62有因果。M3/M4/M5仍未通过。
+
+### 2026-10-30：characteristics-v4（config后只读读键blob版本字段，主机通过，未上机）
+
+父候选configured-v3两次实机一致：configure status=0（-64门解除），begin返回
+FFFFFFC2(-62)，无handle、PARK。-62在固定TA只由键blob校验函数0x98c0产生：
+版本字段低于0x4_0000_0005，或blob版本字段与已配置槽0x5b4f0/0x5b4f4/
+0x5b4f8/0x5b4fc不一致（后者先打印四个Key blob …Level）。
+
+新候选UEFI out/m3-key-recovery-characteristics-v4在configure之后、恢复之前
+增加一次只读getKeyCharacteristics。命令号取自厂商HAL：begin现代分支发0x210f，
+get_key_characteristics发0x2109；TA表0x2109与0x3109共用处理函数0x6898。
+请求由厂商序列化器确认为map{23:blob}，只发送同一份208字节blob；响应只取
+0x300002c1/0x300002c2两个非秘密整数。负status记录后保留会话不重试，形状异常
+仍隔离，后续begin不会在隔离上下文上发送。
+
+镜像SHA256 32383e4172d98f949eef7ee5e23a5ded791dde7124e8296a58fa73cad2c18a9e，
+1888256字节；29项资格全部exit0，84源码与提交281459f6/镜像绑定；新探针13项
+ASan/UBSan用例通过，其余configured27/普通17/后端55/交换25不变；默认与query
+模块不含configure/characteristics成功字符串。未上机、无设备命令。上机判据：
+CHARACTERISTICS status=0且present=1时两整数与configure的170000/20261005对照；
+status=FFFFFFC2则偏向blob版本过低。M3/M4/M5仍未通过。
