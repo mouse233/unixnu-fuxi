@@ -4466,6 +4466,45 @@ OTA system 属性 release=17、system patch=2026-10-01，vendor patch=2026-08-01
 绑定当前版本；没有构建新上机候选。详见 UEFI docs/fuxi-m3-ta-dispatch-20261029.md，
 提交 ec65e411 已推送 origin/feat/twrp-data-uefi。
 
+### 2026-10-29：M3 date-support v1 主机资格通过，待上机
+
+独立 UEFI 诊断候选 `out/m3-date-support-v1`（仓库
+`ramdisk-test/uefi-twrp-data`，提交 ea4a8c33 已在 origin/feat/twrp-data-uefi）。
+在 getVersion 之后只读查询 KeyMint date-support（命令 0x215），不调用 setVersion
+或 0x2116；未知失败仍停止并保留桥。镜像 Mu-fuxi-usb-ram.img SHA256
+9babbf8bf8fe5b7c7e77f908c688d4480a4d5f430e975e357fd7f469e5777831；FD
+7419edd23e4bd015dc9c833950ef6ff67ac12afac3d9be03d8031b61bed71a6f。
+
+实机只读 Android 上下文：system/vendor patch=2026-10-05，slot _a；四项厂商库
+SHA 与 PixelOS OTA 一致。主机 ASan/UBSan：date 58、resume 46、version 40、
+TA-read 11 通过。顺序资格 20 项全部退出 0（含 f2fs-tools、modules-no-smc/
+modules-scm-query、56 源绑定）。未 flash、未改分区；硬件结果 pending。
+上机命令与边界见候选 REVIEW.md；需手机进入 fastboot 后再 `boot-ram-window-once`
+（profile usb-ram）。不宣称 KeyMint 配置或解密。
+
+### 2026-10-29：m3-date-support-v1 attempt-01 照片：date-support 成功并释放
+
+镜像 SHA256 9babbf8b…77831，临时 fastboot boot 成功（未 flash）。照片
+attempt-01/photo-original.jpg SHA256 6bd335c8…f8ced。BATCH
+`stop=complete passed=1FF env=0 loader=0 retained=0`：位掩码含 get-version
+(0x80) 与 date-support(0x100)，且后续 app/loader/env/bridge 释放完成。
+照片可见 load 后 continue get-version。BATCH plan 文案仍写 load64/ta-release
+为日志字符串未随 VERSION/DATE 更新，不能据此否认这两步。未调用 setVersion
+或 0x2116；不宣称 KeyMint 配置或解密。详见候选 REVIEW 与 assessment.json。
+下一步若继续厂商 configure（0x2116）会写安全世界版本/补丁状态，需明确抉择。
+
+### 2026-10-29：configure(0x2116) 只读静态推进（不发送）
+
+在 date-support 实机成功后，对固定 OTA/runtime libqtikeymint 与 keymaster_a
+做只读审计：厂商 configure 仍先 setVersion(0x3121) 再发 0x2116；TA 命令表有
+0x2116（处理 0xb7b4→0x37f28），无 0x3121。TA 强制三字段
+OS_VERSION/OS_PATCHLEVEL/VENDOR_PATCHLEVEL（0x300002c1/c2/ce），缺一返回 -38，
+未知 tag -40；写入 TA RAM slot 槽（持久化未证）。运行时模型整数
+170000/202610/202610，与 OTA 静态 vendor patch 202608 不同。convert(0x311d) 与
+FBE ICE 字符串存在，说明解密仍需后续独立环节。未发送 0x2116、未上机。
+详见 docs/fuxi-m3-configure-readonly-20261029.md 与
+out/m3-date-support-v1/configure-static-audit.json。
+
 ### 2026-10-30：M3 单块 metadata 明文读取前置条件离线核验
 
 B 线独立审计 `uefi-twrp-data/out/m3-metadata-read-audit-20261030/`，改动为主机
@@ -4613,3 +4652,36 @@ Booting1.694s均OKAY，总1.735s、exit0，无flash/分区写/slot变更或自�
 命令、查询和输出归档UEFI out/m3-key-recovery-status-v2/attempt-01/device-test.json，
 REVIEW与专题文档已追加；目前等待response-header/status/length及最终状态照片，
 不能从boot命令成功推断恢复/认证或会话关闭。M3/M4/M5仍未通过。
+
+### 2026-10-30：status-v2 照片 -64 与 configured-v3（主机通过，未上机）
+
+status-v2 attempt-01照片（HEIC SHA256 20c70de8…2d1413，转录见UEFI
+out/m3-key-recovery-status-v2/attempt-01/screen-observation.json）确认：四文件
+prepare、LUN4、UFS停机、getVersion成功；首条恢复begin公开头
+status=FFFFFFC0（-64，AOSP KEYMINT_NOT_CONFIGURED）、payload40616、wire40624，
+Not Ready/state5/stage1/km0/bytes0/retained1，commands1/resumes0，未取得
+operation handle或明文，BATCH stop=key-recovery/passed=A3，最终PARK。
+40616是响应容量0x9fd8减8的wrapper长度字段，不是解密输出。该证据只证明恢复被
+未配置门拒绝，不证明configure后恢复必定成功。
+
+固定TA离线执行（13组解析/门、6组厂商请求对照）确认begin在密钥处理前检查
+configured标志；三字段齐备才置位，缺字段-38、未知tag-40，成功只写TA RAM槽。
+固定QTI编码器date-support模式下两个补丁字段均为YYYYMMDD，本机值为
+170000/20261005/20261005。证据UEFI docs/evidence/fuxi-m3-configure-gate-20261030.json
+（SHA256 817bc13d0783d79380a054cfa0b6e5fa27d86a44b245a649016f1fbe1f6c2c32）。
+
+新候选UEFI out/m3-key-recovery-configured-v3只在同次启动、getVersion后、
+首条密钥请求前发送一次固定0x2116；失败/完成不明保留bridge/object与注册页并PARK，
+成功后才进既有恢复，恢复结果仍立即擦除。镜像SHA256
+5620674f194370b0ac480296c0df4986d28af1ba6c0d2fdee0894608e5f01888，1888256字节；
+28项资格全部exit0，81源码与提交/镜像绑定；configured入口27项、普通入口17项、
+后端55项、交换25项及默认/query关闭检查通过。尚无新boot image之外的设备命令、
+未上机、未自动重试。下一步需人工回fastboot后单次临时boot，核对configure
+begin/header/Success或失败停点及最终PARK；即便成功也只解除-64门，不证明
+持久化、convert、ICE或userdata明文。M3/M4/M5均未通过。
+
+configured-v3收尾（仍未上机）：UEFI源码提交4ef310dd586f91d7d302ec388c68342cb98a9d0a，
+committed-source-bindings.json为81/81文件与提交一致、镜像SHA256同5620674f…f01888；
+attempt-01/boot-ram-window-once.py已按该SHA固定profile（含configure-public-once、
+28项资格、81源码、证据817bc13d…6c2c32），以fastboot打桩干跑只走到"fastboot not found"，
+验证门之前未失败、未发送任何设备命令。待人工确认fastboot后单次临时boot。
