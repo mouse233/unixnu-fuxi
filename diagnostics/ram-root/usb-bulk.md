@@ -4549,3 +4549,35 @@ PID/starttime/maps稳定，state2且vector空；/data=dm-47/F2FS。空seed选择
 同次启动恢复入口及会话收尾，再进convert/HWKM/ICE/DUN和单块明文对照。历史SMMU
 FSR400未解释。实机非秘密证据docs/evidence/fuxi-m3-android-binding-20261030.json，
 接口与限制见UEFI docs/fuxi-m3-secret-exchange-20261030.md及本轮REVIEW。
+
+### 2026-10-30：现存metadata密钥恢复入口 attempt-01（失败，已隔离）
+
+B线uefi-twrp-data/out/m3-key-recovery-live-v1，UEFI恢复/收尾入口及主机工具；
+源码35ed8bd1ece7bd5b892dc35028397f4a960bc9d2，已推origin/feat/twrp-data-uefi。
+启动镜像SHA256 eb181da061317d1d04eaa4cf6d2812bcd0bd0197c3bb751670bc68585748c2e0，
+1884160字节。固定本机state2证据启用空seed；四文件私有读取后，UFS停队列才进
+HLOS root/loader/load/version/现存恢复，结果应立即擦除且会话完整关闭。无configure、
+setVersion、生成/升级/持久化或ICE/convert/userdata读取。默认关闭恢复开关。
+
+默认/query模块顺序构建、26项完整资格检查全部exit0（15入口/25交换/53后端模拟、
+5固定绑定pin反例、既有M0/M1/M2/USB/SMMU/bridge/loader/version/resume及镜像检查）；
+75源码与提交/交付镜像绑定，附加实际对象依赖/linked map核验exit0。初次额外map检查
+要求已LTO内联函数仍有独立符号而断言失败；改为真实对象引用+保留符号/状态验证，
+未改生产逻辑。启用FSE对象仅SMC及两cache依赖。主机模拟不是真实认证证据。
+
+用户进入fastboot后互斥ps无活动任务；fcde91e/product fuxi/unlocked yes/current-slot a。
+03:46:02Z以attempt-01/boot-ram-window-once.py --profile usb-ram临时boot固定SHA，
+发送/Booting均OKAY，exit0，总2.033秒。无flash/改slot/分区写或USB数据传输。
+用户照片归档attempt-01/screen-01.jpg与screen-observation.json；已回填REVIEW。
+
+照片：M2文件/四文件prepare/LUN4双槽hash Success，binding=F2E5A8B4，
+UFS stop1/db0/run0/tdb0；getVersion 4/1/4/1012、续接1次。第一条恢复begin即
+Not Ready/state5/stage1/km0/bytes0/retained1，fault7/exchange1/commands1/resumes0；
+BATCH stop=key-recovery/passed=A3/env2/loader3/retained1。SMCI保留注册页和私有work，
+不再调用/擦除/delete/free，最终PARK；poisoned0/ready0。FSR仍400，未解释。
+
+fault7只说明响应边界验证后TaStatus非零，且不是负数或Payload非零；未记录具体
+status/长度，km0是未解析默认值，不能说认证成功或推成缺configure。未取得operation
+handle/输出，无update/finish/abort或会话清理。下一步只读核对固定vendor/TA错误
+envelope，并准备只打印非秘密status/length的新候选；未知状态保持隔离，不复用本会话。
+M3/M4/M5均未通过。详见UEFI docs/fuxi-m3-key-recovery-live-20261030.md。
