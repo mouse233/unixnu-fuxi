@@ -4715,3 +4715,9 @@ payload=40616 wire=40624；BATCH stop=key-recovery passed=A43，最终PARK。
 还经跳板调用外部回调；故不能归因为过期时间、RPMB或任何单一校验。resumes=1
 仅记录。后续应以受控差分探针区分“参数/派发前检查”与“密钥blob解包”，
 不得据本次结果宣称convert/ICE/userdata明文或M3通过。
+
+-14补充（调用图，非实机新证据）：沿0x8984直接bl边可达性分析显示，唯一可达的
+-14产生点为0x1d0d8（0x8984→0x8904 km_check_key_id→0x1a3d8→0x1ae00→0x1d0d8）；
+该函数在“存储可用标志置位但句柄为空”时打印Partition not opened for writing!
+并返回-14。分区初始化经GOT跳板调外部TEE接口，间接返回与运行时标志不可观测，
+故“-14=KM分区未打开”仍属静态推断，不是根因证明。
