@@ -4696,3 +4696,22 @@ product fuxi/unlocked yes/current-slot a、镜像SHA256 5620674f…f01888、
 out/m3-key-recovery-configured-v3/attempt-01/device-test.json。待屏幕确认
 CONFIGURE begin/return/header/Success或失败停点与最终PARK；不能由boot命令
 成功推断configure被接受或恢复成功。M3/M4/M5仍未通过。
+
+### 2026-10-30：configured-v3 attempt-01 照片 —— configure 成功、begin 返回 -14
+
+照片out/m3-key-recovery-configured-v3/attempt-01/screen-01.jpeg（SHA256
+aa69b26a…e89c27c）确认：CONFIGURE begin once os=170000/os-patch=20261005/
+vendor-patch=20261005、return a0..a3=0 resumes=0、header status=00000000
+payload=40512 wire=40520、CONFIGURE Success。即-64未配置门已被本次固定0x2116解除，
+包装器成功形状与离线预期一致。
+
+随后首条恢复begin：result=Not Ready state=5 stage=1 km=0 bytes=0 retained=1，
+fault=7 commands=1 resumes=1，response-header=1 status=FFFFFFF2(-14)
+payload=40616 wire=40624；BATCH stop=key-recovery passed=A43，最终PARK。
+未取得operation handle，恢复未开始。configure是必要但不充分前置。
+
+-14语义未定：固定TA仅五处立即数产生-14（generate/import的RPMB/熔丝助手与
+设备ID预置路径），均不在0x310f处理函数0x8984直接调用链内，分发器0xb2a0派发前
+还经跳板调用外部回调；故不能归因为过期时间、RPMB或任何单一校验。resumes=1
+仅记录。后续应以受控差分探针区分“参数/派发前检查”与“密钥blob解包”，
+不得据本次结果宣称convert/ICE/userdata明文或M3通过。
