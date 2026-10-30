@@ -4763,3 +4763,6 @@ ASan/UBSan用例通过，其余configured27/普通17/后端55/交换25不变；�
 模块不含configure/characteristics成功字符串。未上机、无设备命令。上机判据：
 CHARACTERISTICS status=0且present=1时两整数与configure的170000/20261005对照；
 status=FFFFFFC2则偏向blob版本过低。M3/M4/M5仍未通过。
+
+上条目录名更正：候选目录为 `out/m3-key-recovery-configured-v4`（文中写成了
+characteristics-v4，以目录与 REVIEW 路径为准）。
