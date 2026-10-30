@@ -4721,3 +4721,24 @@ payload=40616 wire=40624；BATCH stop=key-recovery passed=A43，最终PARK。
 该函数在“存储可用标志置位但句柄为空”时打印Partition not opened for writing!
 并返回-14。分区初始化经GOT跳板调外部TEE接口，间接返回与运行时标志不可观测，
 故“-14=KM分区未打开”仍属静态推断，不是根因证明。
+
+### 2026-10-30：configured-v3 attempt-02 复跑与状态值更正（-62，不是 -14）
+
+attempt-02用同一镜像5620674f…f01888再次临时boot（Sending0.040s/Booting2.839s/
+exit0，无flash/分区写/slot变更/重试），结果与attempt-01逐项一致：CONFIGURE
+status=00000000/payload40512/wire40520/Success；RECOVERY Not Ready state=5
+stage=1 km=0 bytes=0 retained=1，fault=7 commands=1 resumes=1，
+response-header status=FFFFFFC2 payload40616 wire40624；BATCH
+stop=key-recovery passed=4A3，最终PARK。
+
+更正：此前记录把两张照片读成FFFFFFF2(-14)、passed=A43；放大重读后确认是
+FFFFFFC2(-62)、passed=4A3（照片attempt-01 aa69b26a…e89c27c、attempt-02
+b89a264c…0965faf0，转录已改）。基于-14的km_check_key_id/KM分区归因作废。
+
+-62静态归属：整个TA只有0x98c0内两处产生-62——(a)对象[obj+8]版本小于
+0xdde0()=0x4_0000_0005时无日志返回；(b)先打印四个Key blob …Level，再在键blob
+版本字段与已配置槽0x5b4f0/0x5b4f4/0x5b4f8/0x5b4fc不一致时返回。0x98c0由键blob
+校验链调用，begin经操作结构函数指针(0x8b1c的[x21+0x10]、0x8db4的[x19+0x40])进入，
+故直接bl图不可见。命中(a)还是(b)从HLOS不可观测；TWRP在同设备能解密，说明blob
+本身可用，嫌疑偏向配置槽内容或版本索引0x5a308（可能与缺失的0x3121 setVersion
+有关）。未证明resumes=1与-62有因果。M3/M4/M5仍未通过。
