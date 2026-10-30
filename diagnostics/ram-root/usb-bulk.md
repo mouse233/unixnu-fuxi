@@ -4884,3 +4884,36 @@ stage=m3-characteristics、ready0、decryptUNIMPLEMENTED/handoff0，PARK。
 共享注册页内容不变或覆盖全部未知完成分支；这些仍以绑定源码及主机快照反例
 为依据。UFS stop1/db0/tdb0/run0可见，历史SMMU FSR400仍未解释。没有定位-33，
 无密钥恢复/userdata明文；M3/M4/M5仍未通过。
+
+### 2026-10-30：TWRP 实际上下文与 keystore2 中间层只读复核
+
+用户自行进入TWRP并明确授权读取。互斥ps无活动任务，ADB确认fcde91e/recovery/
+fuxi/root/slot_a。B线新包uefi-twrp-data/out/m3-twrp-context-audit-v1，不是新固件
+候选，无新启动镜像、构建或fastboot命令；隔离候选80c605a1…62b9541保持原样。
+
+16:28 Asia/Shanghai的最终捕获：recovery、keystore2、KeyMint service三进程exe与
+四个vendor库SHA均匹配固定参考，进程start ticks/允许的映射文件名/属性两次稳定。
+release17，但ro.build.version.security_patch和ro.vendor.build.security_patch均为
+2099-12-31，区别于旧Android/UEFI configure的2026-10-05；当前属性不等于构造
+函数历史采样证据。KeyMint/keystore2/qseecomd running，listeners.registered=true。
+
+绑定工具首次因TWRP带标签的全局堆指针拒绝；额外8字节分类只保存布尔属性，未
+跟随指针。原先仅Android vold剥离顶字节，现主机工具也支持固定TWRP输入，仍检查
+低48位、对齐、唯一私有可读写映射及固定8/28字节读长。26项测试通过后，72字节
+元数据捕获确认TWRP recovery state2/空seed向量，两快照一致。没有读取seed/key。
+新上下文采集器17项模拟通过；原始捕获、拒绝记录和新旧源码哈希分别保留。
+
+固定keystore2 SHA c969b1d3…f4f5f4a，8段代码与4输入篡改拒绝通过；仅执行9条
+真实状态分支指令的6组合成对照确认(外层1,错误域1,-62)选择升级分支，且有后续
+操作重试代码。与固定AOSP源码流程相符，但不证明精确构建来源或实机metadata键
+走过升级；UEFI不加入upgrade/generate。两组公开configure输入的局部TA解析均0，
+只在模拟RAM写入预期字段；2099请求没有发给手机，不据此宣称可解除真实-62。
+
+三个service check退出127，未取得注册枚举证据，不等同服务缺失或legacy路径。
+本轮仅只读属性/proc结构元数据/二进制hash，未读密钥文件/口令/token/文件明文，
+未调用KeyMint API、触发解密/升级/装钥/写回或重启。规范专题与脱敏汇总分别为
+docs/fuxi-m3-twrp-keystore-context-20261030.md及docs/evidence同名JSON。
+下一候选应固定其余输入比较公开配置，不在-33后继续begin、不复用保留会话。
+历史FSR400、-33根因、真实恢复、userdata明文及M3/M4/M5均未通过。
+本轮UEFI工具/证据提交23c6eac4841855ba128b2911e2f6739c3685eca4，11个相关文件与
+提交/当前树一致；证据汇总SHA256 e6d10b4457c6e2a681c363d2bf1e574c141381073156698ee9d812db6cf4a42a。
