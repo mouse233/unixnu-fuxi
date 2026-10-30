@@ -4978,3 +4978,25 @@ uefi-twrp-data/out/m3-configure-context-a-v1/attempt-01/device-test.json，REVIE
 目前只有fastboot运输/启动命令返回，没有照片，不能判断UFS停机、configure、
 恢复或PARK，更不能判定真实-62解除或M3/M4/M5通过。保持当前画面待用户拍照，
 B候选未启动，不自动串联或复用当前会话。
+
+## 2026-10-30 — configure A attempt-01 照片确认：关闭特性探针仍复现-62
+
+用户提供IMG_7279.HEIC，原图/查看PNG/转录归档在
+uefi-twrp-data/out/m3-configure-context-a-v1/attempt-01/。首次沙箱内sips转换exit13，
+随后沙箱外仅转换主机临时图片exit0；没有修改原图或操作设备。
+精确照片SHA与逐项数值写入docs/evidence/fuxi-m3-configure-a-attempt01-20261030.json，
+候选REVIEW和configure-pair专题已追加照片结论。
+
+UFS stop1/db0/tdb0/run0/hcs10F/is0，gfsr0；历史SID60/FSR400仍在。
+CONFIGURE明确170000/20261005/20261005、evidence3CC89865、a0–a3均0、resumes0、
+status0/payload40912/wire40920并被接受。随后直接RECOVERY begin，无特性探针。
+RECOVERY result Not Ready、state5/stage1/km0/bytes0/retained1；fault7/exchange1/
+commands1/resumes1，response-header1/statusFFFFFFC2（-62）/payload40616/wire40624。
+BATCH stop key-recovery/passed4A3/env2/loader3/retained1，SMCI retained/no retry；
+RECOVERY END attempted1/retained1，最终m3-key-recovery/poisoned0/ready0/smmu-configured1，
+decrypt UNIMPLEMENTED/handoff0，PARK no USB receiver/no handoff。
+
+A在关闭特性探针后仍复现-62，未取得恢复明文；不唯一定位旧格式/某个版本字段。
+画面证实保留/PARK停点，不单独证明注册页物理字节或全部后续调用缺席；TA extent
+释放不等于注册共享页释放。B尚未启动，需手机重新进入fastboot后独立临时启动，
+不复用当前保留会话。M3/M4/M5未通过，无免USB重传声明。
