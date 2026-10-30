@@ -5084,3 +5084,47 @@ UEFI提交f95c0131b6dce44d78da72b331592121fddfa5f5，11文件/当前树/提交/�
 及有效collector SHA绑定通过。下一步审计真实boot/client初始化来源、封装及生命周期，
 设计同轮UEFI仅公开字段对照；不靠换日期、补发208/setVersion、升级或放宽隔离过门。
 实际返回PC、认证、真实密钥恢复及M3/M4/M5仍未通过，无免USB重传声明。
+
+## 2026-10-30 — boot/client离线核验：映像索引0可证，实机boot0仍未证
+
+用户要求核验boot/client初始化。新主机包uefi-twrp-data/out/m3-boot-client-audit-v1，
+非固件候选，无新镜像/构建/fastboot/安全命令。一次互斥ps无活动设备任务，ADB
+ devices退出0但列表为空，没有读取手机文件；用户随后明确选择“本轮先完成离线核验”，
+之后未访问设备。工作区未取得可核验的匹配cmnlib副本。
+
+固定TA的PT_DYNAMIC/DT_RELA证明：5a308为R_AARCH64_RELATIVE、symbol0、addend4c544，
+目标整数0且在非W的RX PT_LOAD。273个相对项应用到私有模拟映像，未用可写合成
+索引代替；真实STR尝试修改RX目标被WRITE_PROT拒绝。这给此前client0模型补上
+默认映像依据，但不等于实机加载器重定位/保护回读，不任意命名成Binder client ID。
+
+本地b490仅观察ready标记写入，不把日志桩的返回值当完整TA初始化成功。随后A/B
+public configure真实解析和getter分别得到170000/202610/20261005/boot0与
+170000/209912/20991231/boot0，未写boot或索引。固定0x200→ddf4是GetVersion：
+响应容量20/64返回[4,1,4,1012]，19返回-29，均未改boot/索引。不能把十六进制0x200
+与旧setVersion路径的十进制200（0xc8）混同；此固定表没有3121或c8，不据缺口重发。
+
+208→bb7c独立处理链先平台查询和一次性标记/长度/输入处理，后换算处理记录+28/
++2c位域、复制48字节上下文；bde0先写标记、bdf4写5b4f4，随后仍调用404b4。
+仅在公开合成记录上进入bcf8转换片段，精确有界memcpy建模，bdf8/404b4前停止：
+OS17.0.0→170000、月粒度2026-10→202610、带日5→20261005，其他OS/边界日期/
+地址变化与合成无效月控制也通过。局部转换不证明完整请求接受、授权或收尾，
+不是构造或发送真实boot参数；208会写TA状态，不能当只读探针直接添加。
+
+CElfFile_invoke加载路径由动态符号与JMPREL绑定cmnlib_init、GPAppLib_init、
+GPAppLib_appInit；固定构造器数组begin=end=5ab70为空，但三个外部SDK初始化仍在。
+未运行或以成功桩替代这些入口，故映像boot初值0/b490/configure不写boot共同仍
+不足以证明实机完成加载后boot0。实际初始化链与-62返回PC保持未验证。
+
+旧展开档init.recovery.qcom.rc逐字节匹配A17固定SHA ea004952…f2a10f1c，确认
+qseecomd先启动、listeners后KeyMint。固定deviceutils构造器61c8等同一listeners，
+从固定firmware目录加载keymaster64/回退keymaster再查询0x200版本；名为initialize
+的66c0只有BTI/返回0/RET，是空实现，不得凭名字或服务running推断boot已初始化。
+脚本与库顺序不是TWRP实际boot参数来源轨迹，未猜定由ABL/Android/loader哪方设置。
+
+2配置、3版本、7局部boot转换、2门控、4写保护/SMC/循环/修改输入边界共18组
+执行控制及固定输入/重定位/表项/库/脚本检查全部通过。未改生产固件；A/B各91
+源绑定仍完整，无需重跑无关固件资格。规范专题docs/fuxi-m3-boot-client-20261030.md，
+证据docs/evidence/fuxi-m3-boot-client-audit-20261030.json，旧专题和总入口已回填。
+UEFI提交8d01a75b57552b71116b5c0c9e5695dc9bb1715e，9文件/当前树/提交/审计输入绑定通过。
+后续门槛是匹配SDK或可信同轮初始化轨迹；不依局部结果伪造boot参数、试发208/
+setVersion或放宽隔离。M3/M4/M5及免USB重传均未通过。
