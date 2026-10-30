@@ -4917,3 +4917,48 @@ docs/fuxi-m3-twrp-keystore-context-20261030.md及docs/evidence同名JSON。
 历史FSR400、-33根因、真实恢复、userdata明文及M3/M4/M5均未通过。
 本轮UEFI工具/证据提交23c6eac4841855ba128b2911e2f6739c3685eca4，11个相关文件与
 提交/当前树一致；证据汇总SHA256 e6d10b4457c6e2a681c363d2bf1e574c141381073156698ee9d812db6cf4a42a。
+
+## 2026-10-30 — B线 public configure A/B 候选完成，等待两次独立临时启动
+
+用户请求完成候选。本轮只构建与主机检查，没有ADB/fastboot/手机重启或设备状态
+变更。两份独立目录均位于uefi-twrp-data/out/，没有覆盖旧v3–v6或隔离候选：
+
+| 候选 | OS / OS patch / vendor patch | 镜像SHA256 | 主机资格 |
+| --- | --- | --- | --- |
+| m3-configure-context-a-v1 | 170000 / 20261005 / 20261005 | 169e7401d2fa3fcce8347f50232b253c11bf884773b474fb2365b3b52185e44b | 29/29 exit0 |
+| m3-configure-context-b-v1 | 170000 / 20991231 / 20991231 | 81e1abd43ec63d27abd970be69943557d388b61e72ce6274f1684b9a977474f5 | 29/29 exit0 |
+
+两镜像各1,888,256字节，同一91文件源码，与提交
+09bc89e1d3dd733a30f86fca1e953a06ee11a36b逐文件一致；源码/当前树/产物绑定保存在
+各自committed-source-bindings.json。board pin1d071dae…f139e，框架7e237de0…cddc；
+框架既有dirty状态保留，两个复制脚本树实际SHA集合一致。两组board唯一差异为
+FUXI_M3_CONFIGURE_PATCH，共用新公开证据/tag；A不是旧v3位相同重打包。
+
+两组都关闭FUXI_M3_CHARACTERISTICS_PROBE，不在-33后续调begin；getVersion后
+一次public configure，随后既有恢复，无generate/upgrade/setVersion/写回/ICE。
+配置失败或恢复隔离/完成状态不明时仍保留注册范围并停止续调；输出只擦除、不
+导出。UFS停机、会话、未知完成及PARK门均保留，默认固件开关不变。
+
+新增公开证据SHA3cc89865a2f0de0298ef9fa5c2c593be7f8770594afb2f990cf0e1bff53f1320，
+绑定旧实机-64门和本轮TWRP属性证据；12组厂商编码匹配、26项TA公开解析、11项
+证据/日期拒绝通过。每组生产配置/恢复入口27项、普通入口17项、后端55项及
+默认关闭/启用交换层、M0/M1/M2、USB/SMMU、实际AARCH64对象/linked map、FD/EFI/
+交付镜像绑定全部通过。实际EFI有且仅有对应组请求，无特性探针入口。
+
+按A完整固件→默认/query模块→29项资格→B同样四段顺序执行，四段各exit0；
+实际对象分别归档live-objects/，没有在B之后用共享Build给A背书。pair-checks.json
+确认91文件、构建输入、复制框架脚本相同；仅日期define及预期绑定值不同。
+可提交汇总docs/evidence/fuxi-m3-configure-pair-20261030.json，专题
+uefi-twrp-data/docs/fuxi-m3-configure-pair-20261030.md；每组REVIEW已填写精确SHA、
+构建命令、报告及未验证边界，out不入库。
+
+每组attempt-01/boot-ram-window-once.py固定本组SHA、源码提交、91文件、29项资格、
+公开证据、fcde91e/profile usb-ram；启动前仍检查互斥/product/unlocked/slot_a/
+下载容量，单attempt不自动重试。两组--verify-only均exit0且无设备命令，记录在
+各attempt的preflight-observation.json。尚无device-test.json、启动或照片。
+
+后续先A后B，两次独立新启动，禁止复用失败会话或自动串联；照片保留UFS停止、
+configure三个公开值/状态、恢复state/stage/km/bytes/commands/resumes/retained/
+response-header和最终PARK。当前TWRP属性不证明构造采样，两组局部TA解析成功
+不证明实机-62解除；历史FSR400、-33/-62根因、真实密钥恢复/ICE/DUN/userdata
+明文及M3/M4/M5均未通过，没有免USB重传声明。
