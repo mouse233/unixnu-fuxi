@@ -4685,3 +4685,14 @@ committed-source-bindings.json为81/81文件与提交一致、镜像SHA256同562
 attempt-01/boot-ram-window-once.py已按该SHA固定profile（含configure-public-once、
 28项资格、81源码、证据817bc13d…6c2c32），以fastboot打桩干跑只走到"fastboot not found"，
 验证门之前未失败、未发送任何设备命令。待人工确认fastboot后单次临时boot。
+
+### 2026-10-30：configured-v3 attempt-01 临时启动（待照片）
+
+12:57 Asia/Shanghai，互斥ps无活动任务；fastboot可见fcde91e，启动脚本复核
+product fuxi/unlocked yes/current-slot a、镜像SHA256 5620674f…f01888、
+81文件提交绑定4ef310dd及configure证据817bc13d…6c2c32后，单次
+`--profile usb-ram`临时boot：Sending 0.040s OKAY、Booting 1.391s OKAY、
+总1.432s、exit0；无flash/分区写/slot变更/自动重试。命令与查询归档UEFI
+out/m3-key-recovery-configured-v3/attempt-01/device-test.json。待屏幕确认
+CONFIGURE begin/return/header/Success或失败停点与最终PARK；不能由boot命令
+成功推断configure被接受或恢复成功。M3/M4/M5仍未通过。
