@@ -4828,3 +4828,35 @@ os-version/present全0；随后begin仍FFFFFFC2，fault=7 commands=2 resumes=2�
 "key id %llu is not present"并返回-33。因此该命令对本keyId不被允许，
 与请求编码无关；该探针无法读取blob版本字段。begin的-62仍在后续
 键blob版本/参数校验处。M3/M4/M5仍未通过。
+
+### 2026-10-30：特性探针隔离修复与恢复路线更正（主机通过，未上机）
+
+B线独立候选`uefi-twrp-data/out/m3-characteristics-isolation-v1`，改动层UEFI、
+主机测试和资格工具。镜像1888256字节，SHA256
+80c605a1194bbc81593bcdac0ec1ef56e2996e8c827c81cd9afb4d84362b9541；86源码绑定。
+完整固件、默认/query模块顺序构建exit0，完整30项资格全部exit0。
+UEFI源码提交5354bef337e6e4cee2f1915788a3bb1801284e85；86/86文件与该提交及
+镜像SHA一致，见该候选committed-source-bindings.json。
+
+修复两处真实缺陷：特性探针遇未知完成/异常响应时原先会擦除注册共享页；CBOR
+解析失败原先不隔离且入口忽略错误继续begin。现提交后任何失败均保留页和私有
+请求、隔离并清除未发布的局部字段；入口独立检查错误，跳过恢复及reset/release/
+delete，Prepared输入及会话保留，attempted=0，最终PARK。负TA status也停止会话。
+18项探针、13项实际特性入口组合、既有17/27项普通/配置入口、55项后端通过；
+交换启用两变体各33项，默认关闭无SMC/cache。新增组合报告为强制交付门。
+
+纠正上条及恢复记录：-33的key-id表缺失仅是静态候选解释，直接bl图没有覆盖间接
+回调/跳板/错误传播，不能证明本次实机命中，更不能推出旧格式或权限结论。
+固定HAL明确generate_key使用2108，非legacy TEE upgrade_key使用2114；恢复记录
+末尾“v7 upgradeKey(2108)”建议错误且撤回。生成/升级/setVersion未接入，交换层
+反例确认这些命令在SMC/cache前拒绝。此记录不代表此前已发送生成/升级命令。
+
+固定3输入/10段代码审计与6组真实TA局部版本门的公开合成对照通过：全部匹配为0，
+格式过低及OS/OS patch/boot patch/vendor patch分别不匹配均为-62；OS patch getter
+将本轮原始20261005规范化为202610，因此只读两个整数不足以定位-62。未使用真实
+blob或调用安全服务；TWRP/keystore2运行时上下文尚未完整覆盖。审计容器缺Unicorn，
+显式已有主机Python完成最终合成检查，未装依赖。详见UEFI规范专题
+docs/fuxi-m3-characteristics-isolation-20261030.md及候选REVIEW。
+
+本轮无设备操作、无新实机证据；下一次需验证失败后只保留并PARK、不再begin。
+M3/M4/M5仍未通过，不能宣称userdata明文或免USB重传。
