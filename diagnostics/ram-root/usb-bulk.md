@@ -5464,3 +5464,36 @@ handoff0。UFS stop1/db0/tdb0/run0/hcs10F/is0/gfsr0，历史FSR400仍在；M2已
 相容；vendor公开值与configure请求确有差异，但有效vendor槽、boot和实际返回路径
 未知，仍不能唯一归因或直接升级。报告追加§17，下一步优先核验有效boot/vendor
 上下文与选择槽的只读可观测性。无后续设备命令，M3/M4/M5仍未通过。
+
+
+## 2026-10-31 — 有效上下文离线审计：找到boot输出路径，尚无查询固件
+
+承接IMG_7303同次公开输入/-62，本轮只修改B线主机工具/文档，没有设备访问、
+固件改动或新镜像。UEFI提交daaf87db，规范说明docs/fuxi-m3-effective-context-20261031.md，
+evidence/fuxi-m3-effective-context-audit-20261031.json；报告追加§18。
+固定TA SHA2fc838a8…与匹配HAL SHA657093d0…均严格校验。
+
+89项命令表（86个不同命令，保留重复与flags）命名核对确认：311f是
+KEYMINT_GET_ROOT_OF_TRUST，31c44调用boot getter b850，31c48把值放入w4，
+31c5c调用整数编码器。5组公开合成boot值的编码前片段控制通过，禁止内存写，
+在编码前停，不执行完整handler、MAC、认证/安全服务。不是实机boot回读。
+311e实际是KEYMINT_GENERATE_CSR，218=FBE_SET_SEED，207=SET_VERSION，211=SET_VBH，
+不能作为只读查询替代；HAL getRootOfTrustChallenge直接返回服务错误-100。
+
+HAL请求标签4字节串，AIDL子集16字节；孤立TA解析控制显示0/15/16/17/130/131
+长度均可解析，缺标签返回6，错误整数类型-1。初次把131视为应拒绝的断言假设
+已按真实借用输入语义修正，不能把局部缓冲长度误当输入上限。未来查询器须
+显式约束核验过的16字节子集，parser成功不证明完整方法接受或认证完成。
+
+311f仍需configured、5ba58 boot-state标记、5b520初始化标记及所选VBH。多个
+前置可返回-30，不是唯一boot判别码；后续490b4/7fd0/16b80→导入服务1c0链未执行，
+完整响应/回调/加密服务/失败收尾与只读属性仍待核验。该handler段没有直接调用
+vendor getter，但全映像直接调用枚举不是间接/内联路径不存在的证明。
+vendor有效槽与实际selector未读到，映像RX索引常量0不能当运行态观测。
+
+89命令名、8身份、16原始B/BL边、13指令字、5boot片段、8公开parser控制全通过，
+7工具依赖源码与提交绑定通过；out/m3-effective-context-audit-v1保存完整汇编与REVIEW。
+Unicorn沙箱内JIT退出132，沙箱外私有内存控制成功，没有安装依赖或发送安全命令。
+下一门槛为补完整311f只读/响应契约，vendor/selector另找可信路径；未生成可上机
+候选，未复用当前隔离会话。原候选31资格/镜像/照片来源不变；-62实际PC、真实
+boot/vendor/selector、FSR400和M3/M4/M5仍未通过。
