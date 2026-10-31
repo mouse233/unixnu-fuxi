@@ -5400,3 +5400,32 @@ begin的352a8、也在upgrade解析的3720c调用。早期解析可传播-30，�
 B/BL目标检查通过，记录于out/m3-minus62-research-review-20261031。仅主机
 静态读取，无设备、厂商执行/模拟、固件构建或密钥/升级操作。未改动既有源码
 及其他会话未完成文件，未直接接入任何201/208/2114或未知payload日志方案。
+
+
+## 2026-10-31 — -62 同次公开输入观测候选已完成，等待FASTBOOT
+
+沿研究审查结论补同次输入关联证据：B线独立 `out/m3-sameboot-public-v1`，
+改动层UEFI/主机资格。实现提交da479d0a、规范证据24493cdb已推送mouse233/uefi-fuxi
+的feat/twrp-data-uefi。保持A组loadFromBuffer/getVersion/configure/recovery顺序与
+170000/20261005/20261005，未合并lookup新路径或增加TA命令。
+
+新开关FUXI_M3_RECOVERY_PUBLIC默认关，在首次begin前解析CPU实际blob公开前缀，
+记录format、两授权域的白名单版本/algorithm/FBE存在位及mask；configure与恢复
+记录同次App/source。不访问加密尾部、不输出opaque ID/未知项/材料或摘要，明确
+unauthenticated、boot-state unobserved、底层实例新旧unproven。解析失败不发begin，
+秘密交换未知状态保留与PARK规则不变，无升级/生成/201/208/setVersion/ICE/解密接线。
+
+镜像1,888,256字节，SHA256
+035fb1adeb3adc2718ec0896539467ce4bd37ec8042061845ccdc5064a432b15；
+102项源码当前树/提交/镜像绑定通过。完整固件与默认/query模块构建退出0，最终
+31项资格全退出0；新增944项C/Python差分、PROT_NONE尾部、ASan/UBSan，与29项
+入口/同App/提交合成blob/异常保留检查通过。实际对象/map归档live-objects。
+首轮最后交付检查因新检查器初始化顺序错误失败；仅修正主机检查器、保留原失败
+记录与构建时source清单，确认固件字节未变后完整重跑资格通过。
+
+独立attempt-01启动脚本固定镜像/源码/profile/设备/slot与资格，--verify-only
+实际退出0。设备互斥检查无活动任务，fastboot devices为空，未临时启动或重试；
+已请用户手动进入FASTBOOT，后续仅一次fastboot boot，等待照片再给实机结论。
+规范摘要docs/evidence/fuxi-m3-sameboot-public-candidate-20261031.json，说明
+文档docs/fuxi-m3-sameboot-public-20261031.md及候选REVIEW。旧A/B来源未重绑，
+历史FSR400、真实boot/SDK初始化/安全实例/-62返回PC未解决，M3/M4/M5未通过。
