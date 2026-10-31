@@ -5532,3 +5532,17 @@ post-MAC codec、6边界/失败、5容量控制、10原始边通过，无成功P
 已请用户手动进入FASTBOOT，后续只一次fastboot boot，照片再判实机结果。
 规范说明docs/fuxi-m3-root-trust-query-20261031.md、候选evidence与报告§19同步。
 vendor有效槽/selector/真实-62返回PC仍未观测，历史FSR400与M3/M4/M5未解决。
+
+
+## 2026-10-31 12:22 — 独立boot查询attempt-01已临时启动，等待照片
+
+用户确认FASTBOOT后，互斥检查无活动设备任务，fcde91e可见；固定候选
+m3-root-trust-query-v1的镜像/源码/114源/26资格 --verify-only再次退出0。脚本核验
+product=fuxi、unlocked=yes、slot=a、max-download-size=805306368，12:22:20–22
+Asia/Shanghai仅一次fastboot boot，Sending0.040s/Booting1.539s/总1.580s返回0。
+无重试、flash、分区写或slot变更。原始记录在该候选attempt-01/device-test.json，
+规范摘要docs/evidence/fuxi-m3-root-trust-query-boot-20261031.json，UEFI提交e1070f10。
+
+当前尚无屏幕照片；ROOTCTX configure/query、boot整数、retained/清理、UFS stop与
+最后PARK均待确认，不以fastboot返回0声明硬件查询成功。已请用户发送完整画面，
+未续发设备命令。MAC未验证、实际vendor/selector/-62返回PC与M3/M4/M5边界不变。
