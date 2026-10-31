@@ -5546,3 +5546,31 @@ Asia/Shanghai仅一次fastboot boot，Sending0.040s/Booting1.539s/总1.580s返�
 当前尚无屏幕照片；ROOTCTX configure/query、boot整数、retained/清理、UFS stop与
 最后PARK均待确认，不以fastboot返回0声明硬件查询成功。已请用户发送完整画面，
 未续发设备命令。MAC未验证、实际vendor/selector/-62返回PC与M3/M4/M5边界不变。
+
+
+## 2026-10-31 — boot查询照片确认202607，有限会话清理完成
+
+用户JPEG已归档m3-root-trust-query-v1/attempt-01/screen-01.jpg，SHA256
+7f1f34aa2874b6cf66a6c8d49ebbd9f72144212c4ad86a9113effb930abea246。
+回绕缓存画面按源码顺序人工转录screen-observation.json，最终hardware-result.json；
+规范证据docs/evidence/fuxi-m3-root-trust-query-device-20261031.json，UEFI提交35b16b2d。
+
+照片确认GetVersion4/1/4/1012；App4固定A configure成功（status0/payload40912/
+wire40920/resumes0）。同App4单次311f返回a0..a3=0/resumes0、status0/payload127/
+wire40920，结构解析boot-patch=202607，MAC未验证。App4/loader3/env2 release均
+Success，bridge229802A delete全0，complete/passedCFF/env0/loader0/retained0，
+registered bytes82000释放、TA extent64000释放；最终stage=m3-root-context/
+poisoned0/ready0/smmu-configured1、decrypt UNIMPLEMENTED/handoff0并PARK。
+UFS stop1/db0/tdb0/run0/hcs10F/is0/gfsr0，历史FSR400仍在，不能当完整DMA/路由恢复。
+有限清理状态可见，实际清零还依赖源码/主机验证，不仅凭照片证明物理擦除。
+
+本轮boot结构观察完成，没有恢复输入/begin，也未复测-62；TA是否首次初始化
+MAC缓存不可从说明日志推定。上轮实际blob公开boot202610与本轮202607不同，但
+跨启动，不能倒填历史A/B或上轮begin的getter、认证后结构或返回PC。若静态门等
+前提满足，boot比较可在vendor比较前失败，当前仍不能唯一归因。
+
+直接核验本轮与上轮交付镜像均v3，offset16原始值0x220001a7，头日期2026-07；
+与本轮query值数值吻合，不证明ABL实际选择头回退或同一底层实例。检查保存
+boot-header-comparison.json，原镜像未改。下一步应在独立新候选同次/同App关联
+boot查询、实际blob白名单与首次begin，保持版本/认证/隔离规则；组合尚未实现。
+报告追加§20，无后续设备命令，vendor/selector/-62 PC、FSR400及M3/M4/M5未解决。
