@@ -5497,3 +5497,38 @@ Unicorn沙箱内JIT退出132，沙箱外私有内存控制成功，没有安装�
 下一门槛为补完整311f只读/响应契约，vendor/selector另找可信路径；未生成可上机
 候选，未复用当前隔离会话。原候选31资格/镜像/照片来源不变；-62实际PC、真实
 boot/vendor/selector、FSR400和M3/M4/M5仍未通过。
+
+
+## 2026-10-31 — 独立boot查询候选完成，等待FASTBOOT
+
+承接311f输出路径审计，新增B线独立out/m3-root-trust-query-v1，UEFI/主机资格改动，
+源码提交6cfdfec8、候选规范证据1a387859，已推送mouse233/uefi-fuxi feat/twrp-data-uefi。
+默认关闭ROOT_TRUST_QUERY开关，显式开启仅root/open122/load64/getVersion、固定A
+configure一次、311f一次、验证/清页/释放/delete、PARK。不读恢复密钥文件，不发
+begin/update/finish/abort，不接ICE/userdata解密/RAM交接，不改日期/boot或分区。
+
+完整封装核验：ROT为tag40001数组，COSE_Mac0 tag17包裹后经map36 bstr返回；
+boot202610时payload79/MAC输入108/COSE122/最终payload127字节。11组前加密与独立
+post-MAC codec、6边界/失败、5容量控制、10原始边通过，无成功PRNG/HMAC桩。
+真实TA可能初始化其私有32字节RAM MAC缓存并调用qsee_SW_Hmac，因此不是无状态
+查询；未执行真实SDK服务，不能泛化所有内部回调/持久化副作用已穷尽。
+
+独立候选只输出boot uint32与SMC/状态/长度，跳过两段32字节数据及MAC，不输出/
+摘要其值；明确MAC未验证/结构观察，不是attestation或密钥恢复。版本必须
+4/1/4/1012，UFS仍ready/poisoned在安全调用前拒绝；未知/非零/畸形/回调/续调耗尽
+保持注册范围原样并停，不重试/release/delete/free。私有TA extent仍单独按原规则
+擦除释放，不代表注册范围释放。恢复相关KEY/SECRET/BINDING宏均关闭。
+
+镜像1,884,160字节，SHA256
+0388aae26ec4df740ecc8aa523a7f6329b4525daf27b16b1b9dd3797bfb913da。
+114源当前树/提交绑定，固件/默认/query模块构建均退出0，最终26项资格全退出0；
+32生产入口、1170解析/保护页/ASan/UBSan、11实码合成向量、27旧恢复回归通过。
+实际对象/map归档live-objects，Native导入无Fkr/Fse/Fkm恢复调用者，实际EFI请求/
+配置/唯一SMC与default-query门控通过。首轮主机交付检查期待旧load-only计划字符串
+而失败，仅补新分支、保留失败日志和构建时清单后重跑完整26检查；固件字节未变。
+
+独立attempt-01脚本固定镜像/源码/114源/26检查/新用例及契约/配置证据；
+--verify-only实际退出0。互斥检查无任务，fastboot devices为空，未启动或重试，
+已请用户手动进入FASTBOOT，后续只一次fastboot boot，照片再判实机结果。
+规范说明docs/fuxi-m3-root-trust-query-20261031.md、候选evidence与报告§19同步。
+vendor有效槽/selector/真实-62返回PC仍未观测，历史FSR400与M3/M4/M5未解决。
