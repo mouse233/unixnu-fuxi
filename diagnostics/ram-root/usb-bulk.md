@@ -5429,3 +5429,38 @@ unauthenticated、boot-state unobserved、底层实例新旧unproven。解析失
 规范摘要docs/evidence/fuxi-m3-sameboot-public-candidate-20261031.json，说明
 文档docs/fuxi-m3-sameboot-public-20261031.md及候选REVIEW。旧A/B来源未重绑，
 历史FSR400、真实boot/SDK初始化/安全实例/-62返回PC未解决，M3/M4/M5未通过。
+
+
+## 2026-10-31 11:12 — 同次公开输入候选已启动，IMG_7303复现-62
+
+用户确认FASTBOOT后，互斥、fcde91e/product=fuxi/unlocked=yes/slot_a/容量通过，
+固定候选m3-sameboot-public-v1的102源/31资格 --verify-only再次退出0。11:12:44–46
+Asia/Shanghai仅一次fastboot boot，Sending0.040s/Booting1.592s/总1.633s退出0；
+无重试、flash、分区写或slot变更。原始记录在该候选attempt-01/device-test.json。
+UEFI启动公开证据提交0b410e87；照片/报告更新提交0808885c，均在mouse233/uefi-fuxi
+的feat/twrp-data-uefi归档。
+
+用户IMG_7303.HEIC原图归档screen-01.HEIC，SHA256
+0fcf7734595c7353b2e68417abf56ba129383775e16564ce6ee1326ef41aa162。
+沙箱内sips产生无像素JPEG，已保留；沙箱外仅转换主机照片成功，原图未改。
+逐项人工转录screen-observation.json；照片是回绕的缓存报告，按源码顺序整理，
+不冒充串口日志。规范证据docs/evidence/fuxi-m3-sameboot-public-device-20261031.json。
+
+照片确认：configure与恢复观测App4/source=loadfrombuffer，配置170000/20261005/
+20261005成功，status0/payload40912/wire40920/resumes0。PUBLIC format0x400000005、
+prefix142/total208、unauthenticated；software mask0（字段缺失，不是实际版本0），
+hardware mask1F：OS170000、OS patch202610、boot202610、vendor20260801、algorithm32、
+fbe0。随后首次RECOVERY begin仍Not Ready，state5/stage1/km0/bytes0/retained1，
+fault7/exchange1/commands1/resumes1，response-header1/FFFFFFC2（-62）/
+payload40616/wire40624。km0不是已接受的TA成功状态。
+
+batch stop=key-recovery/passed4A3/env2/loader3/retained1/no retry，attempted1并PARK；
+final stage=m3-key-recovery/poisoned0/ready0/smmu-configured1/decrypt UNIMPLEMENTED/
+handoff0。UFS stop1/db0/tdb0/run0/hcs10F/is0/gfsr0，历史FSR400仍在；M2已知文件
+10527字节哈希匹配，不当作userdata明文、完整DMA/路由恢复或M3通过。
+
+本次补齐“当前实际CPU输入公开字段与当前-62同次关联”，不证明历史A/B全blob
+字节相同或认证后结构/真实返回PC。公开格式达静态门槛，OS patch与A规范化模型
+相容；vendor公开值与configure请求确有差异，但有效vendor槽、boot和实际返回路径
+未知，仍不能唯一归因或直接升级。报告追加§17，下一步优先核验有效boot/vendor
+上下文与选择槽的只读可观测性。无后续设备命令，M3/M4/M5仍未通过。
